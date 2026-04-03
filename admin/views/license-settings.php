@@ -5,33 +5,90 @@ if ( ! defined( 'ABSPATH' ) ) {
 $option_key = RWGA_Settings::OPTION_KEY;
 $settings   = RWGA_Settings::get_settings();
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-license';
+
+$summary = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
+$cache   = class_exists( 'RWGA_Usage', false ) ? RWGA_Usage::get_cache() : null;
+
+$lic_ok = ! empty( $summary['license_configured'] );
+$last_refresh = ( null !== $cache && ! empty( $cache['refreshed_at_gmt'] ) ) ? (string) $cache['refreshed_at_gmt'] : __( 'Never', 'reactwoo-geo-ai' );
+
+$refresh_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
+$connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editable in Advanced when enabled by your integrator.', 'reactwoo-geo-ai' );
+
 ?>
-<div class="wrap rwgc-wrap rwga-wrap">
-	<h1><?php esc_html_e( 'Geo AI — ReactWoo API', 'reactwoo-geo-ai' ); ?></h1>
-	<p class="description">
-		<?php esc_html_e( 'Enter your ReactWoo product license and API base here. Geo Core (WordPress.org) does not store commercial credentials; this satellite plugin follows the same JWT login pattern as other ReactWoo commercial plugins.', 'reactwoo-geo-ai' ); ?>
-	</p>
+<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--license">
+	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+		<?php
+		RWGC_Admin_UI::render_page_header(
+			__( 'License', 'reactwoo-geo-ai' ),
+			__( 'Activate your plan and refresh usage. API infrastructure is managed for you unless Advanced overrides are explicitly enabled.', 'reactwoo-geo-ai' )
+		);
+		?>
+	<?php else : ?>
+		<h1><?php esc_html_e( 'Geo AI — License', 'reactwoo-geo-ai' ); ?></h1>
+	<?php endif; ?>
+
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
-	<div class="rwgc-card" style="max-width: 720px;">
-	<form method="post" action="options.php">
-		<?php settings_fields( 'rwga_license_group' ); ?>
-		<table class="form-table" role="presentation">
-			<tr>
-				<th scope="row"><label for="rwga_reactwoo_api_base"><?php esc_html_e( 'API base URL', 'reactwoo-geo-ai' ); ?></label></th>
-				<td>
-					<input type="url" id="rwga_reactwoo_api_base" name="<?php echo esc_attr( $option_key ); ?>[reactwoo_api_base]" value="<?php echo esc_attr( isset( $settings['reactwoo_api_base'] ) ? $settings['reactwoo_api_base'] : 'https://api.reactwoo.com' ); ?>" class="regular-text code" />
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><label for="rwga_reactwoo_license_key"><?php esc_html_e( 'ReactWoo product license key', 'reactwoo-geo-ai' ); ?></label></th>
-				<td>
-					<input type="password" id="rwga_reactwoo_license_key" name="<?php echo esc_attr( $option_key ); ?>[reactwoo_license_key]" value="<?php echo esc_attr( isset( $settings['reactwoo_license_key'] ) ? $settings['reactwoo_license_key'] : '' ); ?>" class="regular-text" autocomplete="off" />
-					<p class="description"><?php esc_html_e( 'Leave blank to keep the current saved key.', 'reactwoo-geo-ai' ); ?></p>
-				</td>
-			</tr>
-		</table>
-		<?php submit_button(); ?>
-	</form>
+	<?php settings_errors( 'rwga_geo_ai' ); ?>
+
+	<?php if ( ! empty( $_GET['rwga_disconnected'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'License key removed from this site.', 'reactwoo-geo-ai' ); ?></p></div>
+	<?php endif; ?>
+
+	<div class="rwgc-grid" style="align-items: flex-start;">
+		<div class="rwgc-card" style="max-width: 520px;">
+			<h2><?php esc_html_e( 'Product license', 'reactwoo-geo-ai' ); ?></h2>
+			<p class="description"><?php echo esc_html( $connect_hint ); ?></p>
+
+			<p style="margin: 12px 0;">
+				<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+					<?php
+					RWGC_Admin_UI::render_badge(
+						$lic_ok ? __( 'Key on file', 'reactwoo-geo-ai' ) : __( 'Not configured', 'reactwoo-geo-ai' ),
+						$lic_ok ? 'success' : 'warning'
+					);
+					?>
+				<?php else : ?>
+					<strong><?php echo $lic_ok ? esc_html__( 'Key on file', 'reactwoo-geo-ai' ) : esc_html__( 'Not configured', 'reactwoo-geo-ai' ); ?></strong>
+				<?php endif; ?>
+			</p>
+
+			<dl class="rwga-license-dl">
+				<dt><?php esc_html_e( 'Last usage refresh', 'reactwoo-geo-ai' ); ?></dt>
+				<dd><?php echo esc_html( $last_refresh ); ?></dd>
+				<?php if ( null !== $cache && isset( $cache['license_tier'] ) && '' !== (string) $cache['license_tier'] ) : ?>
+					<dt><?php esc_html_e( 'Plan', 'reactwoo-geo-ai' ); ?></dt>
+					<dd><?php echo esc_html( (string) $cache['license_tier'] ); ?></dd>
+				<?php endif; ?>
+				<?php if ( null !== $cache && isset( $cache['used'], $cache['limit'] ) ) : ?>
+					<dt><?php esc_html_e( 'Usage (this period)', 'reactwoo-geo-ai' ); ?></dt>
+					<dd><?php echo esc_html( (string) (int) $cache['used'] . ' / ' . (int) $cache['limit'] ); ?></dd>
+				<?php endif; ?>
+			</dl>
+
+			<form method="post" action="options.php" class="rwga-license-form">
+				<?php settings_fields( 'rwga_license_group' ); ?>
+				<input type="hidden" name="<?php echo esc_attr( $option_key ); ?>[rwga_form_scope]" value="license" />
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="rwga_reactwoo_license_key"><?php esc_html_e( 'License key', 'reactwoo-geo-ai' ); ?></label></th>
+						<td>
+							<input type="password" id="rwga_reactwoo_license_key" name="<?php echo esc_attr( $option_key ); ?>[reactwoo_license_key]" value="" class="regular-text" autocomplete="off" placeholder="<?php echo esc_attr__( 'Enter new key or leave blank to keep current', 'reactwoo-geo-ai' ); ?>" />
+							<p class="description"><?php esc_html_e( 'Leave blank to keep the saved key.', 'reactwoo-geo-ai' ); ?></p>
+						</td>
+					</tr>
+				</table>
+				<?php submit_button( __( 'Save license', 'reactwoo-geo-ai' ) ); ?>
+			</form>
+
+			<p class="rwga-license-actions">
+				<a class="button" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>
+				<?php if ( $lic_ok ) : ?>
+					<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=clear_license' ), 'rwga_clear_license' ) ); ?>" onclick="return window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>);"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></a>
+				<?php endif; ?>
+			</p>
+			<p class="description"><?php esc_html_e( 'Manage subscription and billing in your ReactWoo account (link varies by product).', 'reactwoo-geo-ai' ); ?></p>
+		</div>
 	</div>
 </div>

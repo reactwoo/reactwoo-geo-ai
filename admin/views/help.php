@@ -17,8 +17,8 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-help'
 				— <?php esc_html_e( 'MaxMind / GeoLite2 key powers IP lookups only.', 'reactwoo-geo-ai' ); ?>
 			</li>
 			<li>
-				<strong><?php esc_html_e( 'Geo AI → License & API', 'reactwoo-geo-ai' ); ?></strong>
-				— <?php esc_html_e( 'ReactWoo product key and API base for AI-assisted variant drafts and usage. Not stored in Geo Core.', 'reactwoo-geo-ai' ); ?>
+				<strong><?php esc_html_e( 'Geo AI → License', 'reactwoo-geo-ai' ); ?></strong>
+				— <?php esc_html_e( 'ReactWoo product license for AI-assisted drafts and usage. Not stored in Geo Core.', 'reactwoo-geo-ai' ); ?>
 			</li>
 		</ul>
 	</div>
@@ -32,7 +32,7 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-help'
 				<li><?php esc_html_e( 'On Overview, run the connection tests and use Geo Core Tools if something fails.', 'reactwoo-geo-ai' ); ?></li>
 			</ol>
 			<p>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="button button-primary"><?php esc_html_e( 'License & API', 'reactwoo-geo-ai' ); ?></a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="button button-primary"><?php esc_html_e( 'License', 'reactwoo-geo-ai' ); ?></a>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-dashboard' ) ); ?>" class="button"><?php esc_html_e( 'Overview', 'reactwoo-geo-ai' ); ?></a>
 			</p>
 		</div>

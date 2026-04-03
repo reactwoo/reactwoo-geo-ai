@@ -53,6 +53,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/class-rwga-connection.php';
 		require_once RWGA_PATH . 'includes/class-rwga-stats.php';
 		require_once RWGA_PATH . 'includes/class-rwga-usage.php';
+		require_once RWGA_PATH . 'includes/class-rwga-drafts.php';
 		require_once RWGA_PATH . 'includes/class-rwga-admin.php';
 		require_once RWGA_PATH . 'includes/class-rwga-block-editor.php';
 		RWGA_Admin::init();

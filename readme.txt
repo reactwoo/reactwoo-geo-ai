@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.1.16.0
+Stable tag: 0.1.18.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,17 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.1.18.0 =
+* **Overview:** **Geo suite** card — quick links to **Geo Core**, **Geo Elementor** (when active; supports `geo-elementor/` and `GeoElementor/` plugin paths), **Geo Commerce**, **Geo Optimise** when those plugins are active (`RWGC_Admin_UI::render_quick_actions`).
+
+= 0.1.17.0 =
+* **IA:** **Overview**, **License**, **Drafts / Queue**, **Advanced**, **Help** — inner nav and submenus aligned with the Geo Suite product brief.
+* **License:** Merchant-first screen (**license key**, **usage/plan** when cached, **Refresh usage**, **Disconnect**). **API base URL** removed from the default form; default host is internal unless **`RWGA_REACTWOO_API_BASE`**, filter **`rwga_reactwoo_api_base`**, or **`RWGA_SHOW_API_BASE_UI`** / filter **`rwga_show_api_base_field`** enables the Advanced field.
+* **Overview:** Outcome-first dashboard (stat cards via Geo Core **`RWGC_Admin_UI`** when available), quick actions, setup checklist, queue preview; technical checks moved to **Advanced**.
+* **Advanced:** REST URLs, capability links, **Check AI connection**, **Refresh usage**, **Validate variant route** (renamed actions), hooks note.
+* **Drafts / Queue:** Empty-state shell with filter **`rwga_draft_queue_rows`**.
+* **Styles:** Enqueue Geo Core **`rwgc-suite.css`** when present; **`rwga-admin.css`** complements for license/queue spacing.
 
 = 0.1.16.0 =
 * **Admin:** **Top-level Geo AI menu** (Overview, License & API, Help). No longer nested under Geo Core sidebar.

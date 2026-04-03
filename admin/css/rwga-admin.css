@@ -47,3 +47,58 @@
 .rwga-wrap .rwga-dev-details code {
   font-size: 12px;
 }
+
+.rwga-license-dl {
+  margin: 0 0 16px;
+  display: grid;
+  grid-template-columns: minmax(120px, 40%) 1fr;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+
+.rwga-license-dl dt {
+  margin: 0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.rwga-license-dl dd {
+  margin: 0;
+}
+
+.rwga-license-actions .button {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.rwga-table-comfortable th,
+.rwga-table-comfortable td {
+  padding: 12px 14px;
+}
+
+.rwga-code-block {
+  display: block;
+  margin-top: 8px;
+  word-break: break-all;
+  font-size: 12px;
+}
+
+.rwga-code-inline {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.rwga-empty-hint {
+  color: #64748b;
+  margin: 0 0 12px;
+  max-width: 52em;
+}
+
+.rwga-suite-satellite-links {
+  margin-bottom: 20px;
+}
+
+.rwga-suite-satellite-links .rwga-suite-satellite-links__title {
+  margin-top: 0;
+  font-size: 16px;
+}

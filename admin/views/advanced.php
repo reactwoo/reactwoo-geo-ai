@@ -1,0 +1,150 @@
+<?php
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+$rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-advanced';
+
+$variant_draft_url     = isset( $variant_draft_url ) && is_string( $variant_draft_url ) ? $variant_draft_url : '';
+$rest_capabilities_url = isset( $rest_capabilities_url ) && is_string( $rest_capabilities_url ) ? $rest_capabilities_url : '';
+$rest_location_url     = isset( $rest_location_url ) && is_string( $rest_location_url ) ? $rest_location_url : '';
+$rest_v1_base          = isset( $rest_v1_base ) && is_string( $rest_v1_base ) ? $rest_v1_base : '';
+$rwga_summary          = isset( $rwga_summary ) && is_array( $rwga_summary ) ? $rwga_summary : array();
+
+$settings = RWGA_Settings::get_settings();
+$can_api  = class_exists( 'RWGA_Settings', false ) && RWGA_Settings::can_edit_api_base_field();
+
+$ai_health_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=ai_health' ), 'rwga_dash_ai_health' );
+$ai_usage_url  = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
+$rest_smoke_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=rest_post_smoke' ), 'rwga_dash_rest_post_smoke' );
+
+$resolved_base = '';
+if ( class_exists( 'RWGC_Platform_Client', false ) ) {
+	$resolved_base = RWGC_Platform_Client::get_api_base();
+} elseif ( ! empty( $rwga_summary['api_base'] ) ) {
+	$resolved_base = (string) $rwga_summary['api_base'];
+}
+
+?>
+<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--advanced">
+	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+		<?php
+		RWGC_Admin_UI::render_page_header(
+			__( 'Advanced', 'reactwoo-geo-ai' ),
+			__( 'Connection checks, REST references, and optional infrastructure overrides for developers and support.', 'reactwoo-geo-ai' )
+		);
+		?>
+	<?php else : ?>
+		<h1><?php esc_html_e( 'Geo AI — Advanced', 'reactwoo-geo-ai' ); ?></h1>
+	<?php endif; ?>
+
+	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+
+	<?php settings_errors( 'rwga_geo_ai' ); ?>
+
+	<?php if ( $can_api ) : ?>
+		<div class="rwgc-card" style="max-width: 720px;">
+			<h2><?php esc_html_e( 'API endpoint (optional)', 'reactwoo-geo-ai' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Override the default ReactWoo API base only when directed by support or your deployment.', 'reactwoo-geo-ai' ); ?></p>
+			<form method="post" action="options.php">
+				<?php settings_fields( 'rwga_license_group' ); ?>
+				<input type="hidden" name="<?php echo esc_attr( RWGA_Settings::OPTION_KEY ); ?>[rwga_form_scope]" value="advanced" />
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="rwga_reactwoo_api_base_adv"><?php esc_html_e( 'API base URL', 'reactwoo-geo-ai' ); ?></label></th>
+						<td>
+							<input type="url" id="rwga_reactwoo_api_base_adv" name="<?php echo esc_attr( RWGA_Settings::OPTION_KEY ); ?>[reactwoo_api_base]" value="<?php echo esc_attr( isset( $settings['reactwoo_api_base'] ) ? $settings['reactwoo_api_base'] : 'https://api.reactwoo.com' ); ?>" class="regular-text code" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="rwga_reactwoo_license_key_adv"><?php esc_html_e( 'License key', 'reactwoo-geo-ai' ); ?></label></th>
+						<td>
+							<input type="password" id="rwga_reactwoo_license_key_adv" name="<?php echo esc_attr( RWGA_Settings::OPTION_KEY ); ?>[reactwoo_license_key]" value="" class="regular-text" autocomplete="off" />
+							<p class="description"><?php esc_html_e( 'Leave blank to keep the current key.', 'reactwoo-geo-ai' ); ?></p>
+						</td>
+					</tr>
+				</table>
+				<?php submit_button( __( 'Save advanced settings', 'reactwoo-geo-ai' ) ); ?>
+			</form>
+		</div>
+	<?php else : ?>
+		<div class="rwgc-card">
+			<h2><?php esc_html_e( 'API endpoint', 'reactwoo-geo-ai' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'The ReactWoo API host is managed automatically. Overrides are available only when enabled (constant, filter, or support mode).', 'reactwoo-geo-ai' ); ?>
+			</p>
+			<?php if ( '' !== $resolved_base ) : ?>
+				<p><code class="rwga-code-inline"><?php echo esc_html( $resolved_base ); ?></code></p>
+			<?php endif; ?>
+		</div>
+	<?php endif; ?>
+
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Connection checks', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Use these when troubleshooting; they may show short technical responses.', 'reactwoo-geo-ai' ); ?></p>
+		<p>
+			<a class="button" href="<?php echo esc_url( $ai_health_url ); ?>"><?php esc_html_e( 'Check AI connection', 'reactwoo-geo-ai' ); ?></a>
+			<a class="button" href="<?php echo esc_url( $ai_usage_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>
+		</p>
+		<h3><?php esc_html_e( 'Variant route (local validation)', 'reactwoo-geo-ai' ); ?></h3>
+		<p class="description"><?php esc_html_e( 'POST without page_id — expect HTTP 400 before any outbound AI call.', 'reactwoo-geo-ai' ); ?></p>
+		<p>
+			<a class="button" href="<?php echo esc_url( $rest_smoke_url ); ?>"><?php esc_html_e( 'Validate variant route', 'reactwoo-geo-ai' ); ?></a>
+		</p>
+	</div>
+
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'REST URLs', 'reactwoo-geo-ai' ); ?></h2>
+		<table class="widefat striped rwga-table-comfortable">
+			<tbody>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Capabilities JSON', 'reactwoo-geo-ai' ); ?></th>
+					<td>
+						<?php if ( '' !== $rest_capabilities_url ) : ?>
+							<a href="<?php echo esc_url( $rest_capabilities_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open', 'reactwoo-geo-ai' ); ?></a>
+							<code class="rwga-code-block"><?php echo esc_html( $rest_capabilities_url ); ?></code>
+						<?php else : ?>
+							<?php esc_html_e( '—', 'reactwoo-geo-ai' ); ?>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'REST location (visitor)', 'reactwoo-geo-ai' ); ?></th>
+					<td>
+						<?php if ( '' !== $rest_location_url ) : ?>
+							<a href="<?php echo esc_url( $rest_location_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open', 'reactwoo-geo-ai' ); ?></a>
+							<code class="rwga-code-block"><?php echo esc_html( $rest_location_url ); ?></code>
+						<?php else : ?>
+							<?php esc_html_e( '—', 'reactwoo-geo-ai' ); ?>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'REST API v1 base', 'reactwoo-geo-ai' ); ?></th>
+					<td>
+						<?php if ( '' !== $rest_v1_base ) : ?>
+							<code class="rwga-code-block"><?php echo esc_html( $rest_v1_base ); ?></code>
+						<?php else : ?>
+							<?php esc_html_e( '—', 'reactwoo-geo-ai' ); ?>
+						<?php endif; ?>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwgc-tools' ) ); ?>" class="button"><?php esc_html_e( 'Geo Core → Tools', 'reactwoo-geo-ai' ); ?></a>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwgc-usage' ) ); ?>" class="button"><?php esc_html_e( 'Geo Core → Usage', 'reactwoo-geo-ai' ); ?></a>
+		</p>
+	</div>
+
+	<div class="rwgc-card">
+		<h3><?php esc_html_e( 'Variant draft endpoint', 'reactwoo-geo-ai' ); ?></h3>
+		<p class="description"><?php esc_html_e( 'POST with a user that can edit pages. Body includes page_id and optional instructions.', 'reactwoo-geo-ai' ); ?></p>
+		<?php if ( is_string( $variant_draft_url ) && '' !== $variant_draft_url ) : ?>
+			<p><code class="rwga-code-block"><?php echo esc_html( $variant_draft_url ); ?></code></p>
+		<?php else : ?>
+			<p><?php esc_html_e( 'Enable REST in Geo Core → Settings to expose this route.', 'reactwoo-geo-ai' ); ?></p>
+		<?php endif; ?>
+		<h3><?php esc_html_e( 'Hooks', 'reactwoo-geo-ai' ); ?></h3>
+		<p class="description"><?php esc_html_e( 'rwgc_ai_variant_draft_payload, rwgc_ai_variant_draft_response; filter rwga_stats_snapshot; rwga_usage_display_rows; rwga_draft_queue_rows.', 'reactwoo-geo-ai' ); ?></p>
+	</div>
+</div>

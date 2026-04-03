@@ -112,6 +112,21 @@ class RWGA_Settings {
 	 * @return string
 	 */
 	public static function filter_api_base( $base ) {
+		if ( defined( 'RWGA_REACTWOO_API_BASE' ) && is_string( RWGA_REACTWOO_API_BASE ) ) {
+			$c = trim( (string) RWGA_REACTWOO_API_BASE );
+			if ( '' !== $c && wp_http_validate_url( $c ) ) {
+				return untrailingslashit( esc_url_raw( $c ) );
+			}
+		}
+
+		$via_filter = apply_filters( 'rwga_reactwoo_api_base', null );
+		if ( is_string( $via_filter ) ) {
+			$u = esc_url_raw( trim( $via_filter ) );
+			if ( $u && wp_http_validate_url( $u ) ) {
+				return untrailingslashit( $u );
+			}
+		}
+
 		$s = self::get_settings();
 		if ( is_array( $s ) && ! empty( $s['reactwoo_api_base'] ) ) {
 			$u = esc_url_raw( trim( (string) $s['reactwoo_api_base'] ) );
@@ -130,6 +145,35 @@ class RWGA_Settings {
 		}
 		$def = is_string( $base ) && '' !== trim( $base ) ? trim( $base ) : 'https://api.reactwoo.com';
 		return untrailingslashit( $def );
+	}
+
+	/**
+	 * Whether the API base field may be shown and saved (Advanced / support).
+	 *
+	 * @return bool
+	 */
+	public static function can_edit_api_base_field() {
+		if ( defined( 'RWGA_REACTWOO_API_BASE' ) && is_string( RWGA_REACTWOO_API_BASE ) && '' !== trim( (string) RWGA_REACTWOO_API_BASE ) ) {
+			return false;
+		}
+		if ( defined( 'RWGA_SHOW_API_BASE_UI' ) && RWGA_SHOW_API_BASE_UI ) {
+			return true;
+		}
+		return (bool) apply_filters( 'rwga_show_api_base_field', false );
+	}
+
+	/**
+	 * Clear saved license key (disconnect).
+	 *
+	 * @return void
+	 */
+	public static function clear_license_key() {
+		$s = self::get_settings();
+		$s['reactwoo_license_key'] = '';
+		update_option( self::OPTION_KEY, $s );
+		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
+			RWGC_Platform_Client::clear_token_cache();
+		}
 	}
 
 	/**
@@ -168,21 +212,30 @@ class RWGA_Settings {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize_settings( $input ) {
-		$defaults = self::get_defaults();
-		$settings = is_array( $input ) ? $input : array();
-		$out      = $defaults;
+		$defaults     = self::get_defaults();
+		$settings     = is_array( $input ) ? $input : array();
+		$prev         = get_option( self::OPTION_KEY, array() );
+		$prev         = is_array( $prev ) ? $prev : array();
+		$out          = array_merge( $defaults, $prev );
+		$scope        = isset( $settings['rwga_form_scope'] ) ? sanitize_key( (string) $settings['rwga_form_scope'] ) : 'license';
+		$prev_license = isset( $prev['reactwoo_license_key'] ) ? (string) $prev['reactwoo_license_key'] : '';
 
-		$prev        = get_option( self::OPTION_KEY, array() );
-		$prev_license = is_array( $prev ) && isset( $prev['reactwoo_license_key'] ) ? (string) $prev['reactwoo_license_key'] : '';
-
-		$base = isset( $settings['reactwoo_api_base'] ) ? trim( (string) $settings['reactwoo_api_base'] ) : '';
-		$base = esc_url_raw( $base );
-		$out['reactwoo_api_base'] = ( $base && wp_http_validate_url( $base ) )
-			? untrailingslashit( $base )
-			: $defaults['reactwoo_api_base'];
+		if ( 'advanced' === $scope && self::can_edit_api_base_field() ) {
+			$base = isset( $settings['reactwoo_api_base'] ) ? trim( (string) $settings['reactwoo_api_base'] ) : '';
+			$base = esc_url_raw( $base );
+			$out['reactwoo_api_base'] = ( $base && wp_http_validate_url( $base ) )
+				? untrailingslashit( $base )
+				: ( isset( $prev['reactwoo_api_base'] ) ? (string) $prev['reactwoo_api_base'] : $defaults['reactwoo_api_base'] );
+		} else {
+			if ( isset( $prev['reactwoo_api_base'] ) ) {
+				$out['reactwoo_api_base'] = (string) $prev['reactwoo_api_base'];
+			}
+		}
 
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
-		$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
+		if ( 'license' === $scope || 'advanced' === $scope ) {
+			$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
+		}
 
 		return $out;
 	}
