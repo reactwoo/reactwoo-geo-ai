@@ -45,6 +45,11 @@ class RWGA_Plugin {
 			return;
 		}
 
+		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
+		RWGA_Settings::register_platform_filters();
+		RWGA_Settings::maybe_migrate_from_geo_core();
+		RWGA_Settings::init();
+
 		require_once RWGA_PATH . 'includes/class-rwga-connection.php';
 		require_once RWGA_PATH . 'includes/class-rwga-stats.php';
 		require_once RWGA_PATH . 'includes/class-rwga-usage.php';

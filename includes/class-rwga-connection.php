@@ -1,6 +1,6 @@
 <?php
 /**
- * Read-only snapshot of Geo Core ReactWoo API settings (credentials stay in Core).
+ * Read-only connection summary for Geo AI admin (credentials live in Geo AI → License).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,15 +25,14 @@ class RWGA_Connection {
 			);
 		}
 
-		$key = RWGC_Settings::get( 'reactwoo_license_key', '' );
-		$key = is_string( $key ) ? trim( $key ) : '';
+		$key = '';
+		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
+			$key = RWGC_Platform_Client::get_effective_license_key();
+		}
 
 		$api_base = 'https://api.reactwoo.com';
 		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 			$api_base = RWGC_Platform_Client::get_api_base();
-		} else {
-			$stored = RWGC_Settings::get( 'reactwoo_api_base', $api_base );
-			$api_base = is_string( $stored ) && '' !== trim( $stored ) ? trim( $stored ) : $api_base;
 		}
 
 		return array(
