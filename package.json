@@ -1,0 +1,7 @@
+{
+  "name": "reactwoo-geo-ai-packaging",
+  "private": true,
+  "scripts": {
+    "package:zip": "python scripts/package_zip.py"
+  }
+}
