@@ -1,0 +1,49 @@
+/**
+ * Geo AI admin — complements Geo Core .rwgc-* styles.
+ */
+
+.rwga-wrap .rwga-hero {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 50%, #f8fafc 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 20px;
+}
+
+.rwga-wrap .rwga-hero h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+.rwga-wrap .rwga-steps {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.rwga-wrap .rwga-steps li {
+  margin-bottom: 8px;
+}
+
+.rwga-wrap .rwga-dev-details {
+  margin-top: 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 0 16px 12px;
+  background: #f8fafc;
+}
+
+.rwga-wrap .rwga-dev-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 12px 0 8px;
+  color: #475569;
+}
+
+.rwga-wrap .rwga-dev-details[open] summary {
+  margin-bottom: 8px;
+}
+
+.rwga-wrap .rwga-dev-details pre,
+.rwga-wrap .rwga-dev-details code {
+  font-size: 12px;
+}

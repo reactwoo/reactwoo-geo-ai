@@ -1,6 +1,6 @@
 <?php
 /**
- * Geo AI — wp-admin (under Geo Core menu).
+ * Geo AI — wp-admin (top-level menu; summary on Geo Core dashboard).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,30 +13,95 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_Admin {
 
 	/**
+	 * Parent admin page slug.
+	 */
+	const MENU_PARENT = 'rwga-dashboard';
+
+	/**
 	 * @return void
 	 */
 	public static function init() {
-		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ), 30 );
+		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ), 26 );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_dashboard_actions' ) );
-		add_filter( 'rwgc_inner_nav_items', array( __CLASS__, 'filter_inner_nav_items' ), 10, 1 );
+		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
 
 	/**
-	 * Add Geo AI screens to the shared Geo Core inner nav (same style as Geo Elementor section nav).
+	 * Summary card on Geo Core dashboard.
 	 *
-	 * @param array $items Page slug => label.
-	 * @return array
+	 * @return void
 	 */
-	public static function filter_inner_nav_items( $items ) {
-		if ( ! is_array( $items ) ) {
-			return $items;
+	public static function render_geo_core_summary_card() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
 		}
-		return array_merge(
-			$items,
-			array(
-				'rwga-dashboard' => __( 'Geo AI', 'reactwoo-geo-ai' ),
-				'rwga-license'   => __( 'Geo AI License', 'reactwoo-geo-ai' ),
-			)
+		$s = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
+		$lic = ! empty( $s['license_configured'] );
+		$url = admin_url( 'admin.php?page=' . self::MENU_PARENT );
+		?>
+		<div class="rwgc-card rwgc-card--highlight">
+			<h2><?php esc_html_e( 'Geo AI', 'reactwoo-geo-ai' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'ReactWoo API + product license live under the Geo AI menu — not in Geo Core Settings.', 'reactwoo-geo-ai' ); ?></p>
+			<ul>
+				<li>
+					<strong><?php esc_html_e( 'License / API', 'reactwoo-geo-ai' ); ?>:</strong>
+					<?php echo $lic ? esc_html__( 'Configured', 'reactwoo-geo-ai' ) : esc_html__( 'Not set', 'reactwoo-geo-ai' ); ?>
+				</li>
+				<li>
+					<strong><?php esc_html_e( 'Geo Core REST', 'reactwoo-geo-ai' ); ?>:</strong>
+					<?php echo ! empty( $s['rest_enabled'] ) ? esc_html__( 'Enabled', 'reactwoo-geo-ai' ) : esc_html__( 'Disabled', 'reactwoo-geo-ai' ); ?>
+				</li>
+			</ul>
+			<p>
+				<a href="<?php echo esc_url( $url ); ?>" class="button button-primary"><?php esc_html_e( 'Open Geo AI', 'reactwoo-geo-ai' ); ?></a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="button"><?php esc_html_e( 'License & API', 'reactwoo-geo-ai' ); ?></a>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Section navigation (Overview, License, Help).
+	 *
+	 * @param string $current Current page slug.
+	 * @return void
+	 */
+	public static function render_inner_nav( $current ) {
+		$items = array(
+			self::MENU_PARENT => __( 'Overview', 'reactwoo-geo-ai' ),
+			'rwga-license'    => __( 'License & API', 'reactwoo-geo-ai' ),
+			'rwga-help'       => __( 'Help', 'reactwoo-geo-ai' ),
+		);
+		echo '<nav class="rwgc-inner-nav" aria-label="' . esc_attr__( 'Geo AI section navigation', 'reactwoo-geo-ai' ) . '">';
+		foreach ( $items as $slug => $label ) {
+			$class = 'rwgc-inner-nav__link' . ( $slug === $current ? ' is-active' : '' );
+			echo '<a class="' . esc_attr( $class ) . '" href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '">' . esc_html( $label ) . '</a>';
+		}
+		echo '</nav>';
+	}
+
+	/**
+	 * @param string $hook Hook suffix.
+	 * @return void
+	 */
+	public static function enqueue_assets( $hook ) {
+		if ( strpos( $hook, 'rwga-' ) === false && strpos( $hook, self::MENU_PARENT ) === false ) {
+			return;
+		}
+		if ( defined( 'RWGC_URL' ) && defined( 'RWGC_VERSION' ) ) {
+			wp_enqueue_style(
+				'rwgc-admin',
+				RWGC_URL . 'admin/css/admin.css',
+				array(),
+				RWGC_VERSION
+			);
+		}
+		wp_enqueue_style(
+			'rwga-admin',
+			RWGA_URL . 'admin/css/rwga-admin.css',
+			array(),
+			RWGA_VERSION
 		);
 	}
 
@@ -207,21 +272,41 @@ class RWGA_Admin {
 	 * @return void
 	 */
 	public static function register_menu() {
-		add_submenu_page(
-			'rwgc-dashboard',
+		add_menu_page(
 			__( 'Geo AI', 'reactwoo-geo-ai' ),
 			__( 'Geo AI', 'reactwoo-geo-ai' ),
 			'manage_options',
-			'rwga-dashboard',
+			self::MENU_PARENT,
+			array( __CLASS__, 'render_dashboard' ),
+			'dashicons-admin-generic',
+			57
+		);
+
+		add_submenu_page(
+			self::MENU_PARENT,
+			__( 'Overview', 'reactwoo-geo-ai' ),
+			__( 'Overview', 'reactwoo-geo-ai' ),
+			'manage_options',
+			self::MENU_PARENT,
 			array( __CLASS__, 'render_dashboard' )
 		);
+
 		add_submenu_page(
-			'rwgc-dashboard',
-			__( 'Geo AI License', 'reactwoo-geo-ai' ),
-			__( 'Geo AI License', 'reactwoo-geo-ai' ),
+			self::MENU_PARENT,
+			__( 'Geo AI — License & API', 'reactwoo-geo-ai' ),
+			__( 'License & API', 'reactwoo-geo-ai' ),
 			'manage_options',
 			'rwga-license',
 			array( __CLASS__, 'render_license_settings' )
+		);
+
+		add_submenu_page(
+			self::MENU_PARENT,
+			__( 'Geo AI — Help', 'reactwoo-geo-ai' ),
+			__( 'Help', 'reactwoo-geo-ai' ),
+			'manage_options',
+			'rwga-help',
+			array( __CLASS__, 'render_help' )
 		);
 	}
 
@@ -249,7 +334,7 @@ class RWGA_Admin {
 		}
 		$rwga_stats   = class_exists( 'RWGA_Stats', false ) ? RWGA_Stats::get_snapshot() : array();
 		$rwga_usage   = class_exists( 'RWGA_Usage', false ) ? RWGA_Usage::get_display_rows() : array();
-		$rwgc_nav_current = 'rwga-dashboard';
+		$rwgc_nav_current = self::MENU_PARENT;
 		include RWGA_PATH . 'admin/views/dashboard.php';
 	}
 
@@ -264,5 +349,16 @@ class RWGA_Admin {
 		}
 		$rwgc_nav_current = 'rwga-license';
 		include RWGA_PATH . 'admin/views/license-settings.php';
+	}
+
+	/**
+	 * @return void
+	 */
+	public static function render_help() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$rwgc_nav_current = 'rwga-help';
+		include RWGA_PATH . 'admin/views/help.php';
 	}
 }

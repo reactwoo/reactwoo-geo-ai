@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.1.14.0
+Stable tag: 0.1.16.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,11 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.1.16.0 =
+* **Admin:** **Top-level Geo AI menu** (Overview, License & API, Help). No longer nested under Geo Core sidebar.
+* **Geo Core dashboard:** Summary card when Geo AI is active.
+* **UX:** Merchant-first overview; **Technical details** for REST URLs, pages, hooks; **rwga-admin.css** + Geo Core styles.
 
 = 0.1.14.0 =
 * **Admin UI:** Dashboard and **Geo AI License** screens use Geo Core shared styles (**`rwgc-wrap`**, **`rwgc-inner-nav`**, **`rwgc-card`**) for consistency with Geo Core and Geo Elementor-style section navigation.

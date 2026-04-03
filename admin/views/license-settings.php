@@ -6,14 +6,12 @@ $option_key = RWGA_Settings::OPTION_KEY;
 $settings   = RWGA_Settings::get_settings();
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-license';
 ?>
-<div class="wrap rwgc-wrap">
+<div class="wrap rwgc-wrap rwga-wrap">
 	<h1><?php esc_html_e( 'Geo AI — ReactWoo API', 'reactwoo-geo-ai' ); ?></h1>
 	<p class="description">
 		<?php esc_html_e( 'Enter your ReactWoo product license and API base here. Geo Core (WordPress.org) does not store commercial credentials; this satellite plugin follows the same JWT login pattern as other ReactWoo commercial plugins.', 'reactwoo-geo-ai' ); ?>
 	</p>
-	<?php if ( class_exists( 'RWGC_Admin', false ) ) : ?>
-		<?php RWGC_Admin::render_inner_nav( $rwgc_nav_current ); ?>
-	<?php endif; ?>
+	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
 	<div class="rwgc-card" style="max-width: 720px;">
 	<form method="post" action="options.php">
