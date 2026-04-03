@@ -53,6 +53,8 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
 
+	<?php RWGA_Admin::render_suite_handoff_panel(); ?>
+
 	<?php RWGA_Admin::render_suite_satellite_quick_links(); ?>
 
 	<div class="rwga-hero">

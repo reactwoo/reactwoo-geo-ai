@@ -39,25 +39,35 @@ class RWGA_Admin {
 		}
 		$s = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
 		$lic = ! empty( $s['license_configured'] );
+		$rest_on = ! empty( $s['rest_enabled'] );
 		$url = admin_url( 'admin.php?page=' . self::MENU_PARENT );
 		?>
-		<div class="rwgc-card rwgc-card--highlight">
-			<h2><?php esc_html_e( 'Geo AI', 'reactwoo-geo-ai' ); ?></h2>
-			<p class="description"><?php esc_html_e( 'AI-assisted content drafts and variant workflows. License and usage are managed in Geo AI — not in Geo Core Settings.', 'reactwoo-geo-ai' ); ?></p>
-			<ul>
-				<li>
-					<strong><?php esc_html_e( 'License', 'reactwoo-geo-ai' ); ?>:</strong>
-					<?php echo $lic ? esc_html__( 'Configured', 'reactwoo-geo-ai' ) : esc_html__( 'Not set', 'reactwoo-geo-ai' ); ?>
-				</li>
-				<li>
-					<strong><?php esc_html_e( 'Site REST (Geo Core)', 'reactwoo-geo-ai' ); ?>:</strong>
-					<?php echo ! empty( $s['rest_enabled'] ) ? esc_html__( 'On', 'reactwoo-geo-ai' ) : esc_html__( 'Off', 'reactwoo-geo-ai' ); ?>
-				</li>
-			</ul>
-			<p>
+		<div class="rwgc-addon-card">
+			<div class="rwgc-addon-card__header">
+				<div class="rwgc-addon-card__icon" aria-hidden="true"><span class="dashicons dashicons-star-filled"></span></div>
+				<div class="rwgc-addon-card__heading">
+					<h3><?php esc_html_e( 'Geo AI', 'reactwoo-geo-ai' ); ?></h3>
+					<p><?php esc_html_e( 'Generate and manage geo-based content variants. Licensing and usage are handled in Geo AI.', 'reactwoo-geo-ai' ); ?></p>
+				</div>
+			</div>
+			<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+			<div class="rwgc-addon-card__meta">
+				<?php
+				RWGC_Admin_UI::render_pill(
+					$lic ? __( 'License: Configured', 'reactwoo-geo-ai' ) : __( 'License: Not set', 'reactwoo-geo-ai' ),
+					$lic ? 'success' : 'danger'
+				);
+				RWGC_Admin_UI::render_pill(
+					$rest_on ? __( 'REST: On', 'reactwoo-geo-ai' ) : __( 'REST: Off', 'reactwoo-geo-ai' ),
+					$rest_on ? 'success' : 'danger'
+				);
+				?>
+			</div>
+			<?php endif; ?>
+			<div class="rwgc-addon-card__actions">
 				<a href="<?php echo esc_url( $url ); ?>" class="button button-primary"><?php esc_html_e( 'Open Geo AI', 'reactwoo-geo-ai' ); ?></a>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="button"><?php esc_html_e( 'License', 'reactwoo-geo-ai' ); ?></a>
-			</p>
+			</div>
 		</div>
 		<?php
 	}
@@ -123,6 +133,84 @@ class RWGA_Admin {
 			<h2 class="rwga-suite-satellite-links__title"><?php esc_html_e( 'Geo suite', 'reactwoo-geo-ai' ); ?></h2>
 			<p class="description"><?php esc_html_e( 'Open other ReactWoo Geo plugins when they are installed. Geo AI stays on this screen.', 'reactwoo-geo-ai' ); ?></p>
 			<?php RWGC_Admin_UI::render_quick_actions( $actions ); ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Context banner when opened from Geo Suite workflow (GET handoff params from Geo Core).
+	 *
+	 * @return void
+	 */
+	public static function render_suite_handoff_panel() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! function_exists( 'rwgc_get_suite_handoff_request_context' ) ) {
+			return;
+		}
+		$ctx = rwgc_get_suite_handoff_request_context();
+		if ( empty( $ctx['active'] ) ) {
+			return;
+		}
+		$clean_url = remove_query_arg( array( 'rwgc_handoff', 'rwgc_from', 'rwgc_launcher', 'rwgc_variant_page_id' ) );
+		$launcher_labels = array(
+			'ai_draft'       => __( 'Generate a localised draft (AI)', 'reactwoo-geo-ai' ),
+			'create_variant' => __( 'Create page version', 'reactwoo-geo-ai' ),
+			'experiment'     => __( 'Split test', 'reactwoo-geo-ai' ),
+			'commerce_rule'  => __( 'Commerce rule', 'reactwoo-geo-ai' ),
+		);
+		$launcher = isset( $ctx['launcher'] ) ? (string) $ctx['launcher'] : '';
+		$launcher_note = '';
+		if ( '' !== $launcher ) {
+			$launcher_note = isset( $launcher_labels[ $launcher ] ) ? $launcher_labels[ $launcher ] : $launcher;
+		}
+		$vid = isset( $ctx['variant_page_id'] ) ? (int) $ctx['variant_page_id'] : 0;
+		$page = null;
+		if ( $vid > 0 ) {
+			$p = get_post( $vid );
+			if ( $p instanceof \WP_Post && 'page' === $p->post_type && current_user_can( 'edit_page', $p->ID ) ) {
+				$page = $p;
+			}
+		}
+		?>
+		<div class="rwgc-card rwgc-card--highlight rwga-suite-handoff" role="region" aria-label="<?php echo esc_attr__( 'Geo Suite handoff', 'reactwoo-geo-ai' ); ?>">
+			<h2><?php esc_html_e( 'Opened from Geo Suite', 'reactwoo-geo-ai' ); ?></h2>
+			<p class="description">
+				<?php
+				if ( isset( $ctx['from'] ) && 'suite' === $ctx['from'] ) {
+					esc_html_e( 'You arrived from Suite Home or Getting Started.', 'reactwoo-geo-ai' );
+				} else {
+					esc_html_e( 'Geo Core linked you here to continue your workflow.', 'reactwoo-geo-ai' );
+				}
+				if ( '' !== $launcher_note ) {
+					echo ' ';
+					echo esc_html(
+						sprintf(
+							/* translators: %s: workflow label */
+							__( 'Workflow: %s', 'reactwoo-geo-ai' ),
+							$launcher_note
+						)
+					);
+				}
+				?>
+			</p>
+			<?php if ( $page instanceof \WP_Post ) : ?>
+				<p>
+					<strong><?php echo esc_html( get_the_title( $page ) ); ?></strong>
+					<?php
+					$edit_url = get_edit_post_link( $page->ID, 'raw' );
+					if ( is_string( $edit_url ) && '' !== $edit_url ) {
+						echo ' ';
+						echo '<a class="button button-primary" href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Open in editor', 'reactwoo-geo-ai' ) . '</a>';
+					}
+					?>
+				</p>
+				<p class="description"><?php esc_html_e( 'Use the Geo AI tools in the block sidebar to run variant drafts for this page.', 'reactwoo-geo-ai' ); ?></p>
+			<?php elseif ( $vid > 0 ) : ?>
+				<p class="description"><?php esc_html_e( 'The linked page could not be loaded or you do not have permission to edit it.', 'reactwoo-geo-ai' ); ?></p>
+			<?php endif; ?>
+			<p><a class="button-link" href="<?php echo esc_url( $clean_url ); ?>"><?php esc_html_e( 'Dismiss banner', 'reactwoo-geo-ai' ); ?></a></p>
 		</div>
 		<?php
 	}
