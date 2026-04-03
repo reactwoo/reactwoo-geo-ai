@@ -19,6 +19,11 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 
 == Changelog ==
 
+= 0.1.14.0 =
+* **Admin UI:** Dashboard and **Geo AI License** screens use Geo Core shared styles (**`rwgc-wrap`**, **`rwgc-inner-nav`**, **`rwgc-card`**) for consistency with Geo Core and Geo Elementor-style section navigation.
+* **Navigation:** Registers **Geo AI** and **Geo AI License** on **`rwgc_inner_nav_items`** so both pages appear in the Geo Core menu bar tabs.
+* **License:** Dedicated **Geo AI → License** screen for ReactWoo API base and product key (credentials stay out of Geo Core settings).
+
 = 0.1.12.0 =
 * **Dashboard:** **REST API v1 base** URL (when Core REST is enabled); **Test variant-draft REST (validation only)** — local `rest_do_request` POST with no `page_id` (expects HTTP 400, no external AI call). Orchestrator not required for that check.
 
