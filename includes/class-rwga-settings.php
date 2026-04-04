@@ -35,6 +35,30 @@ class RWGA_Settings {
 		$done = true;
 		add_filter( 'rwgc_reactwoo_license_key', array( __CLASS__, 'filter_license_key' ), 10, 1 );
 		add_filter( 'rwgc_reactwoo_api_base', array( __CLASS__, 'filter_api_base' ), 10, 1 );
+		add_filter( 'rwgc_auth_login_body', array( __CLASS__, 'filter_auth_login_body' ), 10, 3 );
+	}
+
+	/**
+	 * When this site uses Geo AI’s license key, tell the API which catalog product the token is for.
+	 *
+	 * @param array<string, string> $body    Login JSON body.
+	 * @param string                $license Effective license key.
+	 * @param string                $domain  Site host.
+	 * @return array<string, string>
+	 */
+	public static function filter_auth_login_body( $body, $license, $domain ) {
+		unset( $domain );
+		$s = self::get_settings();
+		$our = is_array( $s ) && isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
+		if ( '' === $our || trim( (string) $license ) !== $our ) {
+			return $body;
+		}
+		if ( ! is_array( $body ) ) {
+			$body = array();
+		}
+		$body['product_slug']  = 'reactwoo-geo-ai';
+		$body['catalog_slug'] = 'reactwoo-geo-ai';
+		return $body;
 	}
 
 	/**

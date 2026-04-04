@@ -59,6 +59,18 @@ class RWGA_Plugin {
 		RWGA_Admin::init();
 		RWGA_Block_Editor::init();
 
+		if ( class_exists( 'RWGC_Satellite_Updater', false ) ) {
+			RWGC_Satellite_Updater::register(
+				array(
+					'basename'     => plugin_basename( RWGA_FILE ),
+					'version'      => RWGA_VERSION,
+					'catalog_slug' => 'reactwoo-geo-ai',
+					'name'         => __( 'ReactWoo Geo AI', 'reactwoo-geo-ai' ),
+					'description'  => __( 'AI-assisted geo variant drafts using the ReactWoo API with Geo Core.', 'reactwoo-geo-ai' ),
+				)
+			);
+		}
+
 		/**
 		 * Fires when Geo AI satellite is ready (Geo Core is active).
 		 */
