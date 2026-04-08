@@ -256,6 +256,12 @@ class RWGA_Settings {
 			}
 		}
 
+		if ( 'advanced' === $scope && isset( $settings['workflow_engine'] ) ) {
+			$allowed = array( 'local', 'remote', 'remote_fallback' );
+			$w       = sanitize_key( (string) $settings['workflow_engine'] );
+			$out['workflow_engine'] = in_array( $w, $allowed, true ) ? $w : ( isset( $prev['workflow_engine'] ) ? (string) $prev['workflow_engine'] : $defaults['workflow_engine'] );
+		}
+
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
 		if ( 'license' === $scope || 'advanced' === $scope ) {
 			$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
@@ -271,6 +277,7 @@ class RWGA_Settings {
 		return array(
 			'reactwoo_api_base'     => 'https://api.reactwoo.com',
 			'reactwoo_license_key'  => '',
+			'workflow_engine'       => 'local',
 		);
 	}
 }

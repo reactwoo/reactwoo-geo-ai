@@ -215,4 +215,30 @@ class RWGA_DB_Automation_Rules {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ), ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Active rules with trigger_type `schedule` and no future next_run_at (due now).
+	 *
+	 * @param int $limit Max rows.
+	 * @return array<int>
+	 */
+	public static function get_due_scheduled_ids( $limit = 5 ) {
+		global $wpdb;
+		$limit = max( 1, min( 50, (int) $limit ) );
+		$table = RWGA_DB::automation_rules_table();
+		$now   = current_time( 'mysql', true );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+		$sql = $wpdb->prepare(
+			"SELECT id FROM {$table} WHERE status = %s AND trigger_type = %s AND ( next_run_at IS NULL OR next_run_at <= %s ) ORDER BY next_run_at IS NULL DESC, next_run_at ASC LIMIT %d",
+			'active',
+			'schedule',
+			$now,
+			$limit
+		);
+		$ids = $wpdb->get_col( $sql );
+		if ( ! is_array( $ids ) ) {
+			return array();
+		}
+		return array_map( 'intval', $ids );
+	}
 }

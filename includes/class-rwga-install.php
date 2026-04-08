@@ -35,6 +35,9 @@ class RWGA_Install {
 			require_once RWGA_PATH . 'includes/helpers/rwga-site.php';
 			rwga_get_site_uuid();
 		}
+
+		require_once RWGA_PATH . 'includes/class-rwga-cron.php';
+		RWGA_Cron::activate();
 	}
 
 	/**

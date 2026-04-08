@@ -75,9 +75,37 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 		if ( $in['page_id'] > 0 && class_exists( 'RWGA_Page_Context', false ) ) {
 			$in['page_context'] = RWGA_Page_Context::collect( $in['page_id'] );
 		}
-		$raw = $this->produce_stub_response( $in );
+
+		$mode    = RWGA_Engine::get_mode();
+		$remote  = RWGA_Engine::should_try_remote() ? RWGA_Remote_Client::dispatch( $this->get_key(), $in ) : null;
+		$use_api = ! is_wp_error( $remote ) && is_array( $remote ) && ! empty( $remote['engine_response'] );
+
+		if ( $use_api ) {
+			$norm = $this->normalise_response( $remote['engine_response'] );
+			$rid  = isset( $remote['remote_run_id'] ) ? trim( (string) $remote['remote_run_id'] ) : '';
+			$rid  = '' !== $rid ? $rid : null;
+			return $this->finish_execute( $in, $norm, $rid );
+		}
+
+		if ( is_wp_error( $remote ) && 'remote' === $mode ) {
+			return $remote;
+		}
+
+		$raw  = $this->produce_stub_response( $in );
 		$norm = $this->normalise_response( $raw );
-		$persisted = $this->persist( $in, $norm );
+		return $this->finish_execute( $in, $norm, null );
+	}
+
+	/**
+	 * Persist and shape success payload.
+	 *
+	 * @param array<string, mixed> $in    Sanitised input.
+	 * @param array<string, mixed> $norm  Normalised result.
+	 * @param string|null          $remote_run_id Remote run id or null.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private function finish_execute( array $in, array $norm, $remote_run_id ) {
+		$persisted = $this->persist( $in, $norm, $remote_run_id );
 		if ( is_array( $persisted ) && empty( $persisted['success'] ) ) {
 			$msg = isset( $persisted['error'] ) ? (string) $persisted['error'] : __( 'Could not persist analysis.', 'reactwoo-geo-ai' );
 			return new WP_Error( 'rwga_persist', $msg );
@@ -103,11 +131,12 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 	}
 
 	/**
-	 * @param array<string, mixed> $input    Input used.
-	 * @param array<string, mixed> $result   Normalised result.
+	 * @param array<string, mixed> $input         Input used.
+	 * @param array<string, mixed> $result        Normalised result.
+	 * @param string|null          $remote_run_id Remote engine run id when applicable.
 	 * @return array<string, mixed>
 	 */
-	public function persist( array $input, array $result ) {
+	public function persist( array $input, array $result, $remote_run_id = null ) {
 		$uid = get_current_user_id();
 		$seed = $this->hash_input( $input );
 
@@ -127,7 +156,7 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 				'summary'               => isset( $result['summary'] ) ? $result['summary'] : '',
 				'input_hash'            => $seed,
 				'result_schema_version' => isset( $result['schema_version'] ) ? (string) $result['schema_version'] : self::DEFAULT_SCHEMA_VERSION,
-				'remote_run_id'       => null,
+				'remote_run_id'         => $remote_run_id,
 				'created_by'            => $uid > 0 ? $uid : null,
 			)
 		);

@@ -41,6 +41,35 @@ if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
 
+	<?php
+	$workflow_engine = isset( $settings['workflow_engine'] ) ? sanitize_key( (string) $settings['workflow_engine'] ) : 'local';
+	if ( ! in_array( $workflow_engine, array( 'local', 'remote', 'remote_fallback' ), true ) ) {
+		$workflow_engine = 'local';
+	}
+	?>
+
+	<div class="rwgc-card" style="max-width: 720px;">
+		<h2><?php esc_html_e( 'Workflow engine', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Choose whether UX analysis runs locally (deterministic stub) or on the ReactWoo API when the route is available. Remote fallback uses the stub if the API errors.', 'reactwoo-geo-ai' ); ?></p>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'rwga_license_group' ); ?>
+			<input type="hidden" name="<?php echo esc_attr( RWGA_Settings::OPTION_KEY ); ?>[rwga_form_scope]" value="advanced" />
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="rwga_workflow_engine"><?php esc_html_e( 'Execution mode', 'reactwoo-geo-ai' ); ?></label></th>
+					<td>
+						<select id="rwga_workflow_engine" name="<?php echo esc_attr( RWGA_Settings::OPTION_KEY ); ?>[workflow_engine]">
+							<option value="local" <?php selected( $workflow_engine, 'local' ); ?>><?php esc_html_e( 'Local (stub)', 'reactwoo-geo-ai' ); ?></option>
+							<option value="remote" <?php selected( $workflow_engine, 'remote' ); ?>><?php esc_html_e( 'Remote (API only)', 'reactwoo-geo-ai' ); ?></option>
+							<option value="remote_fallback" <?php selected( $workflow_engine, 'remote_fallback' ); ?>><?php esc_html_e( 'Remote with local fallback', 'reactwoo-geo-ai' ); ?></option>
+						</select>
+					</td>
+				</tr>
+			</table>
+			<?php submit_button( __( 'Save workflow settings', 'reactwoo-geo-ai' ) ); ?>
+		</form>
+	</div>
+
 	<?php if ( $can_api ) : ?>
 		<div class="rwgc-card" style="max-width: 720px;">
 			<h2><?php esc_html_e( 'API endpoint (optional)', 'reactwoo-geo-ai' ); ?></h2>

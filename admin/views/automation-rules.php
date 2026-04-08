@@ -39,7 +39,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 		<?php
 		RWGC_Admin_UI::render_page_header(
 			__( 'Automation rules', 'reactwoo-geo-ai' ),
-			__( 'Schedule hooks for bounded workflows (stub runner updates timestamps only).', 'reactwoo-geo-ai' )
+			__( 'Schedule hooks for bounded workflows (runner updates timestamps; schedule triggers run on WP-Cron).', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
@@ -235,7 +235,7 @@ if ( ! function_exists( 'rwga_render_automation_rule_fields' ) ) {
 		<label for="rwga_ar_tt"><?php esc_html_e( 'Trigger', 'reactwoo-geo-ai' ); ?></label><br />
 		<select name="trigger_type" id="rwga_ar_tt">
 			<option value="manual" <?php selected( $tt, 'manual' ); ?>><?php esc_html_e( 'Manual', 'reactwoo-geo-ai' ); ?></option>
-			<option value="schedule" <?php selected( $tt, 'schedule' ); ?>><?php esc_html_e( 'Schedule (stub)', 'reactwoo-geo-ai' ); ?></option>
+			<option value="schedule" <?php selected( $tt, 'schedule' ); ?>><?php esc_html_e( 'Schedule (WP-Cron)', 'reactwoo-geo-ai' ); ?></option>
 		</select>
 	</p>
 	<p>

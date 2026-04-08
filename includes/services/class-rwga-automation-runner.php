@@ -1,6 +1,6 @@
 <?php
 /**
- * Bounded automation stub: records a run without external schedulers.
+ * Automation runner: updates rule timestamps and memory (workflow dispatch is future work).
  *
  * @package ReactWoo_Geo_AI
  */
@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Marks a rule as executed and writes a memory event (no cron wiring yet).
+ * Marks a rule as executed and writes a memory event. Scheduled rules are picked up by {@see RWGA_Cron}.
  */
 class RWGA_Automation_Runner {
 
