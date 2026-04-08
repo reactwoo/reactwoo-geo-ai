@@ -77,6 +77,51 @@ class RWGA_REST {
 				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/recommend/ux',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_recommend_ux' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+				'args'                => array(),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/recommendations',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_recommendations_list' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+				'args'                => array(
+					'page'              => array(
+						'default'           => 1,
+						'sanitize_callback' => 'absint',
+					),
+					'per_page'          => array(
+						'default'           => 20,
+						'sanitize_callback' => 'absint',
+					),
+					'analysis_run_id'   => array(
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/recommendations/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_recommendation_get' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
 	}
 
 	/**
@@ -195,5 +240,77 @@ class RWGA_REST {
 				'findings' => $findings,
 			)
 		);
+	}
+
+	/**
+	 * POST /geo-ai/v1/recommend/ux
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_recommend_ux( $request ) {
+		$input = $request->get_json_params();
+		if ( ! is_array( $input ) ) {
+			$input = array();
+		}
+
+		$wf = RWGA_Workflow_Registry::get( 'ux_recommend' );
+		if ( ! $wf ) {
+			return new WP_Error( 'rwga_no_workflow', __( 'Workflow not registered.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+
+		$out = $wf->execute( $input );
+		if ( is_wp_error( $out ) ) {
+			return $out;
+		}
+
+		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * GET /geo-ai/v1/recommendations
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_recommendations_list( $request ) {
+		$page     = max( 1, (int) $request->get_param( 'page' ) );
+		$per_page = max( 1, min( 100, (int) $request->get_param( 'per_page' ) ) );
+		$filter   = max( 0, (int) $request->get_param( 'analysis_run_id' ) );
+
+		$total = RWGA_DB_Recommendations::count_rows( $filter );
+		$pages = max( 1, (int) ceil( $total / $per_page ) );
+		$rows  = RWGA_DB_Recommendations::list_paged( $per_page, $page, $filter );
+
+		return rest_ensure_response(
+			array(
+				'total'             => $total,
+				'pages'             => $pages,
+				'page'              => $page,
+				'per_page'          => $per_page,
+				'analysis_run_id'   => $filter,
+				'recommendations'   => $rows,
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/recommendations/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_recommendation_get( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid recommendation id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+
+		$row = RWGA_DB_Recommendations::get( $id );
+		if ( ! is_array( $row ) ) {
+			return new WP_Error( 'rwga_not_found', __( 'Recommendation not found.', 'reactwoo-geo-ai' ), array( 'status' => 404 ) );
+		}
+
+		return rest_ensure_response( array( 'recommendation' => $row ) );
 	}
 }

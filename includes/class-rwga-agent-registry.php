@@ -26,6 +26,12 @@ class RWGA_Agent_Registry {
 				'supports_geo'     => true,
 				'supports_performance_context' => true,
 			),
+			'ux_strategist' => array(
+				'label'             => __( 'UX Strategist', 'reactwoo-geo-ai' ),
+				'allowed_workflows' => array( 'ux_recommend' ),
+				'schema_version'    => '1.0.0',
+				'supports_geo'      => true,
+			),
 		);
 
 		/**

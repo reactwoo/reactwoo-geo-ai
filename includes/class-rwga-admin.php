@@ -26,6 +26,7 @@ class RWGA_Admin {
 		add_action( 'admin_init', array( __CLASS__, 'handle_admin_actions' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_license_actions' ) );
 		add_action( 'admin_post_rwga_sample_ux', array( __CLASS__, 'handle_sample_ux' ) );
+		add_action( 'admin_post_rwga_recommend_ux', array( __CLASS__, 'handle_recommend_ux' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
 
@@ -82,8 +83,9 @@ class RWGA_Admin {
 	public static function render_inner_nav( $current ) {
 		$items = array(
 			self::MENU_PARENT => __( 'Overview', 'reactwoo-geo-ai' ),
-			'rwga-analyses'   => __( 'Analyses', 'reactwoo-geo-ai' ),
-			'rwga-license'    => __( 'License', 'reactwoo-geo-ai' ),
+			'rwga-analyses'        => __( 'Analyses', 'reactwoo-geo-ai' ),
+			'rwga-recommendations' => __( 'Recommendations', 'reactwoo-geo-ai' ),
+			'rwga-license'         => __( 'License', 'reactwoo-geo-ai' ),
 			'rwga-drafts'     => __( 'Drafts / Queue', 'reactwoo-geo-ai' ),
 			'rwga-advanced'   => __( 'Advanced', 'reactwoo-geo-ai' ),
 			'rwga-help'       => __( 'Help', 'reactwoo-geo-ai' ),
@@ -537,6 +539,65 @@ class RWGA_Admin {
 	}
 
 	/**
+	 * Generate UX recommendations from a stored analysis run.
+	 *
+	 * @return void
+	 */
+	public static function handle_recommend_ux() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to run Geo AI workflows.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_recommend_ux' );
+
+		if ( ! class_exists( 'RWGA_License', false ) || ! RWGA_License::can_run_workflows() ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=rwga-recommendations&rwga_rec=unlicensed' ) );
+			exit;
+		}
+
+		$analysis_run_id = isset( $_POST['analysis_run_id'] ) ? (int) wp_unslash( $_POST['analysis_run_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $analysis_run_id <= 0 ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=rwga-analyses&rwga_rec=bad' ) );
+			exit;
+		}
+
+		$wf = class_exists( 'RWGA_Workflow_Registry', false ) ? RWGA_Workflow_Registry::get( 'ux_recommend' ) : null;
+		if ( ! $wf ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=rwga-analyses&run_id=' . $analysis_run_id . '&rwga_rec=noflow' ) );
+			exit;
+		}
+
+		$goal = isset( $_POST['business_goal'] ) ? sanitize_text_field( wp_unslash( $_POST['business_goal'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
+		$out = $wf->execute(
+			array(
+				'analysis_run_id' => $analysis_run_id,
+				'business_goal'   => $goal,
+			)
+		);
+
+		if ( is_wp_error( $out ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'    => 'rwga-analyses',
+						'run_id'  => $analysis_run_id,
+						'rwga_rec'=> 'error',
+						'rwga_err'=> rawurlencode( $out->get_error_message() ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		$count = isset( $out['recommendation_ids'] ) && is_array( $out['recommendation_ids'] ) ? count( $out['recommendation_ids'] ) : 0;
+		wp_safe_redirect(
+			admin_url( 'admin.php?page=rwga-recommendations&rwga_rec=ok&rwga_rec_count=' . (int) $count )
+		);
+		exit;
+	}
+
+	/**
 	 * @return void
 	 */
 	public static function register_menu() {
@@ -568,6 +629,15 @@ class RWGA_Admin {
 			$cap_view,
 			'rwga-analyses',
 			array( __CLASS__, 'render_analyses' )
+		);
+
+		add_submenu_page(
+			self::MENU_PARENT,
+			__( 'Geo AI — Recommendations', 'reactwoo-geo-ai' ),
+			__( 'Recommendations', 'reactwoo-geo-ai' ),
+			$cap_view,
+			'rwga-recommendations',
+			array( __CLASS__, 'render_recommendations' )
 		);
 
 		add_submenu_page(
@@ -663,6 +733,37 @@ class RWGA_Admin {
 
 		$rwgc_nav_current = 'rwga-analyses';
 		include RWGA_PATH . 'admin/views/analysis-detail.php';
+	}
+
+	/**
+	 * Recommendations list.
+	 *
+	 * @return void
+	 */
+	public static function render_recommendations() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
+			return;
+		}
+
+		$filter = isset( $_GET['analysis_run'] ) ? (int) $_GET['analysis_run'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$per_page = 20;
+		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$total    = class_exists( 'RWGA_DB_Recommendations', false ) ? RWGA_DB_Recommendations::count_rows( $filter ) : 0;
+		$pages    = max( 1, (int) ceil( $total / $per_page ) );
+
+		$rwga_rows = class_exists( 'RWGA_DB_Recommendations', false )
+			? RWGA_DB_Recommendations::list_paged( $per_page, $paged, $filter )
+			: array();
+
+		$rwga_pagination = array(
+			'total'   => $total,
+			'pages'   => $pages,
+			'current' => $paged,
+		);
+		$rwga_filter_analysis = $filter;
+		$rwgc_nav_current     = 'rwga-recommendations';
+		include RWGA_PATH . 'admin/views/recommendations-list.php';
 	}
 
 	/**

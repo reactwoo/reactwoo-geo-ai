@@ -40,6 +40,16 @@ $severity_class = array(
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
+	<?php
+	$rwga_rec_err = isset( $_GET['rwga_rec'] ) ? sanitize_key( wp_unslash( $_GET['rwga_rec'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'error' === $rwga_rec_err && ! empty( $_GET['rwga_err'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$msg = sanitize_text_field( wp_unslash( rawurldecode( (string) $_GET['rwga_err'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+	} elseif ( 'noflow' === $rwga_rec_err ) {
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Recommendation workflow is not available.', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
+	?>
+
 	<p>
 		<a href="<?php echo esc_url( $list_url ); ?>" class="button"><?php esc_html_e( '&larr; All analyses', 'reactwoo-geo-ai' ); ?></a>
 		<?php
@@ -52,6 +62,27 @@ $severity_class = array(
 		}
 		?>
 	</p>
+
+	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Recommendations', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Generate structured recommendation cards from this analysis (bounded local engine).', 'reactwoo-geo-ai' ); ?></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="rwga_recommend_ux" />
+			<input type="hidden" name="analysis_run_id" value="<?php echo (int) $run_id; ?>" />
+			<?php wp_nonce_field( 'rwga_recommend_ux' ); ?>
+			<p>
+				<label for="rwga_business_goal"><?php esc_html_e( 'Business goal (optional)', 'reactwoo-geo-ai' ); ?></label><br />
+				<input type="text" class="regular-text" name="business_goal" id="rwga_business_goal" placeholder="<?php esc_attr_e( 'e.g. increase demo bookings', 'reactwoo-geo-ai' ); ?>" />
+			</p>
+			<?php submit_button( __( 'Generate recommendations', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
+		</form>
+	</div>
+	<?php elseif ( class_exists( 'RWGA_License', false ) && ! RWGA_License::can_run_workflows() ) : ?>
+	<div class="rwgc-card">
+		<p class="description"><?php esc_html_e( 'Add a Geo AI license key to generate recommendations from this analysis.', 'reactwoo-geo-ai' ); ?></p>
+	</div>
+	<?php endif; ?>
 
 	<div class="rwgc-card rwga-analysis-meta">
 		<h2><?php esc_html_e( 'Summary', 'reactwoo-geo-ai' ); ?></h2>
