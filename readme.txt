@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.2.0.0
+Stable tag: 0.2.1.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,12 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.2.1.0 =
+* **Page context:** `RWGA_Page_Context` collects Gutenberg block names, plain text excerpt, word count, builder type, and featured-image flag for workflow payloads (filter `rwga_page_context`).
+* **UX analysis:** Stub summary uses page context when available.
+* **Admin:** **Analyses** submenu — paginated list and run detail with findings; Overview links runs to detail; sample UX redirects to the new detail screen.
+* **REST:** `GET /wp-json/geo-ai/v1/analyses` and `GET /wp-json/geo-ai/v1/analyses/{id}` (view permission).
 
 = 0.2.0.0 =
 * **Foundation:** Custom tables for analyses, findings, recommendations, drafts, competitors, automations, memory events, and outcomes (`dbDelta`).

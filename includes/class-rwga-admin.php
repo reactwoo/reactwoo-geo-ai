@@ -82,6 +82,7 @@ class RWGA_Admin {
 	public static function render_inner_nav( $current ) {
 		$items = array(
 			self::MENU_PARENT => __( 'Overview', 'reactwoo-geo-ai' ),
+			'rwga-analyses'   => __( 'Analyses', 'reactwoo-geo-ai' ),
 			'rwga-license'    => __( 'License', 'reactwoo-geo-ai' ),
 			'rwga-drafts'     => __( 'Drafts / Queue', 'reactwoo-geo-ai' ),
 			'rwga-advanced'   => __( 'Advanced', 'reactwoo-geo-ai' ),
@@ -527,7 +528,11 @@ class RWGA_Admin {
 		}
 
 		$run_id = isset( $out['analysis_run_id'] ) ? (int) $out['analysis_run_id'] : 0;
-		wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_PARENT . '&rwga_sample=ok&run_id=' . $run_id ) );
+		wp_safe_redirect(
+			admin_url(
+				'admin.php?page=rwga-analyses&run_id=' . $run_id . '&rwga_sample=ok'
+			)
+		);
 		exit;
 	}
 
@@ -554,6 +559,15 @@ class RWGA_Admin {
 			$cap_view,
 			self::MENU_PARENT,
 			array( __CLASS__, 'render_dashboard' )
+		);
+
+		add_submenu_page(
+			self::MENU_PARENT,
+			__( 'Geo AI — Analyses', 'reactwoo-geo-ai' ),
+			__( 'Analyses', 'reactwoo-geo-ai' ),
+			$cap_view,
+			'rwga-analyses',
+			array( __CLASS__, 'render_analyses' )
 		);
 
 		add_submenu_page(
@@ -591,6 +605,64 @@ class RWGA_Admin {
 			'rwga-help',
 			array( __CLASS__, 'render_help' )
 		);
+	}
+
+	/**
+	 * @return void
+	 */
+	/**
+	 * Analyses list or single run detail.
+	 *
+	 * @return void
+	 */
+	public static function render_analyses() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
+			return;
+		}
+
+		$run_id = isset( $_GET['run_id'] ) ? (int) $_GET['run_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $run_id > 0 ) {
+			self::render_analysis_detail( $run_id );
+			return;
+		}
+
+		$per_page = 20;
+		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$total    = class_exists( 'RWGA_DB_Analysis_Runs', false ) ? RWGA_DB_Analysis_Runs::count_rows() : 0;
+		$pages    = max( 1, (int) ceil( $total / $per_page ) );
+
+		$rwga_rows = class_exists( 'RWGA_DB_Analysis_Runs', false ) ? RWGA_DB_Analysis_Runs::list_paged( $per_page, $paged ) : array();
+
+		$rwga_pagination = array(
+			'total'   => $total,
+			'pages'   => $pages,
+			'current' => $paged,
+		);
+		$rwgc_nav_current = 'rwga-analyses';
+		include RWGA_PATH . 'admin/views/analyses-list.php';
+	}
+
+	/**
+	 * @param int $run_id Run ID.
+	 * @return void
+	 */
+	private static function render_analysis_detail( $run_id ) {
+		$run_id = (int) $run_id;
+		if ( $run_id <= 0 || ! class_exists( 'RWGA_DB_Analysis_Runs', false ) ) {
+			wp_die( esc_html__( 'Invalid analysis.', 'reactwoo-geo-ai' ), '', array( 'response' => 404 ) );
+		}
+
+		$rwga_run = RWGA_DB_Analysis_Runs::get( $run_id );
+		if ( ! is_array( $rwga_run ) ) {
+			wp_die( esc_html__( 'Analysis not found.', 'reactwoo-geo-ai' ), '', array( 'response' => 404 ) );
+		}
+
+		$rwga_findings = class_exists( 'RWGA_DB_Analysis_Findings', false )
+			? RWGA_DB_Analysis_Findings::list_for_run( $run_id )
+			: array();
+
+		$rwgc_nav_current = 'rwga-analyses';
+		include RWGA_PATH . 'admin/views/analysis-detail.php';
 	}
 
 	/**

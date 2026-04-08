@@ -97,6 +97,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-analysis-runs.php';
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-analysis-findings.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-memory-service.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-page-context.php';
 		require_once RWGA_PATH . 'includes/workflows/interface-rwga-workflow.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-base.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-ux-analysis.php';

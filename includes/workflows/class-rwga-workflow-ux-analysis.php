@@ -71,7 +71,10 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 		if ( is_wp_error( $v ) ) {
 			return $v;
 		}
-		$in  = $this->sanitise_common( $input );
+		$in = $this->sanitise_common( $input );
+		if ( $in['page_id'] > 0 && class_exists( 'RWGA_Page_Context', false ) ) {
+			$in['page_context'] = RWGA_Page_Context::collect( $in['page_id'] );
+		}
 		$raw = $this->produce_stub_response( $in );
 		$norm = $this->normalise_response( $raw );
 		$persisted = $this->persist( $in, $norm );
@@ -184,6 +187,24 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 				__( 'Page: %s', 'reactwoo-geo-ai' ),
 				$title_hint
 			);
+		}
+
+		if ( ! empty( $input['page_context'] ) && is_array( $input['page_context'] ) ) {
+			$pc = $input['page_context'];
+			if ( ! empty( $pc['word_count'] ) ) {
+				$summary .= ' ' . sprintf(
+					/* translators: %d: approximate word count */
+					__( 'Content (~%d words).', 'reactwoo-geo-ai' ),
+					(int) $pc['word_count']
+				);
+			}
+			if ( ! empty( $pc['builder'] ) ) {
+				$summary .= ' ' . sprintf(
+					/* translators: %s: builder id */
+					__( 'Builder: %s.', 'reactwoo-geo-ai' ),
+					sanitize_key( (string) $pc['builder'] )
+				);
+			}
 		}
 
 		$findings = array(

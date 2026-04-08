@@ -102,3 +102,62 @@
   margin-top: 0;
   font-size: 16px;
 }
+
+.rwga-findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rwga-finding-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+
+.rwga-finding-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.rwga-finding-card__head .description {
+  margin: 0;
+}
+
+.rwga-finding-card__evidence,
+.rwga-finding-card__hint {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.rwga-severity {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.rwga-severity--high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.rwga-severity--medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.rwga-severity--low {
+  background: #dcfce7;
+  color: #166534;
+}

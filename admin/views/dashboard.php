@@ -34,6 +34,7 @@ $awaiting      = is_numeric( $awaiting ) ? (string) (int) $awaiting : '—';
 $advanced_url = admin_url( 'admin.php?page=rwga-advanced' );
 $license_url  = admin_url( 'admin.php?page=rwga-license' );
 $drafts_url   = admin_url( 'admin.php?page=rwga-drafts' );
+$analyses_url = admin_url( 'admin.php?page=rwga-analyses' );
 $pages_url    = admin_url( 'edit.php?post_type=page' );
 
 ?>
@@ -270,9 +271,23 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 						<?php
 						$pid = isset( $row['page_id'] ) ? (int) $row['page_id'] : 0;
 						$pt  = $pid > 0 ? get_the_title( $pid ) : '';
+						$rid = isset( $row['id'] ) ? (int) $row['id'] : 0;
+						$run_link = add_query_arg(
+							array(
+								'page'   => 'rwga-analyses',
+								'run_id' => $rid,
+							),
+							admin_url( 'admin.php' )
+						);
 						?>
 						<tr>
-							<td><?php echo isset( $row['id'] ) ? (int) $row['id'] : 0; ?></td>
+							<td>
+								<?php if ( $rid > 0 ) : ?>
+									<a href="<?php echo esc_url( $run_link ); ?>"><?php echo (int) $rid; ?></a>
+								<?php else : ?>
+									—
+								<?php endif; ?>
+							</td>
 							<td><?php echo $pid > 0 && '' !== $pt ? esc_html( $pt ) : '—'; ?></td>
 							<td><?php echo isset( $row['score'] ) && null !== $row['score'] ? esc_html( (string) $row['score'] ) : '—'; ?></td>
 							<td><?php echo isset( $row['workflow_key'] ) ? esc_html( (string) $row['workflow_key'] ) : '—'; ?></td>
@@ -281,6 +296,7 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+			<p><a class="button" href="<?php echo esc_url( $analyses_url ); ?>"><?php esc_html_e( 'View all analyses', 'reactwoo-geo-ai' ); ?></a></p>
 		<?php else : ?>
 			<p class="rwga-empty-hint"><?php esc_html_e( 'No analysis runs yet. Use the sample UX analysis above or the REST endpoint.', 'reactwoo-geo-ai' ); ?></p>
 		<?php endif; ?>

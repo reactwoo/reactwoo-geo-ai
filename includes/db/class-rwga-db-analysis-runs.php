@@ -130,4 +130,35 @@ class RWGA_DB_Analysis_Runs {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d", $limit ), ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Total rows for pagination.
+	 *
+	 * @return int
+	 */
+	public static function count_rows() {
+		global $wpdb;
+		$table = RWGA_DB::analysis_runs_table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+		$c = $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		return (int) $c;
+	}
+
+	/**
+	 * Paginated list (newest first).
+	 *
+	 * @param int $per_page Items per page.
+	 * @param int $paged    Page number (1-based).
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function list_paged( $per_page = 20, $paged = 1 ) {
+		global $wpdb;
+		$per_page = max( 1, min( 100, (int) $per_page ) );
+		$paged    = max( 1, (int) $paged );
+		$offset   = ( $paged - 1 ) * $per_page;
+		$table    = RWGA_DB::analysis_runs_table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ), ARRAY_A );
+		return is_array( $rows ) ? $rows : array();
+	}
 }
