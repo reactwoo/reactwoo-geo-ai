@@ -27,6 +27,7 @@ class RWGA_Workflow_Registry {
 		self::$workflows['ux_recommend']     = new RWGA_Workflow_UX_Recommend();
 		self::$workflows['copy_implement']   = new RWGA_Workflow_Copy_Implement();
 		self::$workflows['seo_implement']    = new RWGA_Workflow_SEO_Implement();
+		self::$workflows['competitor_research'] = new RWGA_Workflow_Competitor_Research();
 
 		/**
 		 * Register additional Geo AI workflows.

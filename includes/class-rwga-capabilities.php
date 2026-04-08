@@ -71,4 +71,13 @@ class RWGA_Capabilities {
 	public static function current_user_can_manage_ai() {
 		return current_user_can( self::CAP_MANAGE_AI );
 	}
+
+	/**
+	 * Whether the current user may create or edit automation rules.
+	 *
+	 * @return bool
+	 */
+	public static function current_user_can_manage_automations() {
+		return current_user_can( self::CAP_MANAGE_AUTOMATIONS );
+	}
 }

@@ -44,6 +44,12 @@ class RWGA_Agent_Registry {
 				'schema_version'    => '1.0.0',
 				'supports_geo'      => true,
 			),
+			'market_analyst' => array(
+				'label'             => __( 'Market Analyst', 'reactwoo-geo-ai' ),
+				'allowed_workflows' => array( 'competitor_research' ),
+				'schema_version'    => '1.0.0',
+				'supports_geo'      => true,
+			),
 		);
 
 		/**

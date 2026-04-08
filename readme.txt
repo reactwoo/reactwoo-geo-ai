@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.2.4.0
+Stable tag: 0.3.0.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,15 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.3.0.0 =
+* **Competitor research:** `competitor_research` workflow and **Market Analyst** agent; rows in `rwga_competitor_research` (stub snapshot, no live fetch).
+* **REST:** `POST /wp-json/geo-ai/v1/research/competitors`; `GET .../competitor-research` (optional `page_id`); `GET .../competitor-research/{id}`.
+* **Admin:** **Competitors** screen — run form, list, detail.
+* **Automation:** `RWGA_DB_Automation_Rules` CRUD; `RWGA_Automation_Runner` stub (updates `last_run_at` / `next_run_at`, memory event).
+* **REST:** `GET`/`POST /automation/rules`; `GET`/`PATCH`/`DELETE /automation/rules/{id}`; `POST /automation/rules/{id}/run` (requires `rwga_run_ai` + license).
+* **Admin:** **Automation** screen — create/edit rules (`rwga_manage_automations`), run/delete, workflow picker from registry.
+* **Capabilities:** `RWGA_Capabilities::current_user_can_manage_automations()`.
 
 = 0.2.4.0 =
 * **SEO implementation:** `seo_implement` workflow and **SEO Strategist** agent; local stub writes meta, heading outline, and checklist rows to `rwga_implementation_drafts`.
