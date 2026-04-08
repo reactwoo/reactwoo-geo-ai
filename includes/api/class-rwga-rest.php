@@ -122,6 +122,51 @@ class RWGA_REST {
 				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/implement/copy',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_implement_copy' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+				'args'                => array(),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/implementation-drafts',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_implementation_drafts_list' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+				'args'                => array(
+					'page'               => array(
+						'default'           => 1,
+						'sanitize_callback' => 'absint',
+					),
+					'per_page'           => array(
+						'default'           => 20,
+						'sanitize_callback' => 'absint',
+					),
+					'recommendation_id'  => array(
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/implementation-drafts/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_implementation_draft_get' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
 	}
 
 	/**
@@ -312,5 +357,100 @@ class RWGA_REST {
 		}
 
 		return rest_ensure_response( array( 'recommendation' => $row ) );
+	}
+
+	/**
+	 * POST /geo-ai/v1/implement/copy
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_implement_copy( $request ) {
+		$input = $request->get_json_params();
+		if ( ! is_array( $input ) ) {
+			$input = array();
+		}
+
+		$wf = RWGA_Workflow_Registry::get( 'copy_implement' );
+		if ( ! $wf ) {
+			return new WP_Error( 'rwga_no_workflow', __( 'Workflow not registered.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+
+		$out = $wf->execute( $input );
+		if ( is_wp_error( $out ) ) {
+			return $out;
+		}
+
+		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * GET /geo-ai/v1/implementation-drafts
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_implementation_drafts_list( $request ) {
+		$page     = max( 1, (int) $request->get_param( 'page' ) );
+		$per_page = max( 1, min( 100, (int) $request->get_param( 'per_page' ) ) );
+		$filter   = max( 0, (int) $request->get_param( 'recommendation_id' ) );
+
+		$total = RWGA_DB_Implementation_Drafts::count_rows( $filter );
+		$pages = max( 1, (int) ceil( $total / $per_page ) );
+		$rows  = RWGA_DB_Implementation_Drafts::list_paged( $per_page, $page, $filter );
+
+		return rest_ensure_response(
+			array(
+				'total'             => $total,
+				'pages'             => $pages,
+				'page'              => $page,
+				'per_page'          => $per_page,
+				'recommendation_id' => $filter,
+				'drafts'            => array_map( array( __CLASS__, 'decode_implementation_draft_row' ), $rows ),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/implementation-drafts/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_implementation_draft_get( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid draft id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+
+		$row = RWGA_DB_Implementation_Drafts::get( $id );
+		if ( ! is_array( $row ) ) {
+			return new WP_Error( 'rwga_not_found', __( 'Implementation draft not found.', 'reactwoo-geo-ai' ), array( 'status' => 404 ) );
+		}
+
+		return rest_ensure_response(
+			array(
+				'draft' => self::decode_implementation_draft_row( $row ),
+			)
+		);
+	}
+
+	/**
+	 * JSON-decode payload fields for API consumers.
+	 *
+	 * @param array<string, mixed> $row DB row.
+	 * @return array<string, mixed>
+	 */
+	private static function decode_implementation_draft_row( array $row ) {
+		foreach ( array( 'draft_payload', 'diff_payload' ) as $k ) {
+			if ( ! isset( $row[ $k ] ) || ! is_string( $row[ $k ] ) || '' === $row[ $k ] ) {
+				continue;
+			}
+			$dec = json_decode( $row[ $k ], true );
+			if ( JSON_ERROR_NONE === json_last_error() && is_array( $dec ) ) {
+				$row[ $k ] = $dec;
+			}
+		}
+		return $row;
 	}
 }

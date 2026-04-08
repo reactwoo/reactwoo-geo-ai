@@ -88,9 +88,18 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 						$pid = isset( $row['page_id'] ) ? (int) $row['page_id'] : 0;
 						$pt  = $pid > 0 ? get_the_title( $pid ) : '';
 						?>
+						<?php
+						$rec_url = add_query_arg(
+							array(
+								'page'   => 'rwga-recommendations',
+								'rec_id' => $rid,
+							),
+							admin_url( 'admin.php' )
+						);
+						?>
 						<tr>
 							<td><?php echo (int) $rid; ?></td>
-							<td><strong><?php echo isset( $row['title'] ) ? esc_html( (string) $row['title'] ) : ''; ?></strong></td>
+							<td><strong><a href="<?php echo esc_url( $rec_url ); ?>"><?php echo isset( $row['title'] ) ? esc_html( (string) $row['title'] ) : ''; ?></a></strong></td>
 							<td><?php echo isset( $row['priority_level'] ) ? esc_html( (string) $row['priority_level'] ) : '—'; ?></td>
 							<td>
 								<?php if ( $aid > 0 ) : ?>

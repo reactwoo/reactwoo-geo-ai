@@ -32,6 +32,12 @@ class RWGA_Agent_Registry {
 				'schema_version'    => '1.0.0',
 				'supports_geo'      => true,
 			),
+			'ux_writer' => array(
+				'label'             => __( 'UX Writer', 'reactwoo-geo-ai' ),
+				'allowed_workflows' => array( 'copy_implement' ),
+				'schema_version'    => '1.0.0',
+				'supports_geo'      => true,
+			),
 		);
 
 		/**

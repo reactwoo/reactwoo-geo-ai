@@ -23,8 +23,9 @@ class RWGA_Workflow_Registry {
 	 * @return void
 	 */
 	public static function init() {
-		self::$workflows['ux_analysis']  = new RWGA_Workflow_UX_Analysis();
-		self::$workflows['ux_recommend'] = new RWGA_Workflow_UX_Recommend();
+		self::$workflows['ux_analysis']     = new RWGA_Workflow_UX_Analysis();
+		self::$workflows['ux_recommend']    = new RWGA_Workflow_UX_Recommend();
+		self::$workflows['copy_implement'] = new RWGA_Workflow_Copy_Implement();
 
 		/**
 		 * Register additional Geo AI workflows.
