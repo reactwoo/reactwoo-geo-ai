@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.1.19.0
+Stable tag: 0.2.0.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,13 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.2.0.0 =
+* **Foundation:** Custom tables for analyses, findings, recommendations, drafts, competitors, automations, memory events, and outcomes (`dbDelta`).
+* **Workflows:** Bounded workflow registry, agent registry, UX analysis workflow with local deterministic stub (persists runs, findings, memory events).
+* **REST:** `POST /wp-json/geo-ai/v1/analyse/ux`, `GET /wp-json/geo-ai/v1/agents` (license + `rwga_run_ai` / view caps).
+* **Capabilities:** `rwga_manage_ai`, `rwga_run_ai`, `rwga_view_ai_reports`, `rwga_manage_automations`; admin menu uses view cap; License/Advanced remain `manage_options`.
+* **Overview:** Sample UX analysis action and recent analyses table when licensed.
 
 = 0.1.19.0 =
 * **Updates:** Registers **`RWGC_Satellite_Updater`** (Geo Core 1.3.4+) — WordPress **Plugins →** update checks use `POST /api/v5/updates/check` with the license JWT; **`download_url`** is R2-signed from the API.

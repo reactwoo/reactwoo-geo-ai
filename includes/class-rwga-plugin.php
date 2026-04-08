@@ -45,6 +45,8 @@ class RWGA_Plugin {
 			return;
 		}
 
+		$this->load_workflow_engine();
+
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
 		RWGA_Settings::register_platform_filters();
 		RWGA_Settings::maybe_migrate_from_geo_core();
@@ -75,6 +77,35 @@ class RWGA_Plugin {
 		 * Fires when Geo AI satellite is ready (Geo Core is active).
 		 */
 		do_action( 'rwga_loaded' );
+	}
+
+	/**
+	 * DB, capabilities, workflows, REST.
+	 *
+	 * @return void
+	 */
+	private function load_workflow_engine() {
+		require_once RWGA_PATH . 'includes/helpers/rwga-site.php';
+		require_once RWGA_PATH . 'includes/db/class-rwga-db.php';
+		require_once RWGA_PATH . 'includes/class-rwga-install.php';
+		RWGA_Install::maybe_upgrade();
+
+		require_once RWGA_PATH . 'includes/class-rwga-capabilities.php';
+		RWGA_Capabilities::install();
+
+		require_once RWGA_PATH . 'includes/class-rwga-license.php';
+		require_once RWGA_PATH . 'includes/db/class-rwga-db-analysis-runs.php';
+		require_once RWGA_PATH . 'includes/db/class-rwga-db-analysis-findings.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-memory-service.php';
+		require_once RWGA_PATH . 'includes/workflows/interface-rwga-workflow.php';
+		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-base.php';
+		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-ux-analysis.php';
+		require_once RWGA_PATH . 'includes/class-rwga-workflow-registry.php';
+		RWGA_Workflow_Registry::init();
+
+		require_once RWGA_PATH . 'includes/class-rwga-agent-registry.php';
+		require_once RWGA_PATH . 'includes/api/class-rwga-rest.php';
+		RWGA_REST::init();
 	}
 
 	/**

@@ -25,6 +25,7 @@ class RWGA_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_admin_actions' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_license_actions' ) );
+		add_action( 'admin_post_rwga_sample_ux', array( __CLASS__, 'handle_sample_ux' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
 
@@ -34,7 +35,7 @@ class RWGA_Admin {
 	 * @return void
 	 */
 	public static function render_geo_core_summary_card() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
 		}
 		$s = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
@@ -143,7 +144,7 @@ class RWGA_Admin {
 	 * @return void
 	 */
 	public static function render_suite_handoff_panel() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
 		}
 		if ( ! function_exists( 'rwgc_get_suite_handoff_request_context' ) ) {
@@ -269,7 +270,7 @@ class RWGA_Admin {
 	 * @return void
 	 */
 	public static function handle_admin_actions() {
-		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_admin() || ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
 			return;
 		}
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -453,13 +454,93 @@ class RWGA_Admin {
 	}
 
 	/**
+	 * Run a bounded sample UX analysis (foundation / stub engine).
+	 *
+	 * @return void
+	 */
+	public static function handle_sample_ux() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to run Geo AI workflows.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_sample_ux' );
+
+		if ( ! class_exists( 'RWGA_License', false ) || ! RWGA_License::can_run_workflows() ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_PARENT . '&rwga_sample=unlicensed' ) );
+			exit;
+		}
+
+		$page_id = isset( $_POST['page_id'] ) ? (int) wp_unslash( $_POST['page_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $page_id <= 0 ) {
+			$front = (int) get_option( 'page_on_front' );
+			$page_id = $front > 0 ? $front : 0;
+		}
+		if ( $page_id <= 0 ) {
+			$ids = get_posts(
+				array(
+					'post_type'              => 'page',
+					'post_status'            => 'publish',
+					'numberposts'            => 1,
+					'orderby'                => 'modified',
+					'order'                  => 'DESC',
+					'fields'                 => 'ids',
+					'no_found_rows'          => true,
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+				)
+			);
+			if ( is_array( $ids ) && ! empty( $ids[0] ) ) {
+				$page_id = (int) $ids[0];
+			}
+		}
+
+		if ( $page_id <= 0 ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_PARENT . '&rwga_sample=nopage' ) );
+			exit;
+		}
+
+		$wf = class_exists( 'RWGA_Workflow_Registry', false ) ? RWGA_Workflow_Registry::get( 'ux_analysis' ) : null;
+		if ( ! $wf ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_PARENT . '&rwga_sample=noflow' ) );
+			exit;
+		}
+
+		$out = $wf->execute(
+			array(
+				'page_id'     => $page_id,
+				'page_type'   => 'page',
+				'device_type' => 'desktop',
+			)
+		);
+
+		if ( is_wp_error( $out ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'        => self::MENU_PARENT,
+						'rwga_sample' => 'error',
+						'rwga_err'    => rawurlencode( $out->get_error_message() ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		$run_id = isset( $out['analysis_run_id'] ) ? (int) $out['analysis_run_id'] : 0;
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_PARENT . '&rwga_sample=ok&run_id=' . $run_id ) );
+		exit;
+	}
+
+	/**
 	 * @return void
 	 */
 	public static function register_menu() {
+		$cap_view = RWGA_Capabilities::CAP_VIEW_REPORTS;
+
 		add_menu_page(
 			__( 'Geo AI', 'reactwoo-geo-ai' ),
 			__( 'Geo AI', 'reactwoo-geo-ai' ),
-			'manage_options',
+			$cap_view,
 			self::MENU_PARENT,
 			array( __CLASS__, 'render_dashboard' ),
 			'dashicons-admin-generic',
@@ -470,7 +551,7 @@ class RWGA_Admin {
 			self::MENU_PARENT,
 			__( 'Overview', 'reactwoo-geo-ai' ),
 			__( 'Overview', 'reactwoo-geo-ai' ),
-			'manage_options',
+			$cap_view,
 			self::MENU_PARENT,
 			array( __CLASS__, 'render_dashboard' )
 		);
@@ -488,7 +569,7 @@ class RWGA_Admin {
 			self::MENU_PARENT,
 			__( 'Geo AI — Drafts / Queue', 'reactwoo-geo-ai' ),
 			__( 'Drafts / Queue', 'reactwoo-geo-ai' ),
-			'manage_options',
+			$cap_view,
 			'rwga-drafts',
 			array( __CLASS__, 'render_drafts_queue' )
 		);
@@ -506,7 +587,7 @@ class RWGA_Admin {
 			self::MENU_PARENT,
 			__( 'Geo AI — Help', 'reactwoo-geo-ai' ),
 			__( 'Help', 'reactwoo-geo-ai' ),
-			'manage_options',
+			$cap_view,
 			'rwga-help',
 			array( __CLASS__, 'render_help' )
 		);
@@ -516,14 +597,18 @@ class RWGA_Admin {
 	 * @return void
 	 */
 	public static function render_dashboard() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
 		}
 		$rwga_summary = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
 		$rwga_cache   = class_exists( 'RWGA_Usage', false ) ? RWGA_Usage::get_cache() : null;
 		$rwga_queue_preview = class_exists( 'RWGA_Drafts', false ) ? RWGA_Drafts::get_queue_rows() : array();
 		$rwga_queue_preview = is_array( $rwga_queue_preview ) ? array_slice( $rwga_queue_preview, 0, 5 ) : array();
-		$rwgc_nav_current   = self::MENU_PARENT;
+		$rwga_analysis_preview = array();
+		if ( class_exists( 'RWGA_DB_Analysis_Runs', false ) ) {
+			$rwga_analysis_preview = RWGA_DB_Analysis_Runs::list_recent( 5 );
+		}
+		$rwgc_nav_current = self::MENU_PARENT;
 		include RWGA_PATH . 'admin/views/dashboard.php';
 	}
 
@@ -544,7 +629,7 @@ class RWGA_Admin {
 	 * @return void
 	 */
 	public static function render_help() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
 		}
 		$rwgc_nav_current = 'rwga-help';
@@ -557,7 +642,7 @@ class RWGA_Admin {
 	 * @return void
 	 */
 	public static function render_drafts_queue() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
 		}
 		$rwgc_nav_current = 'rwga-drafts';

@@ -4,8 +4,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 $rwga_summary       = isset( $rwga_summary ) && is_array( $rwga_summary ) ? $rwga_summary : array();
 $rwga_cache         = isset( $rwga_cache ) && is_array( $rwga_cache ) ? $rwga_cache : null;
-$rwga_queue_preview = isset( $rwga_queue_preview ) && is_array( $rwga_queue_preview ) ? $rwga_queue_preview : array();
-$rwgc_nav_current   = isset( $rwgc_nav_current ) ? $rwgc_nav_current : RWGA_Admin::MENU_PARENT;
+$rwga_queue_preview   = isset( $rwga_queue_preview ) && is_array( $rwga_queue_preview ) ? $rwga_queue_preview : array();
+$rwga_analysis_preview = isset( $rwga_analysis_preview ) && is_array( $rwga_analysis_preview ) ? $rwga_analysis_preview : array();
+$rwgc_nav_current     = isset( $rwgc_nav_current ) ? $rwgc_nav_current : RWGA_Admin::MENU_PARENT;
 
 $lic_ok = ! empty( $rwga_summary['license_configured'] );
 $rest_on = ! empty( $rwga_summary['rest_enabled'] );
@@ -52,6 +53,29 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
+
+	<?php
+	$rwga_sample = isset( $_GET['rwga_sample'] ) ? sanitize_key( wp_unslash( $_GET['rwga_sample'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'ok' === $rwga_sample && ! empty( $_GET['run_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$rid = (int) $_GET['run_id']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-success is-dismissible"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: %d: analysis run id */
+				__( 'Sample UX analysis saved as run #%d.', 'reactwoo-geo-ai' ),
+				$rid
+			)
+		);
+		echo '</p></div>';
+	} elseif ( 'unlicensed' === $rwga_sample ) {
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to run bounded workflows.', 'reactwoo-geo-ai' ) . '</p></div>';
+	} elseif ( 'nopage' === $rwga_sample ) {
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'No published page was found to analyse. Create a page first.', 'reactwoo-geo-ai' ) . '</p></div>';
+	} elseif ( 'error' === $rwga_sample && ! empty( $_GET['rwga_err'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$msg = sanitize_text_field( wp_unslash( rawurldecode( (string) $_GET['rwga_err'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+	}
+	?>
 
 	<?php RWGA_Admin::render_suite_handoff_panel(); ?>
 
@@ -136,6 +160,37 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 		?>
 	</div>
 
+	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) : ?>
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Foundation: sample UX analysis', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Runs a bounded local stub (no external AI call yet), saves findings to the database, and records a memory event.', 'reactwoo-geo-ai' ); ?></p>
+		<?php if ( class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-sample-ux">
+				<input type="hidden" name="action" value="rwga_sample_ux" />
+				<?php wp_nonce_field( 'rwga_sample_ux' ); ?>
+				<p>
+					<label for="rwga_sample_page_id"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></label>
+					<?php
+					wp_dropdown_pages(
+						array(
+							'name'              => 'page_id',
+							'id'                => 'rwga_sample_page_id',
+							'show_option_none'  => __( '— Use front page or latest page —', 'reactwoo-geo-ai' ),
+							'option_none_value' => '0',
+						)
+					);
+					?>
+				</p>
+				<?php submit_button( __( 'Run sample UX analysis', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
+			</form>
+			<p class="description"><?php esc_html_e( 'REST: POST /wp-json/geo-ai/v1/analyse/ux with JSON body { "page_id": 123 } (requires license + rwga_run_ai).', 'reactwoo-geo-ai' ); ?></p>
+		<?php else : ?>
+			<p class="description"><?php esc_html_e( 'Configure a license key to enable workflow runs.', 'reactwoo-geo-ai' ); ?></p>
+			<p><a class="button button-primary" href="<?php echo esc_url( $license_url ); ?>"><?php esc_html_e( 'Open License', 'reactwoo-geo-ai' ); ?></a></p>
+		<?php endif; ?>
+	</div>
+	<?php endif; ?>
+
 	<div class="rwgc-card">
 		<h2><?php esc_html_e( 'Setup checklist', 'reactwoo-geo-ai' ); ?></h2>
 		<ul class="rwgc-suite-checklist">
@@ -193,6 +248,41 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 			<p><a class="button" href="<?php echo esc_url( $drafts_url ); ?>"><?php esc_html_e( 'View full queue', 'reactwoo-geo-ai' ); ?></a></p>
 		<?php else : ?>
 			<p class="rwga-empty-hint"><?php esc_html_e( 'No queued drafts yet. When integrations record jobs, they will appear here and on Drafts / Queue.', 'reactwoo-geo-ai' ); ?></p>
+		<?php endif; ?>
+	</div>
+
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Recent analyses', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Stored UX analysis runs (foundation).', 'reactwoo-geo-ai' ); ?></p>
+		<?php if ( ! empty( $rwga_analysis_preview ) ) : ?>
+			<table class="widefat striped rwga-table-comfortable">
+				<thead>
+					<tr>
+						<th scope="col"><?php esc_html_e( 'Run', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Score', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Workflow', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Date (UTC)', 'reactwoo-geo-ai' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $rwga_analysis_preview as $row ) : ?>
+						<?php
+						$pid = isset( $row['page_id'] ) ? (int) $row['page_id'] : 0;
+						$pt  = $pid > 0 ? get_the_title( $pid ) : '';
+						?>
+						<tr>
+							<td><?php echo isset( $row['id'] ) ? (int) $row['id'] : 0; ?></td>
+							<td><?php echo $pid > 0 && '' !== $pt ? esc_html( $pt ) : '—'; ?></td>
+							<td><?php echo isset( $row['score'] ) && null !== $row['score'] ? esc_html( (string) $row['score'] ) : '—'; ?></td>
+							<td><?php echo isset( $row['workflow_key'] ) ? esc_html( (string) $row['workflow_key'] ) : '—'; ?></td>
+							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php else : ?>
+			<p class="rwga-empty-hint"><?php esc_html_e( 'No analysis runs yet. Use the sample UX analysis above or the REST endpoint.', 'reactwoo-geo-ai' ); ?></p>
 		<?php endif; ?>
 	</div>
 

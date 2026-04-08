@@ -1,0 +1,38 @@
+<?php
+/**
+ * Agent metadata (bounded roles).
+ *
+ * @package ReactWoo_Geo_AI
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Declarative agent registry for UI and guardrails.
+ */
+class RWGA_Agent_Registry {
+
+	/**
+	 * @return array<string, array<string, mixed>>
+	 */
+	public static function all() {
+		$agents = array(
+			'ux_analyst' => array(
+				'label'            => __( 'UX Analyst', 'reactwoo-geo-ai' ),
+				'allowed_workflows'=> array( 'ux_analysis' ),
+				'schema_version'   => '1.0.0',
+				'supports_geo'     => true,
+				'supports_performance_context' => true,
+			),
+		);
+
+		/**
+		 * Register Geo AI agents.
+		 *
+		 * @param array<string, array<string, mixed>> $agents Agent definitions.
+		 */
+		return apply_filters( 'rwga_register_agents', $agents );
+	}
+}
