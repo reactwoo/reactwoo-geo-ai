@@ -136,6 +136,17 @@ class RWGA_REST {
 
 		register_rest_route(
 			self::NS,
+			'/implement/seo',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_implement_seo' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+				'args'                => array(),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/implementation-drafts',
 			array(
 				'methods'             => 'GET',
@@ -153,6 +164,10 @@ class RWGA_REST {
 					'recommendation_id'  => array(
 						'default'           => 0,
 						'sanitize_callback' => 'absint',
+					),
+					'workflow_key'       => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_key',
 					),
 				),
 			)
@@ -385,6 +400,31 @@ class RWGA_REST {
 	}
 
 	/**
+	 * POST /geo-ai/v1/implement/seo
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_implement_seo( $request ) {
+		$input = $request->get_json_params();
+		if ( ! is_array( $input ) ) {
+			$input = array();
+		}
+
+		$wf = RWGA_Workflow_Registry::get( 'seo_implement' );
+		if ( ! $wf ) {
+			return new WP_Error( 'rwga_no_workflow', __( 'Workflow not registered.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+
+		$out = $wf->execute( $input );
+		if ( is_wp_error( $out ) ) {
+			return $out;
+		}
+
+		return rest_ensure_response( $out );
+	}
+
+	/**
 	 * GET /geo-ai/v1/implementation-drafts
 	 *
 	 * @param \WP_REST_Request $request Request.
@@ -394,10 +434,11 @@ class RWGA_REST {
 		$page     = max( 1, (int) $request->get_param( 'page' ) );
 		$per_page = max( 1, min( 100, (int) $request->get_param( 'per_page' ) ) );
 		$filter   = max( 0, (int) $request->get_param( 'recommendation_id' ) );
+		$wk       = sanitize_key( (string) $request->get_param( 'workflow_key' ) );
 
-		$total = RWGA_DB_Implementation_Drafts::count_rows( $filter );
+		$total = RWGA_DB_Implementation_Drafts::count_rows( $filter, $wk );
 		$pages = max( 1, (int) ceil( $total / $per_page ) );
-		$rows  = RWGA_DB_Implementation_Drafts::list_paged( $per_page, $page, $filter );
+		$rows  = RWGA_DB_Implementation_Drafts::list_paged( $per_page, $page, $filter, $wk );
 
 		return rest_ensure_response(
 			array(
@@ -406,6 +447,7 @@ class RWGA_REST {
 				'page'              => $page,
 				'per_page'          => $per_page,
 				'recommendation_id' => $filter,
+				'workflow_key'      => $wk,
 				'drafts'            => array_map( array( __CLASS__, 'decode_implementation_draft_row' ), $rows ),
 			)
 		);

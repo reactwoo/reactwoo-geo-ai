@@ -105,6 +105,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-ux-analysis.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-ux-recommend.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-copy-implement.php';
+		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-seo-implement.php';
 		require_once RWGA_PATH . 'includes/class-rwga-workflow-registry.php';
 		RWGA_Workflow_Registry::init();
 

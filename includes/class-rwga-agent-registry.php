@@ -38,6 +38,12 @@ class RWGA_Agent_Registry {
 				'schema_version'    => '1.0.0',
 				'supports_geo'      => true,
 			),
+			'seo_strategist' => array(
+				'label'             => __( 'SEO Strategist', 'reactwoo-geo-ai' ),
+				'allowed_workflows' => array( 'seo_implement' ),
+				'schema_version'    => '1.0.0',
+				'supports_geo'      => true,
+			),
 		);
 
 		/**

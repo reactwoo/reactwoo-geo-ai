@@ -132,41 +132,83 @@ class RWGA_DB_Implementation_Drafts {
 	}
 
 	/**
-	 * @param int $recommendation_id Optional filter.
+	 * @param int    $recommendation_id Optional filter.
+	 * @param string $workflow_key      Optional filter (e.g. copy_implement, seo_implement).
 	 * @return int
 	 */
-	public static function count_rows( $recommendation_id = 0 ) {
+	public static function count_rows( $recommendation_id = 0, $workflow_key = '' ) {
 		global $wpdb;
-		$table           = RWGA_DB::implementation_drafts_table();
+		$table             = RWGA_DB::implementation_drafts_table();
 		$recommendation_id = (int) $recommendation_id;
+		$wk                = sanitize_key( (string) $workflow_key );
+
+		if ( $recommendation_id > 0 && '' !== $wk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+			return (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$table} WHERE recommendation_id = %d AND workflow_key = %s",
+					$recommendation_id,
+					$wk
+				)
+			);
+		}
 		if ( $recommendation_id > 0 ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
 			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE recommendation_id = %d", $recommendation_id ) );
+		}
+		if ( '' !== $wk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE workflow_key = %s", $wk ) );
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
 		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
 	}
 
 	/**
-	 * @param int $per_page Items per page.
-	 * @param int $paged    Page number.
-	 * @param int $recommendation_id Optional filter.
+	 * @param int    $per_page          Items per page.
+	 * @param int    $paged             Page number.
+	 * @param int    $recommendation_id Optional filter.
+	 * @param string $workflow_key      Optional filter.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function list_paged( $per_page = 20, $paged = 1, $recommendation_id = 0 ) {
+	public static function list_paged( $per_page = 20, $paged = 1, $recommendation_id = 0, $workflow_key = '' ) {
 		global $wpdb;
 		$per_page = max( 1, min( 100, (int) $per_page ) );
 		$paged    = max( 1, (int) $paged );
 		$offset   = ( $paged - 1 ) * $per_page;
 		$table    = RWGA_DB::implementation_drafts_table();
 		$recommendation_id = (int) $recommendation_id;
+		$wk                  = sanitize_key( (string) $workflow_key );
 
-		if ( $recommendation_id > 0 ) {
+		if ( $recommendation_id > 0 && '' !== $wk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM {$table} WHERE recommendation_id = %d AND workflow_key = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+					$recommendation_id,
+					$wk,
+					$per_page,
+					$offset
+				),
+				ARRAY_A
+			);
+		} elseif ( $recommendation_id > 0 ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM {$table} WHERE recommendation_id = %d ORDER BY created_at DESC LIMIT %d OFFSET %d",
 					$recommendation_id,
+					$per_page,
+					$offset
+				),
+				ARRAY_A
+			);
+		} elseif ( '' !== $wk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM {$table} WHERE workflow_key = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+					$wk,
 					$per_page,
 					$offset
 				),

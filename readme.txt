@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.2.3.0
+Stable tag: 0.2.4.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,11 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.2.4.0 =
+* **SEO implementation:** `seo_implement` workflow and **SEO Strategist** agent; local stub writes meta, heading outline, and checklist rows to `rwga_implementation_drafts`.
+* **REST:** `POST /wp-json/geo-ai/v1/implement/seo` (same JSON shape as copy); `GET .../implementation-drafts` accepts optional `workflow_key` (`copy_implement`, `seo_implement`).
+* **Admin:** **Implementation** screen — SEO generate form, workflow column, list filter by workflow; recommendation detail includes **Generate SEO drafts**.
 
 = 0.2.3.0 =
 * **Copy implementation:** `copy_implement` workflow and **UX Writer** agent; local stub produces hero, CTA, and trust drafts in `rwga_implementation_drafts`.

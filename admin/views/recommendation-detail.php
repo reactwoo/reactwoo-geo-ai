@@ -91,6 +91,23 @@ $geo             = isset( $rwga_rec['geo_target'] ) ? (string) $rwga_rec['geo_ta
 			<?php submit_button( __( 'Generate copy drafts', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
 		</form>
 	</div>
+
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'SEO implementation drafts', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Meta title/description, heading outline, and on-page checklist (bounded local engine).', 'reactwoo-geo-ai' ); ?></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="rwga_seo_implement" />
+			<input type="hidden" name="recommendation_id" value="<?php echo (int) $rec_id; ?>" />
+			<?php if ( $page_id > 0 ) : ?>
+				<input type="hidden" name="page_id" value="<?php echo (int) $page_id; ?>" />
+			<?php endif; ?>
+			<?php if ( '' !== $geo ) : ?>
+				<input type="hidden" name="geo_target" value="<?php echo esc_attr( $geo ); ?>" />
+			<?php endif; ?>
+			<?php wp_nonce_field( 'rwga_seo_implement' ); ?>
+			<?php submit_button( __( 'Generate SEO drafts', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
+		</form>
+	</div>
 	<?php elseif ( class_exists( 'RWGA_License', false ) && ! RWGA_License::can_run_workflows() ) : ?>
 	<div class="rwgc-card">
 		<p class="description"><?php esc_html_e( 'Add a Geo AI license key to generate implementation drafts.', 'reactwoo-geo-ai' ); ?></p>
