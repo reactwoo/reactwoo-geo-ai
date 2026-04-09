@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.1.0
+Stable tag: 0.4.2.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.2.0 =
+* **Competitor research + remote engine:** When workflow execution mode is remote or remote fallback, `competitor_research` calls the same ReactWoo API route as UX analysis (`POST` `/api/v5/geo-ai/workflow`) and persists the returned snapshot fields.
 
 = 0.4.1.0 =
 * **Automation:** Manual and WP-Cron runs now **execute the registered workflow** (impersonating the rule author or an administrator/shop manager/editor with `rwga_run_ai`). Supported inputs: **ux_analysis** (page ID and/or automation page URL), **competitor_research** (competitor URL in rule options). Other workflows: filter `rwga_automation_build_workflow_input`. Memory events include `workflow_dispatch` metadata; schedule timestamps still advance after each run.

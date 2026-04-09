@@ -81,10 +81,32 @@ class RWGA_Workflow_Competitor_Research extends RWGA_Workflow_Base {
 		if ( is_wp_error( $v ) ) {
 			return $v;
 		}
-		$in   = $this->build_request_payload( $input );
+		$in = $this->build_request_payload( $input );
+
+		$mode   = RWGA_Engine::get_mode();
+		$remote = RWGA_Engine::should_try_remote() ? RWGA_Remote_Client::dispatch( $this->get_key(), $in ) : null;
+		$use_api = ! is_wp_error( $remote ) && is_array( $remote ) && ! empty( $remote['engine_response'] );
+
+		if ( $use_api ) {
+			$norm = $this->normalise_response( $remote['engine_response'] );
+			return $this->finish_execute( $in, $norm );
+		}
+
+		if ( is_wp_error( $remote ) && 'remote' === $mode ) {
+			return $remote;
+		}
+
 		$raw  = $this->produce_stub( $in );
 		$norm = $this->normalise_response( $raw );
+		return $this->finish_execute( $in, $norm );
+	}
 
+	/**
+	 * @param array<string, mixed> $in   Sanitised payload.
+	 * @param array<string, mixed> $norm Normalised result.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private function finish_execute( array $in, array $norm ) {
 		$persisted = $this->persist( $in, $norm );
 		if ( is_array( $persisted ) && empty( $persisted['success'] ) ) {
 			$msg = isset( $persisted['error'] ) ? (string) $persisted['error'] : __( 'Could not save competitor research.', 'reactwoo-geo-ai' );
