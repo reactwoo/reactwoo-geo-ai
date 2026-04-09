@@ -125,3 +125,37 @@ function rwga_extract_text_for_ai( $raw, array $args = array() ) {
 	 */
 	return (string) apply_filters( 'rwga_extract_text_for_ai', $text, $raw, $src, $args );
 }
+
+/**
+ * Minimal fields for remote AI (token-efficient): no duplicate raw HTML, only plain text + metadata.
+ *
+ * @param array<string, mixed> $ctx Full {@see RWGA_Page_Context::collect} array.
+ * @return array<string, mixed>
+ */
+function rwga_ai_reading_bundle_from_page_context( array $ctx ) {
+	$blocks = isset( $ctx['blocks'] ) && is_array( $ctx['blocks'] ) ? $ctx['blocks'] : array();
+	$blocks = array_slice( array_values( array_filter( array_map( 'strval', $blocks ) ) ), 0, 25 );
+
+	$url = isset( $ctx['permalink'] ) ? esc_url_raw( (string) $ctx['permalink'] ) : '';
+	if ( $url && ! wp_http_validate_url( $url ) ) {
+		$url = '';
+	}
+
+	$bundle = array(
+		'title'                => isset( $ctx['title'] ) ? (string) $ctx['title'] : '',
+		'permalink'            => $url,
+		'excerpt'              => isset( $ctx['excerpt'] ) ? wp_strip_all_tags( (string) $ctx['excerpt'] ) : '',
+		'content_plain'        => isset( $ctx['content_plain'] ) ? (string) $ctx['content_plain'] : '',
+		'word_count'           => isset( $ctx['word_count'] ) ? (int) $ctx['word_count'] : 0,
+		'builder'              => isset( $ctx['builder'] ) ? sanitize_key( (string) $ctx['builder'] ) : '',
+		'content_plain_source' => isset( $ctx['content_plain_source'] ) ? sanitize_key( (string) $ctx['content_plain_source'] ) : '',
+		'block_names'          => $blocks,
+	);
+
+	/**
+	 * @param array<string, mixed> $bundle Compact reading bundle for the API.
+	 * @param array<string, mixed> $ctx    Original page context.
+	 */
+	$out = apply_filters( 'rwga_ai_reading_bundle', $bundle, $ctx );
+	return is_array( $out ) ? $out : $bundle;
+}

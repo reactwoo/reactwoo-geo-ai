@@ -76,8 +76,13 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 			$in['page_context'] = RWGA_Page_Context::collect( $in['page_id'] );
 		}
 
-		$mode    = RWGA_Engine::get_mode();
-		$remote  = RWGA_Engine::should_try_remote() ? RWGA_Remote_Client::dispatch( $this->get_key(), $in ) : null;
+		$mode = RWGA_Engine::get_mode();
+		$remote_payload = $in;
+		if ( RWGA_Engine::should_try_remote() && isset( $remote_payload['page_context'] ) && is_array( $remote_payload['page_context'] ) && function_exists( 'rwga_ai_reading_bundle_from_page_context' ) ) {
+			$remote_payload['reading_context'] = rwga_ai_reading_bundle_from_page_context( $remote_payload['page_context'] );
+			unset( $remote_payload['page_context'] );
+		}
+		$remote = RWGA_Engine::should_try_remote() ? RWGA_Remote_Client::dispatch( $this->get_key(), $remote_payload ) : null;
 		$use_api = ! is_wp_error( $remote ) && is_array( $remote ) && ! empty( $remote['engine_response'] );
 
 		if ( $use_api ) {
