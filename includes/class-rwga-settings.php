@@ -15,6 +15,13 @@ class RWGA_Settings {
 	const OPTION_KEY = 'rwga_settings';
 
 	/**
+	 * Separate option so disconnect survives `rwga_settings` merges / boolean quirks in wp_options.
+	 *
+	 * @var string
+	 */
+	const OPTION_BLOCK_CORE_LICENSE_BRIDGE = 'rwga_block_core_license_bridge';
+
+	/**
 	 * @return void
 	 */
 	public static function init() {
@@ -34,7 +41,7 @@ class RWGA_Settings {
 		}
 		$done = true;
 		// Run last: Geo Optimise (15) / Geo Commerce (16) may re-inject Core or other satellites after Geo AI.
-		add_filter( 'rwgc_reactwoo_license_key', array( __CLASS__, 'filter_license_key_final' ), 999, 1 );
+		add_filter( 'rwgc_reactwoo_license_key', array( __CLASS__, 'filter_license_key_final' ), 99999, 1 );
 		add_filter( 'rwgc_reactwoo_api_base', array( __CLASS__, 'filter_api_base' ), 10, 1 );
 		add_filter( 'rwgc_auth_login_body', array( __CLASS__, 'filter_auth_login_body' ), 10, 3 );
 	}
@@ -123,24 +130,73 @@ class RWGA_Settings {
 		if ( '' !== $rwga_k ) {
 			return $rwga_k;
 		}
-		if ( self::is_license_disconnected_from_core_fallback() ) {
+		if ( ! self::is_geo_ai_license_disconnected() ) {
+			return is_string( $key ) ? trim( $key ) : '';
+		}
+		$key = is_string( $key ) ? trim( $key ) : '';
+		if ( self::other_satellites_have_explicit_license_key() ) {
+			return $key;
+		}
+		if ( '' === $key ) {
 			return '';
 		}
-		return is_string( $key ) ? trim( $key ) : '';
+		$core_k = self::get_geo_core_license_trimmed();
+		if ( '' !== $core_k && $key === $core_k ) {
+			return '';
+		}
+		return $key;
 	}
 
 	/**
-	 * After Disconnect we set reactwoo_license_use_core_fallback to false.
+	 * Geo AI → Disconnect: stop using Geo Core’s key when Geo AI’s own field is empty.
 	 *
 	 * @return bool
 	 */
-	private static function is_license_disconnected_from_core_fallback() {
-		$s = self::get_settings();
-		if ( ! is_array( $s ) || ! array_key_exists( 'reactwoo_license_use_core_fallback', $s ) ) {
-			return false;
+	private static function is_geo_ai_license_disconnected() {
+		if ( 1 === (int) get_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 0 ) ) {
+			return true;
 		}
-		$v = $s['reactwoo_license_use_core_fallback'];
-		return false === $v || 0 === $v || '0' === $v;
+		$raw = get_option( self::OPTION_KEY, array() );
+		if ( is_array( $raw ) && array_key_exists( 'reactwoo_license_use_core_fallback', $raw ) ) {
+			$v = $raw['reactwoo_license_use_core_fallback'];
+			return false === $v || 0 === $v || '0' === $v;
+		}
+		return false;
+	}
+
+	/**
+	 * Non-empty license saved in Geo Optimise / Geo Commerce (their filters run before this one).
+	 *
+	 * @return bool
+	 */
+	private static function other_satellites_have_explicit_license_key() {
+		if ( class_exists( 'RWGO_Settings', false ) ) {
+			$go = RWGO_Settings::get_settings();
+			if ( is_array( $go ) && isset( $go['reactwoo_license_key'] ) && '' !== trim( (string) $go['reactwoo_license_key'] ) ) {
+				return true;
+			}
+		}
+		if ( class_exists( 'RWGCM_Settings', false ) ) {
+			$cm = RWGCM_Settings::get_settings();
+			if ( is_array( $cm ) && isset( $cm['reactwoo_license_key'] ) && '' !== trim( (string) $cm['reactwoo_license_key'] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @return string
+	 */
+	private static function get_geo_core_license_trimmed() {
+		if ( ! class_exists( 'RWGC_Settings', false ) ) {
+			return '';
+		}
+		$raw = get_option( RWGC_Settings::OPTION_KEY, array() );
+		if ( ! is_array( $raw ) || empty( $raw['reactwoo_license_key'] ) ) {
+			return '';
+		}
+		return trim( (string) $raw['reactwoo_license_key'] );
 	}
 
 	/**
@@ -208,6 +264,7 @@ class RWGA_Settings {
 		$s['reactwoo_license_key']                  = '';
 		$s['reactwoo_license_use_core_fallback'] = false;
 		update_option( self::OPTION_KEY, $s );
+		update_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 1 );
 		delete_option( 'rwga_assistant_usage_cache' );
 		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 			RWGC_Platform_Client::clear_token_cache();
@@ -287,6 +344,7 @@ class RWGA_Settings {
 			$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
 			if ( '' !== trim( (string) $out['reactwoo_license_key'] ) ) {
 				$out['reactwoo_license_use_core_fallback'] = true;
+				delete_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE );
 			}
 		}
 

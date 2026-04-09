@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.4.0
+Stable tag: 0.4.5.5
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.5.5 =
+* **License → Disconnect:** Persist disconnect with a dedicated option (`rwga_block_core_license_bridge`) so Core fallback is not re-applied after saves/merges; final license filter strips only Geo Core’s key when Optimise/Commerce have no explicit key.
 
 = 0.4.4.0 =
 * **Remote UX payload:** For API calls only, `page_context` is replaced by compact **`reading_context`** (`rwga_ai_reading_bundle_from_page_context`) — title, permalink, excerpt, `content_plain`, word count, builder, extraction source, block name list. No duplicate full context blob; lower token use and the model is not asked to “read between” markup. Filter: `rwga_ai_reading_bundle`.
