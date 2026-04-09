@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.2.0
+Stable tag: 0.4.3.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.3.0 =
+* **AI / builder text:** `content_plain` in page context now uses `rwga_extract_text_for_ai()` — Gutenberg blocks parsed to inner text, shortcodes stripped via `strip_shortcodes`, HTML/`<!-- wp:` comments removed. New `content_plain_source` meta (`gutenberg_blocks`, `gutenberg_fallback_classic`, `classic`). Filter `rwga_extract_text_for_ai` receives the extraction path as a third argument. Reduces models seeing or “fixing” Elementor/Gutenberg/shortcode syntax.
 
 = 0.4.2.0 =
 * **Competitor research + remote engine:** When workflow execution mode is remote or remote fallback, `competitor_research` calls the same ReactWoo API route as UX analysis (`POST` `/api/v5/geo-ai/workflow`) and persists the returned snapshot fields.

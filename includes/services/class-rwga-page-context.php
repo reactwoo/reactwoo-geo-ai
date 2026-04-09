@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Collects editor-safe context for UX/SEO workflows.
+ *
+ * `content_plain` is reader-facing text only (Gutenberg inner text, shortcodes stripped, HTML tags removed).
  */
 class RWGA_Page_Context {
 
@@ -36,13 +38,22 @@ class RWGA_Page_Context {
 
 		$max_chars = isset( $args['content_max_chars'] ) ? max( 500, min( 12000, (int) $args['content_max_chars'] ) ) : 8000;
 
-		$plain = '';
-		if ( $readable ) {
-			$plain = wp_strip_all_tags( (string) $post->post_content );
-			$plain = preg_replace( '/\s+/u', ' ', $plain );
-			if ( is_string( $plain ) && strlen( $plain ) > $max_chars ) {
-				$plain = substr( $plain, 0, $max_chars );
-			}
+		$plain     = '';
+		$plain_src = '';
+		if ( $readable && function_exists( 'rwga_extract_text_for_ai_with_source' ) ) {
+			$pack = rwga_extract_text_for_ai_with_source(
+				(string) $post->post_content,
+				array( 'max_chars' => $max_chars )
+			);
+			$plain_src = isset( $pack['extraction'] ) ? (string) $pack['extraction'] : '';
+			$plain     = isset( $pack['text'] ) ? (string) $pack['text'] : '';
+			$plain     = (string) apply_filters(
+				'rwga_extract_text_for_ai',
+				$plain,
+				(string) $post->post_content,
+				$plain_src,
+				array_merge( $args, array( 'max_chars' => $max_chars ) )
+			);
 		}
 
 		$word_count = 0;
@@ -87,18 +98,19 @@ class RWGA_Page_Context {
 		}
 
 		$ctx = array(
-			'post_id'        => $post_id,
-			'title'          => get_the_title( $post ),
-			'permalink'      => $permalink,
-			'post_type'      => $post->post_type,
-			'status'         => $post->post_status,
-			'excerpt'        => $readable ? wp_strip_all_tags( (string) $post->post_excerpt ) : '',
-			'content_plain'  => $readable ? (string) $plain : '',
-			'word_count'     => (int) $word_count,
-			'builder'        => $builder,
-			'blocks'         => $blocks,
-			'has_featured_image' => $thumb,
-			'accessible'     => $readable,
+			'post_id'              => $post_id,
+			'title'                => get_the_title( $post ),
+			'permalink'            => $permalink,
+			'post_type'            => $post->post_type,
+			'status'               => $post->post_status,
+			'excerpt'              => $readable ? wp_strip_all_tags( (string) $post->post_excerpt ) : '',
+			'content_plain'        => $readable ? (string) $plain : '',
+			'content_plain_source' => $readable ? (string) $plain_src : '',
+			'word_count'           => (int) $word_count,
+			'builder'              => $builder,
+			'blocks'                 => $blocks,
+			'has_featured_image'     => $thumb,
+			'accessible'             => $readable,
 		);
 
 		/**
