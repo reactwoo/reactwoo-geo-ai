@@ -116,11 +116,17 @@ class RWGA_Settings {
 	 */
 	public static function filter_license_key( $key ) {
 		$s = self::get_settings();
-		if ( is_array( $s ) && isset( $s['reactwoo_license_key'] ) ) {
-			$k = trim( (string) $s['reactwoo_license_key'] );
-			if ( '' !== $k ) {
-				return $k;
-			}
+		$k = ( is_array( $s ) && isset( $s['reactwoo_license_key'] ) ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
+		if ( '' !== $k ) {
+			return $k;
+		}
+		// After explicit Disconnect we set reactwoo_license_use_core_fallback to false so we do not
+		// fall back to Geo Core’s key (that made Disconnect appear to do nothing).
+		$allow_core = ! is_array( $s )
+			|| ! isset( $s['reactwoo_license_use_core_fallback'] )
+			|| $s['reactwoo_license_use_core_fallback'];
+		if ( ! $allow_core ) {
+			return '';
 		}
 		if ( class_exists( 'RWGC_Settings', false ) ) {
 			$raw = get_option( RWGC_Settings::OPTION_KEY, array() );
@@ -193,8 +199,10 @@ class RWGA_Settings {
 	 */
 	public static function clear_license_key() {
 		$s = self::get_settings();
-		$s['reactwoo_license_key'] = '';
+		$s['reactwoo_license_key']                  = '';
+		$s['reactwoo_license_use_core_fallback'] = false;
 		update_option( self::OPTION_KEY, $s );
+		delete_option( 'rwga_assistant_usage_cache' );
 		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 			RWGC_Platform_Client::clear_token_cache();
 		}
@@ -271,6 +279,9 @@ class RWGA_Settings {
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
 		if ( 'license' === $scope || 'advanced' === $scope ) {
 			$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
+			if ( '' !== trim( (string) $out['reactwoo_license_key'] ) ) {
+				$out['reactwoo_license_use_core_fallback'] = true;
+			}
 		}
 
 		return $out;
@@ -281,10 +292,12 @@ class RWGA_Settings {
 	 */
 	public static function get_defaults() {
 		return array(
-			'reactwoo_api_base'     => 'https://api.reactwoo.com',
-			'reactwoo_license_key'  => '',
-			'workflow_engine'       => 'local',
-			'ux_analysis_focus'     => 'messaging',
+			'reactwoo_api_base'                       => 'https://api.reactwoo.com',
+			'reactwoo_license_key'                    => '',
+			/** When true (default), empty Geo AI key may use Geo Core’s license. False after Disconnect. */
+			'reactwoo_license_use_core_fallback'     => true,
+			'workflow_engine'                        => 'local',
+			'ux_analysis_focus'                      => 'messaging',
 		);
 	}
 }
