@@ -130,21 +130,33 @@ class RWGA_Settings {
 		if ( '' !== $rwga_k ) {
 			return $rwga_k;
 		}
-		if ( ! self::is_geo_ai_license_disconnected() ) {
-			return is_string( $key ) ? trim( $key ) : '';
-		}
-		$key = is_string( $key ) ? trim( $key ) : '';
-		if ( self::other_satellites_have_explicit_license_key() ) {
-			return $key;
-		}
-		if ( '' === $key ) {
+		// Geo AI → Disconnect: no own key — do not keep using Core / Optimise / Commerce fallback keys
+		// (those plugins often store a migrated copy of the same key, which defeated earlier strip logic).
+		if ( self::is_geo_ai_license_disconnected() ) {
 			return '';
 		}
-		$core_k = self::get_geo_core_license_trimmed();
-		if ( '' !== $core_k && $key === $core_k ) {
-			return '';
+		return is_string( $key ) ? trim( $key ) : '';
+	}
+
+	/**
+	 * Whether Geo AI should show “license configured” (License tab badge, connection summary).
+	 * Uses Geo AI’s own key and disconnect state — not only the shared platform effective key.
+	 *
+	 * @return bool
+	 */
+	public static function is_license_configured_for_geo_ai_ui() {
+		$s      = self::get_settings();
+		$rwga_k = isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
+		if ( '' !== $rwga_k ) {
+			return true;
 		}
-		return $key;
+		if ( self::is_geo_ai_license_disconnected() ) {
+			return false;
+		}
+		if ( ! class_exists( 'RWGC_Platform_Client', false ) ) {
+			return false;
+		}
+		return '' !== RWGC_Platform_Client::get_effective_license_key();
 	}
 
 	/**
@@ -162,41 +174,6 @@ class RWGA_Settings {
 			return false === $v || 0 === $v || '0' === $v;
 		}
 		return false;
-	}
-
-	/**
-	 * Non-empty license saved in Geo Optimise / Geo Commerce (their filters run before this one).
-	 *
-	 * @return bool
-	 */
-	private static function other_satellites_have_explicit_license_key() {
-		if ( class_exists( 'RWGO_Settings', false ) ) {
-			$go = RWGO_Settings::get_settings();
-			if ( is_array( $go ) && isset( $go['reactwoo_license_key'] ) && '' !== trim( (string) $go['reactwoo_license_key'] ) ) {
-				return true;
-			}
-		}
-		if ( class_exists( 'RWGCM_Settings', false ) ) {
-			$cm = RWGCM_Settings::get_settings();
-			if ( is_array( $cm ) && isset( $cm['reactwoo_license_key'] ) && '' !== trim( (string) $cm['reactwoo_license_key'] ) ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * @return string
-	 */
-	private static function get_geo_core_license_trimmed() {
-		if ( ! class_exists( 'RWGC_Settings', false ) ) {
-			return '';
-		}
-		$raw = get_option( RWGC_Settings::OPTION_KEY, array() );
-		if ( ! is_array( $raw ) || empty( $raw['reactwoo_license_key'] ) ) {
-			return '';
-		}
-		return trim( (string) $raw['reactwoo_license_key'] );
 	}
 
 	/**

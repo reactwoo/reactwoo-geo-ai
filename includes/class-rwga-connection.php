@@ -25,20 +25,20 @@ class RWGA_Connection {
 			);
 		}
 
-		$key = '';
-		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
-			$key = RWGC_Platform_Client::get_effective_license_key();
-		}
-
 		$api_base = 'https://api.reactwoo.com';
 		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 			$api_base = RWGC_Platform_Client::get_api_base();
 		}
 
+		$lic_ok = false;
+		if ( class_exists( 'RWGA_Settings', false ) ) {
+			$lic_ok = RWGA_Settings::is_license_configured_for_geo_ai_ui();
+		}
+
 		return array(
 			'core_ready'         => true,
 			'api_base'           => $api_base,
-			'license_configured' => '' !== $key,
+			'license_configured' => $lic_ok,
 			'rest_enabled'       => (bool) RWGC_Settings::get( 'rest_enabled', 1 ),
 		);
 	}
