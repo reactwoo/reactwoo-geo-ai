@@ -336,6 +336,9 @@ class RWGA_Admin {
 			return;
 		}
 		if ( 'ai_usage' === $action ) {
+			if ( class_exists( 'RWGC_Platform_Client', false ) ) {
+				RWGC_Platform_Client::clear_token_cache();
+			}
 			$result = RWGC_AI_Orchestrator::get_usage();
 			if ( is_wp_error( $result ) ) {
 				add_settings_error( 'rwga_geo_ai', 'rwga_ai_usage_err', $result->get_error_message(), 'error' );
