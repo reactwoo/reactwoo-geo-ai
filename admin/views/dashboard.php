@@ -37,6 +37,15 @@ $drafts_url   = admin_url( 'admin.php?page=rwga-drafts' );
 $analyses_url = admin_url( 'admin.php?page=rwga-analyses' );
 $pages_url    = admin_url( 'edit.php?post_type=page' );
 
+$rwga_ux_site_focus = 'messaging';
+if ( class_exists( 'RWGA_Settings', false ) ) {
+	$s = RWGA_Settings::get_settings();
+	$rwga_ux_site_focus = isset( $s['ux_analysis_focus'] ) ? sanitize_key( (string) $s['ux_analysis_focus'] ) : 'messaging';
+	if ( ! in_array( $rwga_ux_site_focus, array( 'messaging', 'layout', 'both' ), true ) ) {
+		$rwga_ux_site_focus = 'messaging';
+	}
+}
+
 ?>
 <div class="wrap rwgc-wrap rwga-wrap rwga-wrap--overview">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
@@ -164,7 +173,7 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) : ?>
 	<div class="rwgc-card">
 		<h2><?php esc_html_e( 'Foundation: sample UX analysis', 'reactwoo-geo-ai' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Runs a bounded local stub (no external AI call yet), saves findings to the database, and records a memory event.', 'reactwoo-geo-ai' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Runs the configured workflow engine (local stub or API). Choose what to emphasise; messaging-only scans usually use fewer tokens than layout or combined scans.', 'reactwoo-geo-ai' ); ?></p>
 		<?php if ( class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-sample-ux">
 				<input type="hidden" name="action" value="rwga_sample_ux" />
@@ -182,9 +191,18 @@ $pages_url    = admin_url( 'edit.php?post_type=page' );
 					);
 					?>
 				</p>
+				<p>
+					<label for="rwga_sample_analysis_focus"><?php esc_html_e( 'Analysis focus', 'reactwoo-geo-ai' ); ?></label><br />
+					<select name="analysis_focus" id="rwga_sample_analysis_focus">
+						<option value="messaging" <?php selected( $rwga_ux_site_focus, 'messaging' ); ?>><?php esc_html_e( 'Messaging (copy, CTA, trust)', 'reactwoo-geo-ai' ); ?></option>
+						<option value="layout" <?php selected( $rwga_ux_site_focus, 'layout' ); ?>><?php esc_html_e( 'Layout (structure, hierarchy)', 'reactwoo-geo-ai' ); ?></option>
+						<option value="both" <?php selected( $rwga_ux_site_focus, 'both' ); ?>><?php esc_html_e( 'Messaging + layout', 'reactwoo-geo-ai' ); ?></option>
+					</select>
+				</p>
+				<p class="description"><?php esc_html_e( 'Messaging focuses on words and conversion intent from extracted text. Layout infers structure from headings and block order (no screenshot). “Both” covers both and typically uses the most tokens. Default matches Advanced → default focus.', 'reactwoo-geo-ai' ); ?></p>
 				<?php submit_button( __( 'Run sample UX analysis', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
 			</form>
-			<p class="description"><?php esc_html_e( 'REST: POST /wp-json/geo-ai/v1/analyse/ux with JSON body { "page_id": 123 } (requires license + rwga_run_ai).', 'reactwoo-geo-ai' ); ?></p>
+			<p class="description"><?php esc_html_e( 'REST: POST /wp-json/geo-ai/v1/analyse/ux with JSON body { "page_id": 123, "analysis_focus": "messaging" } (optional analysis_focus: messaging | layout | both; requires license + rwga_run_ai).', 'reactwoo-geo-ai' ); ?></p>
 		<?php else : ?>
 			<p class="description"><?php esc_html_e( 'Configure a license key to enable workflow runs.', 'reactwoo-geo-ai' ); ?></p>
 			<p><a class="button button-primary" href="<?php echo esc_url( $license_url ); ?>"><?php esc_html_e( 'Open License', 'reactwoo-geo-ai' ); ?></a></p>

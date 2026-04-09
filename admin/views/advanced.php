@@ -46,6 +46,10 @@ if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 	if ( ! in_array( $workflow_engine, array( 'local', 'remote', 'remote_fallback' ), true ) ) {
 		$workflow_engine = 'local';
 	}
+	$ux_analysis_focus = isset( $settings['ux_analysis_focus'] ) ? sanitize_key( (string) $settings['ux_analysis_focus'] ) : 'messaging';
+	if ( ! in_array( $ux_analysis_focus, array( 'messaging', 'layout', 'both' ), true ) ) {
+		$ux_analysis_focus = 'messaging';
+	}
 	?>
 
 	<div class="rwgc-card" style="max-width: 720px;">
@@ -63,6 +67,17 @@ if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 							<option value="remote" <?php selected( $workflow_engine, 'remote' ); ?>><?php esc_html_e( 'Remote (API only)', 'reactwoo-geo-ai' ); ?></option>
 							<option value="remote_fallback" <?php selected( $workflow_engine, 'remote_fallback' ); ?>><?php esc_html_e( 'Remote with local fallback', 'reactwoo-geo-ai' ); ?></option>
 						</select>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="rwga_ux_analysis_focus"><?php esc_html_e( 'Default UX analysis focus', 'reactwoo-geo-ai' ); ?></label></th>
+					<td>
+						<select id="rwga_ux_analysis_focus" name="<?php echo esc_attr( RWGA_Settings::OPTION_KEY ); ?>[ux_analysis_focus]">
+							<option value="messaging" <?php selected( $ux_analysis_focus, 'messaging' ); ?>><?php esc_html_e( 'Messaging (copy, CTA, trust)', 'reactwoo-geo-ai' ); ?></option>
+							<option value="layout" <?php selected( $ux_analysis_focus, 'layout' ); ?>><?php esc_html_e( 'Layout (structure, hierarchy)', 'reactwoo-geo-ai' ); ?></option>
+							<option value="both" <?php selected( $ux_analysis_focus, 'both' ); ?>><?php esc_html_e( 'Messaging + layout', 'reactwoo-geo-ai' ); ?></option>
+						</select>
+						<p class="description"><?php esc_html_e( 'Used when a run does not specify a focus (e.g. some API clients) and as the default on the Overview sample form. Messaging-only prompts are narrower and usually consume fewer tokens on the API; layout and combined scans ask the model for more structure detail and typically use more output tokens.', 'reactwoo-geo-ai' ); ?></p>
 					</td>
 				</tr>
 			</table>

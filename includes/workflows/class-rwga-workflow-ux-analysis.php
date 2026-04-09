@@ -59,7 +59,9 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 	 * @return array<string, mixed>
 	 */
 	public function build_request_payload( array $input ) {
-		return $this->sanitise_common( $input );
+		$base                   = $this->sanitise_common( $input );
+		$base['analysis_focus'] = $this->normalise_analysis_focus( $input );
+		return $base;
 	}
 
 	/**
@@ -71,7 +73,8 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 		if ( is_wp_error( $v ) ) {
 			return $v;
 		}
-		$in = $this->sanitise_common( $input );
+		$in                     = $this->sanitise_common( $input );
+		$in['analysis_focus']   = $this->normalise_analysis_focus( $input );
 		if ( $in['page_id'] > 0 && class_exists( 'RWGA_Page_Context', false ) ) {
 			$in['page_context'] = RWGA_Page_Context::collect( $in['page_id'] );
 		}
@@ -195,14 +198,35 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 	}
 
 	/**
+	 * @param array<string, mixed> $input Raw or sanitised input (may include analysis_focus).
+	 * @return string One of messaging|layout|both.
+	 */
+	private function normalise_analysis_focus( array $input ) {
+		$allowed = array( 'messaging', 'layout', 'both' );
+		$f       = isset( $input['analysis_focus'] ) ? sanitize_key( (string) $input['analysis_focus'] ) : '';
+		if ( ! in_array( $f, $allowed, true ) && class_exists( 'RWGA_Settings', false ) ) {
+			$s = RWGA_Settings::get_settings();
+			$f = isset( $s['ux_analysis_focus'] ) ? sanitize_key( (string) $s['ux_analysis_focus'] ) : '';
+		}
+		if ( ! in_array( $f, $allowed, true ) ) {
+			$f = 'messaging';
+		}
+		return $f;
+	}
+
+	/**
 	 * Deterministic stub from page context (no remote call).
 	 *
 	 * @param array<string, mixed> $input Sanitised input.
 	 * @return array<string, mixed>
 	 */
 	private function produce_stub_response( array $input ) {
+		$focus = isset( $input['analysis_focus'] ) ? sanitize_key( (string) $input['analysis_focus'] ) : 'messaging';
+		if ( ! in_array( $focus, array( 'messaging', 'layout', 'both' ), true ) ) {
+			$focus = 'messaging';
+		}
 		$key = (string) ( $input['page_id'] > 0 ? $input['page_id'] : $input['page_url'] );
-		$h   = crc32( $key . '|' . ( isset( $input['geo_target'] ) ? (string) $input['geo_target'] : '' ) );
+		$h   = crc32( $key . '|' . ( isset( $input['geo_target'] ) ? (string) $input['geo_target'] : '' ) . '|' . $focus );
 		$score = 55 + ( $h % 40 );
 		$conf  = 0.75 + ( ( $h % 20 ) / 100 );
 
@@ -214,7 +238,13 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 			}
 		}
 
-		$summary = __( 'Bounded UX scan (local stub): review hero clarity, trust, and primary CTA.', 'reactwoo-geo-ai' );
+		if ( 'layout' === $focus ) {
+			$summary = __( 'Bounded UX scan (local stub, layout focus): infer hierarchy from structure cues; full visual critique needs screenshots.', 'reactwoo-geo-ai' );
+		} elseif ( 'both' === $focus ) {
+			$summary = __( 'Bounded UX scan (local stub, messaging + layout): review copy, trust, and information hierarchy together.', 'reactwoo-geo-ai' );
+		} else {
+			$summary = __( 'Bounded UX scan (local stub, messaging focus): review hero clarity, trust, and primary CTA.', 'reactwoo-geo-ai' );
+		}
 		if ( '' !== $title_hint ) {
 			$summary .= ' ' . sprintf(
 				/* translators: %s: page title */

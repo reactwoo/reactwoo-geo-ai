@@ -200,12 +200,22 @@ class RWGA_Automation_Runner {
 					__( 'Set a page ID or a valid automation page URL for UX analysis.', 'reactwoo-geo-ai' )
 				);
 			}
+			$focus = isset( $cfg['analysis_focus'] ) ? sanitize_key( (string) $cfg['analysis_focus'] ) : 'inherit';
+			if ( 'inherit' === $focus || '' === $focus ) {
+				$defs  = class_exists( 'RWGA_Settings', false ) ? RWGA_Settings::get_settings() : array();
+				$focus = isset( $defs['ux_analysis_focus'] ) ? sanitize_key( (string) $defs['ux_analysis_focus'] ) : 'messaging';
+			}
+			if ( ! in_array( $focus, array( 'messaging', 'layout', 'both' ), true ) ) {
+				$focus = 'messaging';
+			}
 			return array_merge(
 				$base,
 				array(
-					'page_id'   => $page_id > 0 ? $page_id : 0,
-					'page_url'  => $page_url,
-					'page_type' => 'page',
+					'page_id'        => $page_id > 0 ? $page_id : 0,
+					'page_url'       => $page_url,
+					'page_type'      => 'page',
+					'device_type'    => 'desktop',
+					'analysis_focus' => $focus,
 				)
 			);
 		}

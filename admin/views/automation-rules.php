@@ -26,11 +26,18 @@ $can_run    = current_user_can( RWGA_Capabilities::CAP_RUN_AI )
 
 $list_url = admin_url( 'admin.php?page=rwga-automation' );
 
-$edit_notes           = '';
-$rwga_auto_page_url   = '';
-$rwga_auto_competitor = '';
-if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && is_string( $rwga_edit_rule['rule_config'] ) ) {
-	$dec = json_decode( $rwga_edit_rule['rule_config'], true );
+$edit_notes               = '';
+$rwga_auto_page_url       = '';
+$rwga_auto_competitor     = '';
+$rwga_auto_analysis_focus = 'inherit';
+if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
+	$rc  = $rwga_edit_rule['rule_config'];
+	$dec = null;
+	if ( is_string( $rc ) && '' !== $rc ) {
+		$dec = json_decode( $rc, true );
+	} elseif ( is_array( $rc ) ) {
+		$dec = $rc;
+	}
 	if ( is_array( $dec ) ) {
 		if ( isset( $dec['notes'] ) ) {
 			$edit_notes = (string) $dec['notes'];
@@ -40,6 +47,12 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 		}
 		if ( isset( $dec['competitor_url'] ) ) {
 			$rwga_auto_competitor = (string) $dec['competitor_url'];
+		}
+		if ( isset( $dec['analysis_focus'] ) ) {
+			$af = sanitize_key( (string) $dec['analysis_focus'] );
+			if ( in_array( $af, array( 'inherit', 'messaging', 'layout', 'both' ), true ) ) {
+				$rwga_auto_analysis_focus = $af;
+			}
 		}
 	}
 }
@@ -91,7 +104,8 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 						$edit_notes,
 						$rwga_workflow_keys,
 						$rwga_auto_page_url,
-						$rwga_auto_competitor
+						$rwga_auto_competitor,
+						$rwga_auto_analysis_focus
 					);
 					?>
 					<?php submit_button( __( 'Update rule', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
@@ -119,7 +133,8 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 						'',
 						$rwga_workflow_keys,
 						'',
-						''
+						'',
+						'inherit'
 					);
 					?>
 					<?php submit_button( __( 'Create rule', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
@@ -222,10 +237,11 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
  * @param array<int, string>   $wkeys  Workflow keys.
  * @param string                 $page_url        Optional page URL for ux_analysis when page ID is empty.
  * @param string                 $competitor_url Optional competitor URL for competitor_research.
+ * @param string                 $analysis_focus inherit|messaging|layout|both for ux_analysis automation.
  * @return void
  */
 if ( ! function_exists( 'rwga_render_automation_rule_fields' ) ) {
-	function rwga_render_automation_rule_fields( $r, $notes, $wkeys, $page_url = '', $competitor_url = '' ) {
+	function rwga_render_automation_rule_fields( $r, $notes, $wkeys, $page_url = '', $competitor_url = '', $analysis_focus = 'inherit' ) {
 	$name = isset( $r['name'] ) ? (string) $r['name'] : '';
 	$wk   = isset( $r['workflow_key'] ) ? (string) $r['workflow_key'] : '';
 	$tt   = isset( $r['trigger_type'] ) ? (string) $r['trigger_type'] : 'manual';
@@ -280,6 +296,16 @@ if ( ! function_exists( 'rwga_render_automation_rule_fields' ) ) {
 		<label for="rwga_ar_purl"><?php esc_html_e( 'Automation page URL (optional)', 'reactwoo-geo-ai' ); ?></label><br />
 		<input type="url" class="regular-text" name="rwga_auto_page_url" id="rwga_ar_purl" value="<?php echo esc_attr( $page_url ); ?>" placeholder="https://…" />
 		<span class="description"><?php esc_html_e( 'For UX analysis when no page ID is set (site scope).', 'reactwoo-geo-ai' ); ?></span>
+	</p>
+	<p>
+		<label for="rwga_ar_af"><?php esc_html_e( 'UX analysis focus (for UX workflow)', 'reactwoo-geo-ai' ); ?></label><br />
+		<select name="rwga_auto_analysis_focus" id="rwga_ar_af">
+			<option value="inherit" <?php selected( $analysis_focus, 'inherit' ); ?>><?php esc_html_e( 'Site default (Advanced)', 'reactwoo-geo-ai' ); ?></option>
+			<option value="messaging" <?php selected( $analysis_focus, 'messaging' ); ?>><?php esc_html_e( 'Messaging', 'reactwoo-geo-ai' ); ?></option>
+			<option value="layout" <?php selected( $analysis_focus, 'layout' ); ?>><?php esc_html_e( 'Layout', 'reactwoo-geo-ai' ); ?></option>
+			<option value="both" <?php selected( $analysis_focus, 'both' ); ?>><?php esc_html_e( 'Messaging + layout', 'reactwoo-geo-ai' ); ?></option>
+		</select>
+		<span class="description"><?php esc_html_e( 'Messaging-only scans typically use fewer API tokens; layout and combined scans ask for more detail (see Advanced).', 'reactwoo-geo-ai' ); ?></span>
 	</p>
 	<p>
 		<label for="rwga_ar_curl"><?php esc_html_e( 'Competitor URL (optional)', 'reactwoo-geo-ai' ); ?></label><br />

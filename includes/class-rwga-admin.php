@@ -516,13 +516,17 @@ class RWGA_Admin {
 			exit;
 		}
 
-		$out = $wf->execute(
-			array(
-				'page_id'     => $page_id,
-				'page_type'   => 'page',
-				'device_type' => 'desktop',
-			)
+		$focus = isset( $_POST['analysis_focus'] ) ? sanitize_key( wp_unslash( $_POST['analysis_focus'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$exec  = array(
+			'page_id'     => $page_id,
+			'page_type'   => 'page',
+			'device_type' => 'desktop',
 		);
+		if ( '' !== $focus ) {
+			$exec['analysis_focus'] = $focus;
+		}
+
+		$out = $wf->execute( $exec );
 
 		if ( is_wp_error( $out ) ) {
 			wp_safe_redirect(
@@ -825,6 +829,11 @@ class RWGA_Admin {
 		$purl = isset( $_POST['rwga_auto_page_url'] ) ? esc_url_raw( wp_unslash( $_POST['rwga_auto_page_url'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$curl = isset( $_POST['rwga_auto_competitor_url'] ) ? esc_url_raw( wp_unslash( $_POST['rwga_auto_competitor_url'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
+		$af_raw = isset( $_POST['rwga_auto_analysis_focus'] ) ? sanitize_key( wp_unslash( $_POST['rwga_auto_analysis_focus'] ) ) : 'inherit'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( ! in_array( $af_raw, array( 'inherit', 'messaging', 'layout', 'both' ), true ) ) {
+			$af_raw = 'inherit';
+		}
+
 		$row = array(
 			'name'          => $name,
 			'workflow_key'  => $wk,
@@ -837,6 +846,7 @@ class RWGA_Admin {
 				'notes'          => isset( $_POST['rule_notes'] ) ? sanitize_text_field( wp_unslash( $_POST['rule_notes'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
 				'page_url'       => ( $purl && wp_http_validate_url( $purl ) ) ? $purl : '',
 				'competitor_url' => ( $curl && wp_http_validate_url( $curl ) ) ? $curl : '',
+				'analysis_focus' => $af_raw,
 			),
 		);
 

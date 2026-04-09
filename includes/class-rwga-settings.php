@@ -262,6 +262,12 @@ class RWGA_Settings {
 			$out['workflow_engine'] = in_array( $w, $allowed, true ) ? $w : ( isset( $prev['workflow_engine'] ) ? (string) $prev['workflow_engine'] : $defaults['workflow_engine'] );
 		}
 
+		if ( 'advanced' === $scope && isset( $settings['ux_analysis_focus'] ) ) {
+			$allowed = array( 'messaging', 'layout', 'both' );
+			$f       = sanitize_key( (string) $settings['ux_analysis_focus'] );
+			$out['ux_analysis_focus'] = in_array( $f, $allowed, true ) ? $f : ( isset( $prev['ux_analysis_focus'] ) ? (string) $prev['ux_analysis_focus'] : $defaults['ux_analysis_focus'] );
+		}
+
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
 		if ( 'license' === $scope || 'advanced' === $scope ) {
 			$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
@@ -278,6 +284,7 @@ class RWGA_Settings {
 			'reactwoo_api_base'     => 'https://api.reactwoo.com',
 			'reactwoo_license_key'  => '',
 			'workflow_engine'       => 'local',
+			'ux_analysis_focus'     => 'messaging',
 		);
 	}
 }
