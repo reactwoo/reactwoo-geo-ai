@@ -1,6 +1,6 @@
 <?php
 /**
- * Automation rules — list, add, edit, run (stub).
+ * Automation rules — list, add, edit, run (dispatches workflows when configured).
  *
  * @package ReactWoo_Geo_AI
  */
@@ -26,11 +26,21 @@ $can_run    = current_user_can( RWGA_Capabilities::CAP_RUN_AI )
 
 $list_url = admin_url( 'admin.php?page=rwga-automation' );
 
-$edit_notes = '';
+$edit_notes           = '';
+$rwga_auto_page_url   = '';
+$rwga_auto_competitor = '';
 if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && is_string( $rwga_edit_rule['rule_config'] ) ) {
 	$dec = json_decode( $rwga_edit_rule['rule_config'], true );
-	if ( is_array( $dec ) && isset( $dec['notes'] ) ) {
-		$edit_notes = (string) $dec['notes'];
+	if ( is_array( $dec ) ) {
+		if ( isset( $dec['notes'] ) ) {
+			$edit_notes = (string) $dec['notes'];
+		}
+		if ( isset( $dec['page_url'] ) ) {
+			$rwga_auto_page_url = (string) $dec['page_url'];
+		}
+		if ( isset( $dec['competitor_url'] ) ) {
+			$rwga_auto_competitor = (string) $dec['competitor_url'];
+		}
 	}
 }
 ?>
@@ -39,7 +49,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 		<?php
 		RWGC_Admin_UI::render_page_header(
 			__( 'Automation rules', 'reactwoo-geo-ai' ),
-			__( 'Schedule hooks for bounded workflows (runner updates timestamps; schedule triggers run on WP-Cron).', 'reactwoo-geo-ai' )
+			__( 'Schedule hooks for bounded workflows (cron and manual runs execute the workflow when the rule supplies the required fields).', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
@@ -55,7 +65,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 	} elseif ( 'deleted' === $rwga_auto ) {
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule deleted.', 'reactwoo-geo-ai' ) . '</p></div>';
 	} elseif ( 'ran' === $rwga_auto ) {
-		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule run recorded (stub).', 'reactwoo-geo-ai' ) . '</p></div>';
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Rule run completed.', 'reactwoo-geo-ai' ) . '</p></div>';
 	} elseif ( 'unlicensed' === $rwga_auto ) {
 		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to run rules.', 'reactwoo-geo-ai' ) . '</p></div>';
 	} elseif ( 'bad' === $rwga_auto || 'fail' === $rwga_auto ) {
@@ -79,7 +89,9 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 					rwga_render_automation_rule_fields(
 						$rwga_edit_rule,
 						$edit_notes,
-						$rwga_workflow_keys
+						$rwga_workflow_keys,
+						$rwga_auto_page_url,
+						$rwga_auto_competitor
 					);
 					?>
 					<?php submit_button( __( 'Update rule', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
@@ -88,7 +100,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 		<?php else : ?>
 			<div class="rwgc-card">
 				<h2><?php esc_html_e( 'Add rule', 'reactwoo-geo-ai' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'REST: GET/POST/PATCH/DELETE /wp-json/geo-ai/v1/automation/rules — POST …/run to execute the stub.', 'reactwoo-geo-ai' ); ?></p>
+				<p class="description"><?php esc_html_e( 'REST: GET/POST/PATCH/DELETE /wp-json/geo-ai/v1/automation/rules — POST …/run to execute the workflow.', 'reactwoo-geo-ai' ); ?></p>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<input type="hidden" name="action" value="rwga_automation_rule_save" />
 					<input type="hidden" name="rule_id" value="0" />
@@ -105,7 +117,9 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
 							'status'        => 'active',
 						),
 						'',
-						$rwga_workflow_keys
+						$rwga_workflow_keys,
+						'',
+						''
 					);
 					?>
 					<?php submit_button( __( 'Create rule', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
@@ -206,10 +220,12 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) && i
  * @param array<string, mixed> $r      Row or defaults.
  * @param string               $notes  Notes for rule_config.
  * @param array<int, string>   $wkeys  Workflow keys.
+ * @param string                 $page_url        Optional page URL for ux_analysis when page ID is empty.
+ * @param string                 $competitor_url Optional competitor URL for competitor_research.
  * @return void
  */
 if ( ! function_exists( 'rwga_render_automation_rule_fields' ) ) {
-	function rwga_render_automation_rule_fields( $r, $notes, $wkeys ) {
+	function rwga_render_automation_rule_fields( $r, $notes, $wkeys, $page_url = '', $competitor_url = '' ) {
 	$name = isset( $r['name'] ) ? (string) $r['name'] : '';
 	$wk   = isset( $r['workflow_key'] ) ? (string) $r['workflow_key'] : '';
 	$tt   = isset( $r['trigger_type'] ) ? (string) $r['trigger_type'] : 'manual';
@@ -259,6 +275,16 @@ if ( ! function_exists( 'rwga_render_automation_rule_fields' ) ) {
 			<option value="active" <?php selected( $st, 'active' ); ?>><?php esc_html_e( 'Active', 'reactwoo-geo-ai' ); ?></option>
 			<option value="paused" <?php selected( $st, 'paused' ); ?>><?php esc_html_e( 'Paused', 'reactwoo-geo-ai' ); ?></option>
 		</select>
+	</p>
+	<p>
+		<label for="rwga_ar_purl"><?php esc_html_e( 'Automation page URL (optional)', 'reactwoo-geo-ai' ); ?></label><br />
+		<input type="url" class="regular-text" name="rwga_auto_page_url" id="rwga_ar_purl" value="<?php echo esc_attr( $page_url ); ?>" placeholder="https://…" />
+		<span class="description"><?php esc_html_e( 'For UX analysis when no page ID is set (site scope).', 'reactwoo-geo-ai' ); ?></span>
+	</p>
+	<p>
+		<label for="rwga_ar_curl"><?php esc_html_e( 'Competitor URL (optional)', 'reactwoo-geo-ai' ); ?></label><br />
+		<input type="url" class="regular-text" name="rwga_auto_competitor_url" id="rwga_ar_curl" value="<?php echo esc_attr( $competitor_url ); ?>" placeholder="https://…" />
+		<span class="description"><?php esc_html_e( 'Required in rule options for scheduled competitor research.', 'reactwoo-geo-ai' ); ?></span>
 	</p>
 	<p>
 		<label for="rwga_ar_notes"><?php esc_html_e( 'Notes (stored in rule_config)', 'reactwoo-geo-ai' ); ?></label><br />

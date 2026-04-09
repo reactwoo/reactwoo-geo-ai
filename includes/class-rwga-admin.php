@@ -822,6 +822,9 @@ class RWGA_Admin {
 			exit;
 		}
 
+		$purl = isset( $_POST['rwga_auto_page_url'] ) ? esc_url_raw( wp_unslash( $_POST['rwga_auto_page_url'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$curl = isset( $_POST['rwga_auto_competitor_url'] ) ? esc_url_raw( wp_unslash( $_POST['rwga_auto_competitor_url'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
 		$row = array(
 			'name'          => $name,
 			'workflow_key'  => $wk,
@@ -831,7 +834,9 @@ class RWGA_Admin {
 			'geo_target'    => isset( $_POST['geo_target'] ) ? sanitize_text_field( wp_unslash( $_POST['geo_target'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			'status'        => isset( $_POST['status'] ) ? sanitize_key( wp_unslash( $_POST['status'] ) ) : 'active', // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			'rule_config'   => array(
-				'notes' => isset( $_POST['rule_notes'] ) ? sanitize_text_field( wp_unslash( $_POST['rule_notes'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				'notes'          => isset( $_POST['rule_notes'] ) ? sanitize_text_field( wp_unslash( $_POST['rule_notes'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Missing
+				'page_url'       => ( $purl && wp_http_validate_url( $purl ) ) ? $purl : '',
+				'competitor_url' => ( $curl && wp_http_validate_url( $curl ) ) ? $curl : '',
 			),
 		);
 
@@ -854,7 +859,7 @@ class RWGA_Admin {
 	}
 
 	/**
-	 * Run automation rule (stub runner).
+	 * Run automation rule (dispatches workflow then updates schedule timestamps).
 	 *
 	 * @return void
 	 */
