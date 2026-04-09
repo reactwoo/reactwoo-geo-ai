@@ -57,15 +57,21 @@ $connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editabl
 			<dl class="rwga-license-dl">
 				<dt><?php esc_html_e( 'Last usage refresh', 'reactwoo-geo-ai' ); ?></dt>
 				<dd><?php echo esc_html( $last_refresh ); ?></dd>
-				<?php if ( null !== $cache && isset( $cache['license_tier'] ) && '' !== (string) $cache['license_tier'] ) : ?>
+				<?php if ( null !== $cache && class_exists( 'RWGA_Usage', false ) ) : ?>
+					<?php
+					$plan_line = RWGA_Usage::format_plan_label( $cache );
+					if ( '' !== $plan_line ) :
+						?>
 					<dt><?php esc_html_e( 'Plan', 'reactwoo-geo-ai' ); ?></dt>
-					<dd><?php echo esc_html( (string) $cache['license_tier'] ); ?></dd>
+					<dd><?php echo esc_html( $plan_line ); ?></dd>
+					<?php endif; ?>
 				<?php endif; ?>
 				<?php if ( null !== $cache && isset( $cache['used'], $cache['limit'] ) ) : ?>
 					<dt><?php esc_html_e( 'Usage (this period)', 'reactwoo-geo-ai' ); ?></dt>
 					<dd><?php echo esc_html( (string) (int) $cache['used'] . ' / ' . (int) $cache['limit'] ); ?></dd>
 				<?php endif; ?>
 			</dl>
+			<p class="description"><?php esc_html_e( 'Plan name and token cap are returned by the ReactWoo API from your license. After a paid upgrade, save the license and refresh usage (or re-activate) so a new token includes the correct tier.', 'reactwoo-geo-ai' ); ?></p>
 
 			<form method="post" action="options.php" class="rwga-license-form">
 				<?php settings_fields( 'rwga_license_group' ); ?>

@@ -88,6 +88,38 @@ class RWGA_Usage {
 	 *
 	 * @return array<string, string>
 	 */
+	/**
+	 * Human-readable plan line for dashboard / license (tier + token cap from last API refresh).
+	 *
+	 * @param array<string, mixed>|null $cache From {@see get_cache()}.
+	 * @return string
+	 */
+	public static function format_plan_label( $cache ) {
+		if ( ! is_array( $cache ) ) {
+			return '';
+		}
+		$tier = isset( $cache['license_tier'] ) ? sanitize_key( (string) $cache['license_tier'] ) : '';
+		if ( '' === $tier ) {
+			$tier = 'free';
+		}
+		$limit = isset( $cache['limit'] ) ? (int) $cache['limit'] : 0;
+		$names = array(
+			'free'       => __( 'Free', 'reactwoo-geo-ai' ),
+			'pro'        => __( 'Pro', 'reactwoo-geo-ai' ),
+			'enterprise' => __( 'Enterprise', 'reactwoo-geo-ai' ),
+		);
+		$name = isset( $names[ $tier ] ) ? $names[ $tier ] : ucfirst( $tier );
+		if ( $limit > 0 ) {
+			return sprintf(
+				/* translators: 1: plan name (Free, Pro, Enterprise), 2: formatted token limit */
+				__( '%1$s — %2$s assistant tokens this billing period (API quota)', 'reactwoo-geo-ai' ),
+				$name,
+				number_format_i18n( $limit )
+			);
+		}
+		return $name;
+	}
+
 	public static function get_display_rows() {
 		$c = self::get_cache();
 		if ( null === $c ) {

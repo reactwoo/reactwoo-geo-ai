@@ -14,9 +14,16 @@ $rest_on = ! empty( $rwga_summary['rest_enabled'] );
 $plan_label = __( '—', 'reactwoo-geo-ai' );
 $usage_hint = __( 'Refresh usage on the License screen or in Advanced.', 'reactwoo-geo-ai' );
 if ( null !== $rwga_cache ) {
-	$tier = isset( $rwga_cache['license_tier'] ) ? (string) $rwga_cache['license_tier'] : '';
-	if ( '' !== $tier ) {
-		$plan_label = $tier;
+	if ( class_exists( 'RWGA_Usage', false ) ) {
+		$formatted_plan = RWGA_Usage::format_plan_label( $rwga_cache );
+		if ( '' !== $formatted_plan ) {
+			$plan_label = $formatted_plan;
+		}
+	} else {
+		$tier = isset( $rwga_cache['license_tier'] ) ? (string) $rwga_cache['license_tier'] : '';
+		if ( '' !== $tier ) {
+			$plan_label = $tier;
+		}
 	}
 	$used  = isset( $rwga_cache['used'] ) ? (int) $rwga_cache['used'] : 0;
 	$limit = isset( $rwga_cache['limit'] ) ? (int) $rwga_cache['limit'] : 0;
