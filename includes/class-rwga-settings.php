@@ -139,24 +139,15 @@ class RWGA_Settings {
 	}
 
 	/**
-	 * Whether Geo AI should show “license configured” (License tab badge, connection summary).
-	 * Uses Geo AI’s own key and disconnect state — not only the shared platform effective key.
+	 * Whether Geo AI itself has a saved license key.
+	 * The License screen should reflect Geo AI's own saved product key, not a shared fallback key.
 	 *
 	 * @return bool
 	 */
 	public static function is_license_configured_for_geo_ai_ui() {
 		$s      = self::get_settings();
 		$rwga_k = isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
-		if ( '' !== $rwga_k ) {
-			return true;
-		}
-		if ( self::is_geo_ai_license_disconnected() ) {
-			return false;
-		}
-		if ( ! class_exists( 'RWGC_Platform_Client', false ) ) {
-			return false;
-		}
-		return '' !== RWGC_Platform_Client::get_effective_license_key();
+		return '' !== $rwga_k;
 	}
 
 	/**

@@ -336,6 +336,16 @@ class RWGA_Admin {
 			return;
 		}
 		if ( 'ai_usage' === $action ) {
+			if ( ! class_exists( 'RWGA_License', false ) || ! RWGA_License::is_configured() ) {
+				delete_option( 'rwga_assistant_usage_cache' );
+				add_settings_error(
+					'rwga_geo_ai',
+					'rwga_ai_usage_no_saved_license',
+					__( 'Save a Geo AI license key before refreshing usage. Disconnect removes Geo AI access even if other satellites still have copied keys.', 'reactwoo-geo-ai' ),
+					'error'
+				);
+				return;
+			}
 			if ( class_exists( 'RWGC_Platform_Client', false ) ) {
 				RWGC_Platform_Client::clear_token_cache();
 			}

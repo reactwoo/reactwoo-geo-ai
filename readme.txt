@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.5.6
+Stable tag: 0.4.5.7
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.5.7 =
+* **License / usage refresh:** Geo AI now treats its own saved key as the source of truth for the License screen. After Disconnect, the badge shows **Not configured** and **Refresh usage** clears cached usage and stops with an error until a new Geo AI key is saved.
 
 = 0.4.5.6 =
 * **License → Disconnect:** Final `rwgc_reactwoo_license_key` filter now clears the effective key whenever Geo AI has disconnected (empty own key), even if Optimise/Commerce still hold a migrated copy of the license. Connection summary / “Key on file” use Geo AI–specific `is_license_configured_for_geo_ai_ui()` so the badge matches Disconnect.
