@@ -33,7 +33,8 @@ class RWGA_Settings {
 			return;
 		}
 		$done = true;
-		add_filter( 'rwgc_reactwoo_license_key', array( __CLASS__, 'filter_license_key' ), 10, 1 );
+		// Run last: Geo Optimise (15) / Geo Commerce (16) may re-inject Core or other satellites after Geo AI.
+		add_filter( 'rwgc_reactwoo_license_key', array( __CLASS__, 'filter_license_key_final' ), 999, 1 );
 		add_filter( 'rwgc_reactwoo_api_base', array( __CLASS__, 'filter_api_base' ), 10, 1 );
 		add_filter( 'rwgc_auth_login_body', array( __CLASS__, 'filter_auth_login_body' ), 10, 3 );
 	}
@@ -111,30 +112,35 @@ class RWGA_Settings {
 	}
 
 	/**
-	 * @param string $key Default from Core.
+	 * Final effective license for the ReactWoo API (runs after Optimise / Commerce filters).
+	 *
+	 * @param string $key Value built by earlier filters (may include Geo Core via other plugins).
 	 * @return string
 	 */
-	public static function filter_license_key( $key ) {
-		$s = self::get_settings();
-		$k = ( is_array( $s ) && isset( $s['reactwoo_license_key'] ) ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
-		if ( '' !== $k ) {
-			return $k;
+	public static function filter_license_key_final( $key ) {
+		$s      = self::get_settings();
+		$rwga_k = isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
+		if ( '' !== $rwga_k ) {
+			return $rwga_k;
 		}
-		// After explicit Disconnect we set reactwoo_license_use_core_fallback to false so we do not
-		// fall back to Geo Core’s key (that made Disconnect appear to do nothing).
-		$allow_core = ! is_array( $s )
-			|| ! isset( $s['reactwoo_license_use_core_fallback'] )
-			|| $s['reactwoo_license_use_core_fallback'];
-		if ( ! $allow_core ) {
+		if ( self::is_license_disconnected_from_core_fallback() ) {
 			return '';
 		}
-		if ( class_exists( 'RWGC_Settings', false ) ) {
-			$raw = get_option( RWGC_Settings::OPTION_KEY, array() );
-			if ( is_array( $raw ) && ! empty( $raw['reactwoo_license_key'] ) ) {
-				return trim( (string) $raw['reactwoo_license_key'] );
-			}
+		return is_string( $key ) ? trim( $key ) : '';
+	}
+
+	/**
+	 * After Disconnect we set reactwoo_license_use_core_fallback to false.
+	 *
+	 * @return bool
+	 */
+	private static function is_license_disconnected_from_core_fallback() {
+		$s = self::get_settings();
+		if ( ! is_array( $s ) || ! array_key_exists( 'reactwoo_license_use_core_fallback', $s ) ) {
+			return false;
 		}
-		return (string) $key;
+		$v = $s['reactwoo_license_use_core_fallback'];
+		return false === $v || 0 === $v || '0' === $v;
 	}
 
 	/**
