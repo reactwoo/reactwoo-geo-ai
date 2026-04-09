@@ -76,12 +76,15 @@ class RWGA_Settings {
 	 */
 	public static function maybe_migrate_from_geo_core() {
 		$rwga = get_option( self::OPTION_KEY, null );
-		if ( ! is_array( $rwga ) ) {
-			$rwga = array();
-		}
-		if ( ! empty( $rwga['reactwoo_license_key'] ) && ! empty( $rwga['reactwoo_api_base'] ) ) {
+		// Migrate only for a brand-new install with no saved Geo AI settings yet.
+		// If the option already exists, an admin has already saved or disconnected on this site.
+		if ( is_array( $rwga ) ) {
 			return;
 		}
+		if ( self::is_geo_ai_license_disconnected() ) {
+			return;
+		}
+		$rwga = array();
 		if ( ! class_exists( 'RWGC_Settings', false ) ) {
 			return;
 		}
