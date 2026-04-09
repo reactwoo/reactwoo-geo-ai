@@ -1,6 +1,6 @@
 <?php
 /**
- * Remote workflow dispatch via Geo Core platform JWT.
+ * Remote workflow dispatch via Geo AI-owned platform JWT.
  *
  * @package ReactWoo_Geo_AI
  */
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_Remote_Client {
 
 	/**
-	 * Default API path (appended to {@see RWGC_Platform_Client::get_api_base()}).
+	 * Default API path (appended to {@see RWGA_Platform_Client::get_api_base()}).
 	 */
 	const DEFAULT_PATH = '/api/v5/geo-ai/workflow';
 
@@ -34,10 +34,10 @@ class RWGA_Remote_Client {
 			return new WP_Error( 'rwga_bad_workflow', __( 'Invalid workflow key.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
 		}
 
-		if ( ! class_exists( 'RWGC_Platform_Client', false ) ) {
+		if ( ! class_exists( 'RWGA_Platform_Client', false ) ) {
 			return new WP_Error(
 				'rwga_no_platform',
-				__( 'ReactWoo Geo Core platform client is required for remote workflows.', 'reactwoo-geo-ai' ),
+				__( 'Geo AI platform client is required for remote workflows.', 'reactwoo-geo-ai' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -71,7 +71,7 @@ class RWGA_Remote_Client {
 			$body = array();
 		}
 
-		$result = RWGC_Platform_Client::request( 'POST', $path, $body, true );
+		$result = RWGA_Platform_Client::request( 'POST', $path, $body, true );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}

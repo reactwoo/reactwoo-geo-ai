@@ -299,17 +299,17 @@ class RWGA_Admin {
 		if ( ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rwga_dash_' . $action ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
-		if ( 'rest_post_smoke' !== $action && ! class_exists( 'RWGC_AI_Orchestrator', false ) ) {
+		if ( 'rest_post_smoke' !== $action && ! class_exists( 'RWGA_Platform_Client', false ) ) {
 			add_settings_error(
 				'rwga_geo_ai',
-				'rwga_no_orchestrator',
-				__( 'Geo Core AI orchestrator is not available.', 'reactwoo-geo-ai' ),
+				'rwga_no_platform_client',
+				__( 'Geo AI platform client is not available.', 'reactwoo-geo-ai' ),
 				'error'
 			);
 			return;
 		}
 		if ( 'ai_health' === $action ) {
-			$result = RWGC_AI_Orchestrator::ai_health();
+			$result = RWGA_Platform_Client::ai_health();
 			if ( is_wp_error( $result ) ) {
 				add_settings_error( 'rwga_geo_ai', 'rwga_ai_health_err', $result->get_error_message(), 'error' );
 			} else {
@@ -346,10 +346,10 @@ class RWGA_Admin {
 				);
 				return;
 			}
-			if ( class_exists( 'RWGC_Platform_Client', false ) ) {
-				RWGC_Platform_Client::clear_token_cache();
+			if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+				RWGA_Platform_Client::clear_token_cache();
 			}
-			$result = RWGC_AI_Orchestrator::get_usage();
+			$result = RWGA_Platform_Client::get_usage();
 			if ( is_wp_error( $result ) ) {
 				add_settings_error( 'rwga_geo_ai', 'rwga_ai_usage_err', $result->get_error_message(), 'error' );
 			} else {
@@ -465,16 +465,41 @@ class RWGA_Admin {
 		if ( empty( $_GET['page'] ) || 'rwga-license' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
-		if ( empty( $_GET['rwga_action'] ) || 'clear_license' !== $_GET['rwga_action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( empty( $_GET['rwga_action'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
-		if ( empty( $_GET['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rwga_clear_license' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$action = sanitize_key( wp_unslash( $_GET['rwga_action'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( 'clear_license' === $action ) {
+			if ( empty( $_GET['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rwga_clear_license' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				return;
+			}
+			if ( class_exists( 'RWGA_Settings', false ) ) {
+				RWGA_Settings::clear_license_key();
+			}
+			wp_safe_redirect( admin_url( 'admin.php?page=rwga-license&rwga_disconnected=1' ) );
+			exit;
+		}
+		if ( 'import_license' !== $action ) {
 			return;
 		}
-		if ( class_exists( 'RWGA_Settings', false ) ) {
-			RWGA_Settings::clear_license_key();
+		if ( empty( $_GET['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rwga_import_license' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
 		}
-		wp_safe_redirect( admin_url( 'admin.php?page=rwga-license&rwga_disconnected=1' ) );
+		$source = isset( $_GET['source'] ) ? sanitize_key( wp_unslash( $_GET['source'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$result = class_exists( 'RWGA_Settings', false ) ? RWGA_Settings::import_license_from_source( $source ) : new WP_Error( 'rwga_missing_settings', __( 'Geo AI settings are not available.', 'reactwoo-geo-ai' ) );
+		if ( is_wp_error( $result ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'            => 'rwga-license',
+						'rwga_import_err' => rawurlencode( $result->get_error_message() ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+		wp_safe_redirect( admin_url( 'admin.php?page=rwga-license&rwga_imported=' . rawurlencode( $source ) ) );
 		exit;
 	}
 

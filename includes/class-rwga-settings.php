@@ -30,20 +30,12 @@ class RWGA_Settings {
 	}
 
 	/**
-	 * Register JWT filters as soon as Geo AI loads (before `init`).
+	 * Legacy no-op: Geo AI now owns its own platform client and does not register shared license filters.
 	 *
 	 * @return void
 	 */
 	public static function register_platform_filters() {
-		static $done = false;
-		if ( $done ) {
-			return;
-		}
-		$done = true;
-		// Run last: Geo Optimise (15) / Geo Commerce (16) may re-inject Core or other satellites after Geo AI.
-		add_filter( 'rwgc_reactwoo_license_key', array( __CLASS__, 'filter_license_key_final' ), 99999, 1 );
-		add_filter( 'rwgc_reactwoo_api_base', array( __CLASS__, 'filter_api_base' ), 10, 1 );
-		add_filter( 'rwgc_auth_login_body', array( __CLASS__, 'filter_auth_login_body' ), 10, 3 );
+		return;
 	}
 
 	/**
@@ -70,40 +62,12 @@ class RWGA_Settings {
 	}
 
 	/**
-	 * Copy legacy Geo Core credentials once so existing sites keep working.
+	 * Legacy no-op: automatic cross-plugin license migration has been removed.
 	 *
 	 * @return void
 	 */
 	public static function maybe_migrate_from_geo_core() {
-		$rwga = get_option( self::OPTION_KEY, null );
-		// Migrate only for a brand-new install with no saved Geo AI settings yet.
-		// If the option already exists, an admin has already saved or disconnected on this site.
-		if ( is_array( $rwga ) ) {
-			return;
-		}
-		if ( self::is_geo_ai_license_disconnected() ) {
-			return;
-		}
-		$rwga = array();
-		if ( ! class_exists( 'RWGC_Settings', false ) ) {
-			return;
-		}
-		$core = get_option( RWGC_Settings::OPTION_KEY, array() );
-		if ( ! is_array( $core ) ) {
-			return;
-		}
-		$changed = false;
-		if ( empty( $rwga['reactwoo_license_key'] ) && ! empty( $core['reactwoo_license_key'] ) ) {
-			$rwga['reactwoo_license_key'] = (string) $core['reactwoo_license_key'];
-			$changed                      = true;
-		}
-		if ( empty( $rwga['reactwoo_api_base'] ) && ! empty( $core['reactwoo_api_base'] ) ) {
-			$rwga['reactwoo_api_base'] = (string) $core['reactwoo_api_base'];
-			$changed                   = true;
-		}
-		if ( $changed ) {
-			update_option( self::OPTION_KEY, self::sanitize_settings( $rwga ) );
-		}
+		return;
 	}
 
 	/**
@@ -237,8 +201,8 @@ class RWGA_Settings {
 		update_option( self::OPTION_KEY, $s );
 		update_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 1 );
 		delete_option( 'rwga_assistant_usage_cache' );
-		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
-			RWGC_Platform_Client::clear_token_cache();
+		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+			RWGA_Platform_Client::clear_token_cache();
 		}
 	}
 
@@ -255,10 +219,77 @@ class RWGA_Settings {
 		$o_b = isset( $old['reactwoo_api_base'] ) ? (string) $old['reactwoo_api_base'] : '';
 		$n_b = isset( $val['reactwoo_api_base'] ) ? (string) $val['reactwoo_api_base'] : '';
 		if ( $o_k !== $n_k || $o_b !== $n_b ) {
-			if ( class_exists( 'RWGC_Platform_Client', false ) ) {
-				RWGC_Platform_Client::clear_token_cache();
+			if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+				RWGA_Platform_Client::clear_token_cache();
 			}
 		}
+	}
+
+	/**
+	 * @return array<string, string>
+	 */
+	public static function get_manual_import_sources() {
+		$sources = array();
+		foreach ( self::get_manual_import_source_map() as $source => $cfg ) {
+			$raw = get_option( $cfg['option_key'], array() );
+			if ( is_array( $raw ) && ! empty( $raw['reactwoo_license_key'] ) ) {
+				$sources[ $source ] = (string) $cfg['label'];
+			}
+		}
+		return $sources;
+	}
+
+	/**
+	 * @param string $source Source key.
+	 * @return true|\WP_Error
+	 */
+	public static function import_license_from_source( $source ) {
+		$map = self::get_manual_import_source_map();
+		if ( ! isset( $map[ $source ] ) ) {
+			return new WP_Error( 'rwga_bad_import_source', __( 'Unknown import source.', 'reactwoo-geo-ai' ) );
+		}
+
+		$raw = get_option( $map[ $source ]['option_key'], array() );
+		if ( ! is_array( $raw ) || empty( $raw['reactwoo_license_key'] ) ) {
+			return new WP_Error( 'rwga_import_missing_key', __( 'The selected source does not have a saved license key.', 'reactwoo-geo-ai' ) );
+		}
+
+		$settings                         = self::get_settings();
+		$settings['reactwoo_license_key'] = sanitize_text_field( (string) $raw['reactwoo_license_key'] );
+		if ( ! empty( $raw['reactwoo_api_base'] ) ) {
+			$base = esc_url_raw( trim( (string) $raw['reactwoo_api_base'] ) );
+			if ( $base && wp_http_validate_url( $base ) ) {
+				$settings['reactwoo_api_base'] = untrailingslashit( $base );
+			}
+		}
+
+		update_option( self::OPTION_KEY, self::sanitize_settings( $settings ) );
+		delete_option( 'rwga_assistant_usage_cache' );
+		delete_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE );
+		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+			RWGA_Platform_Client::clear_token_cache();
+		}
+		return true;
+	}
+
+	/**
+	 * @return array<string, array<string, string>>
+	 */
+	private static function get_manual_import_source_map() {
+		return array(
+			'geo_optimise' => array(
+				'label'      => __( 'Geo Optimise', 'reactwoo-geo-ai' ),
+				'option_key' => 'rwgo_settings',
+			),
+			'geo_commerce' => array(
+				'label'      => __( 'Geo Commerce', 'reactwoo-geo-ai' ),
+				'option_key' => 'rwgcm_settings',
+			),
+			'geo_core_legacy' => array(
+				'label'      => __( 'Geo Core (legacy)', 'reactwoo-geo-ai' ),
+				'option_key' => 'rwgc_settings',
+			),
+		);
 	}
 
 	/**

@@ -15,7 +15,7 @@ class RWGA_Usage {
 	const OPTION_KEY = 'rwga_assistant_usage_cache';
 
 	/**
-	 * @param array<string, mixed>|null $body     JSON body from {@see RWGC_AI_Orchestrator::get_usage()}.
+	 * @param array<string, mixed>|null $body     JSON body from {@see RWGA_Platform_Client::get_usage()}.
 	 * @param int                       $http_code HTTP status.
 	 * @return bool True if cache was updated.
 	 */

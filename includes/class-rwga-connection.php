@@ -26,8 +26,8 @@ class RWGA_Connection {
 		}
 
 		$api_base = 'https://api.reactwoo.com';
-		if ( class_exists( 'RWGC_Platform_Client', false ) ) {
-			$api_base = RWGC_Platform_Client::get_api_base();
+		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+			$api_base = RWGA_Platform_Client::get_api_base();
 		}
 
 		$lic_ok = false;

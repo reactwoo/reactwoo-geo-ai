@@ -18,8 +18,8 @@ $ai_usage_url  = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_act
 $rest_smoke_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=rest_post_smoke' ), 'rwga_dash_rest_post_smoke' );
 
 $resolved_base = '';
-if ( class_exists( 'RWGC_Platform_Client', false ) ) {
-	$resolved_base = RWGC_Platform_Client::get_api_base();
+if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+	$resolved_base = RWGA_Platform_Client::get_api_base();
 } elseif ( ! empty( $rwga_summary['api_base'] ) ) {
 	$resolved_base = (string) $rwga_summary['api_base'];
 }

@@ -8,6 +8,7 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-licen
 
 $summary = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
 $cache   = class_exists( 'RWGA_Usage', false ) ? RWGA_Usage::get_cache() : null;
+$import_sources = class_exists( 'RWGA_Settings', false ) ? RWGA_Settings::get_manual_import_sources() : array();
 
 $lic_ok = ! empty( $summary['license_configured'] );
 $last_refresh = ( null !== $cache && ! empty( $cache['refreshed_at_gmt'] ) ) ? (string) $cache['refreshed_at_gmt'] : __( 'Never', 'reactwoo-geo-ai' );
@@ -34,6 +35,12 @@ $connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editabl
 
 	<?php if ( ! empty( $_GET['rwga_disconnected'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'License key removed from this site.', 'reactwoo-geo-ai' ); ?></p></div>
+	<?php endif; ?>
+	<?php if ( ! empty( $_GET['rwga_imported'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'License key imported into Geo AI.', 'reactwoo-geo-ai' ); ?></p></div>
+	<?php endif; ?>
+	<?php if ( ! empty( $_GET['rwga_import_err'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+		<div class="notice notice-error is-dismissible"><p><?php echo esc_html( sanitize_text_field( wp_unslash( $_GET['rwga_import_err'] ) ) ); ?></p></div>
 	<?php endif; ?>
 
 	<div class="rwgc-grid" style="align-items: flex-start;">
@@ -87,6 +94,15 @@ $connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editabl
 				</table>
 				<?php submit_button( __( 'Save license', 'reactwoo-geo-ai' ) ); ?>
 			</form>
+
+			<?php if ( ! empty( $import_sources ) ) : ?>
+				<p class="description"><?php esc_html_e( 'Optional: import a key once from another ReactWoo plugin. This does not create ongoing sharing between plugins.', 'reactwoo-geo-ai' ); ?></p>
+				<p class="rwga-license-actions">
+					<?php foreach ( $import_sources as $source => $label ) : ?>
+						<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=import_license&source=' . rawurlencode( $source ) ), 'rwga_import_license' ) ); ?>"><?php echo esc_html( sprintf( __( 'Import from %s', 'reactwoo-geo-ai' ), $label ) ); ?></a>
+					<?php endforeach; ?>
+				</p>
+			<?php endif; ?>
 
 			<p class="rwga-license-actions">
 				<a class="button" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>

@@ -45,14 +45,13 @@ class RWGA_Plugin {
 			return;
 		}
 
+		require_once RWGA_PATH . 'includes/class-rwga-platform-client.php';
 		$this->load_workflow_engine();
 
 		require_once RWGA_PATH . 'includes/class-rwga-cron.php';
 		RWGA_Cron::init();
 
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
-		RWGA_Settings::register_platform_filters();
-		RWGA_Settings::maybe_migrate_from_geo_core();
 		RWGA_Settings::init();
 
 		require_once RWGA_PATH . 'includes/class-rwga-connection.php';
@@ -67,11 +66,13 @@ class RWGA_Plugin {
 		if ( class_exists( 'RWGC_Satellite_Updater', false ) ) {
 			RWGC_Satellite_Updater::register(
 				array(
-					'basename'     => plugin_basename( RWGA_FILE ),
-					'version'      => RWGA_VERSION,
-					'catalog_slug' => 'reactwoo-geo-ai',
-					'name'         => __( 'ReactWoo Geo AI', 'reactwoo-geo-ai' ),
-					'description'  => __( 'AI-assisted geo variant drafts using the ReactWoo API with Geo Core.', 'reactwoo-geo-ai' ),
+					'basename'              => plugin_basename( RWGA_FILE ),
+					'version'               => RWGA_VERSION,
+					'catalog_slug'          => 'reactwoo-geo-ai',
+					'name'                  => __( 'ReactWoo Geo AI', 'reactwoo-geo-ai' ),
+					'description'           => __( 'AI-assisted geo variant drafts using the ReactWoo API with Geo Core.', 'reactwoo-geo-ai' ),
+					'get_bearer_callback'   => array( 'RWGA_Platform_Client', 'get_bearer_for_updates' ),
+					'get_api_base_callback' => array( 'RWGA_Platform_Client', 'get_api_base' ),
 				)
 			);
 		}
@@ -90,6 +91,7 @@ class RWGA_Plugin {
 	private function load_workflow_engine() {
 		require_once RWGA_PATH . 'includes/helpers/rwga-site.php';
 		require_once RWGA_PATH . 'includes/helpers/rwga-builder-text.php';
+		require_once RWGA_PATH . 'includes/class-rwga-platform-client.php';
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
 		require_once RWGA_PATH . 'includes/db/class-rwga-db.php';
 		require_once RWGA_PATH . 'includes/class-rwga-install.php';

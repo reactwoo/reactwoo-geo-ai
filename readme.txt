@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.5.8
+Stable tag: 0.4.6.0
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.6.0 =
+* **Independent licensing:** Geo AI now uses its own platform client, JWT cache, update-auth callback, and license status checks. Automatic migration and shared runtime credential filters are removed; importing a key from another ReactWoo plugin is now an explicit one-time admin action.
 
 = 0.4.5.8 =
 * **Disconnect persistence:** Geo AI no longer re-migrates the Geo Core license on normal boot after the site has already saved or disconnected Geo AI settings. The legacy migration now runs only for a brand-new install with no existing Geo AI settings row.
