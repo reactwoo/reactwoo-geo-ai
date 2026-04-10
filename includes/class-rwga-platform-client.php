@@ -120,11 +120,21 @@ class RWGA_Platform_Client {
 		}
 
 		$body = array(
-			'license_key' => $license,
-			'domain'      => $domain,
+			'license_key'  => $license,
+			'domain'       => $domain,
 			'product_slug' => self::PRODUCT_SLUG,
 			'catalog_slug' => self::PRODUCT_SLUG,
 		);
+		/**
+		 * Same hook as Geo Core {@see RWGC_Platform_Client::get_access_token()} so login JSON
+		 * matches multi-product expectations (license server / api.reactwoo.com proxy).
+		 *
+		 * @param array<string, string> $body    Login JSON body.
+		 * @param string                $license License key used for this login.
+		 * @param string                $domain  Site host.
+		 */
+		$filtered = apply_filters( 'rwgc_auth_login_body', $body, $license, $domain );
+		$body     = is_array( $filtered ) ? $filtered : $body;
 
 		$response = wp_remote_post(
 			self::get_api_base() . self::LOGIN_PATH,

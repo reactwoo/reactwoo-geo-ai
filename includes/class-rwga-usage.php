@@ -47,24 +47,51 @@ class RWGA_Usage {
 		if ( ! is_array( $body ) ) {
 			return null;
 		}
-		$inner = isset( $body['data'] ) && is_array( $body['data'] ) ? $body['data'] : null;
-		if ( null === $inner ) {
+		// API returns { status, data: { usage, licenseTier, planLimits } }; accept unwrapped payloads too.
+		$inner = null;
+		if ( isset( $body['data'] ) && is_array( $body['data'] ) ) {
+			$inner = $body['data'];
+		} elseif ( isset( $body['usage'] ) && is_array( $body['usage'] ) ) {
+			$inner = $body;
+		}
+		if ( null === $inner || ! is_array( $inner ) ) {
 			return null;
 		}
 		$usage = isset( $inner['usage'] ) && is_array( $inner['usage'] ) ? $inner['usage'] : null;
 		if ( null === $usage ) {
 			return null;
 		}
-		$plan_limits = isset( $inner['planLimits'] ) && is_array( $inner['planLimits'] ) ? $inner['planLimits'] : array();
-		$tier        = isset( $inner['licenseTier'] ) ? sanitize_key( (string) $inner['licenseTier'] ) : '';
+		$plan_limits = array();
+		if ( isset( $inner['planLimits'] ) && is_array( $inner['planLimits'] ) ) {
+			$plan_limits = $inner['planLimits'];
+		} elseif ( isset( $inner['plan_limits'] ) && is_array( $inner['plan_limits'] ) ) {
+			$plan_limits = $inner['plan_limits'];
+		}
+		$tier = '';
+		if ( isset( $inner['licenseTier'] ) ) {
+			$tier = sanitize_key( (string) $inner['licenseTier'] );
+		} elseif ( isset( $inner['license_tier'] ) ) {
+			$tier = sanitize_key( (string) $inner['license_tier'] );
+		}
+
+		$used      = isset( $usage['used'] ) ? (int) $usage['used'] : ( isset( $usage['used_tokens'] ) ? (int) $usage['used_tokens'] : 0 );
+		$limit     = isset( $usage['limit'] ) ? (int) $usage['limit'] : 0;
+		$remaining = isset( $usage['remaining'] ) ? (int) $usage['remaining'] : 0;
+		$period    = '';
+		if ( isset( $usage['period'] ) ) {
+			$period = sanitize_text_field( (string) $usage['period'] );
+		} elseif ( isset( $usage['billing_period'] ) ) {
+			$period = sanitize_text_field( (string) $usage['billing_period'] );
+		}
+		$over = ! empty( $usage['overLimit'] ) || ! empty( $usage['over_limit'] );
 
 		return array(
 			'license_tier' => $tier,
-			'period'       => isset( $usage['period'] ) ? sanitize_text_field( (string) $usage['period'] ) : '',
-			'used'         => isset( $usage['used'] ) ? (int) $usage['used'] : 0,
-			'limit'        => isset( $usage['limit'] ) ? (int) $usage['limit'] : 0,
-			'remaining'    => isset( $usage['remaining'] ) ? (int) $usage['remaining'] : 0,
-			'over_limit'   => ! empty( $usage['overLimit'] ),
+			'period'       => $period,
+			'used'         => $used,
+			'limit'        => $limit,
+			'remaining'    => $remaining,
+			'over_limit'   => $over,
 			'plan_limits'  => $plan_limits,
 		);
 	}

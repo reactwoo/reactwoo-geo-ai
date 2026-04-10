@@ -353,26 +353,46 @@ class RWGA_Admin {
 			if ( is_wp_error( $result ) ) {
 				add_settings_error( 'rwga_geo_ai', 'rwga_ai_usage_err', $result->get_error_message(), 'error' );
 			} else {
-				$http = isset( $result['http_code'] ) ? (int) $result['http_code'] : 0;
-				$body = isset( $result['body'] ) ? $result['body'] : null;
-				if ( class_exists( 'RWGA_Usage', false ) && is_array( $body ) ) {
-					RWGA_Usage::save_from_api_body( $body, $http );
+				$http  = isset( $result['http_code'] ) ? (int) $result['http_code'] : 0;
+				$body  = isset( $result['body'] ) ? $result['body'] : null;
+				$saved = false;
+				if ( class_exists( 'RWGA_Usage', false ) ) {
+					if ( is_array( $body ) ) {
+						$saved = RWGA_Usage::save_from_api_body( $body, $http );
+						if ( ! $saved ) {
+							add_settings_error(
+								'rwga_geo_ai',
+								'rwga_ai_usage_parse',
+								__( 'Usage response could not be read (unexpected JSON). Your plan may still be active — check the ReactWoo account or try refreshing again.', 'reactwoo-geo-ai' ),
+								'error'
+							);
+						}
+					} else {
+						add_settings_error(
+							'rwga_geo_ai',
+							'rwga_ai_usage_parse',
+							__( 'Usage response was empty or not JSON. Cached usage was not updated.', 'reactwoo-geo-ai' ),
+							'error'
+						);
+					}
 				}
-				$snippet = is_array( $body ) ? wp_json_encode( $body ) : '';
-				if ( is_string( $snippet ) && strlen( $snippet ) > 280 ) {
-					$snippet = substr( $snippet, 0, 280 ) . '…';
+				if ( $saved ) {
+					$snippet = is_array( $body ) ? wp_json_encode( $body ) : '';
+					if ( is_string( $snippet ) && strlen( $snippet ) > 280 ) {
+						$snippet = substr( $snippet, 0, 280 ) . '…';
+					}
+					add_settings_error(
+						'rwga_geo_ai',
+						'rwga_ai_usage_ok',
+						sprintf(
+							/* translators: 1: HTTP status code, 2: API JSON or note */
+							__( 'Usage refreshed: HTTP %1$s. %2$s', 'reactwoo-geo-ai' ),
+							(string) $http,
+							$snippet ? $snippet : __( '(empty body)', 'reactwoo-geo-ai' )
+						),
+						'updated'
+					);
 				}
-				add_settings_error(
-					'rwga_geo_ai',
-					'rwga_ai_usage_ok',
-					sprintf(
-						/* translators: 1: HTTP status code, 2: API JSON or note */
-						__( 'Usage refreshed: HTTP %1$s. %2$s', 'reactwoo-geo-ai' ),
-						(string) $http,
-						$snippet ? $snippet : __( '(empty body)', 'reactwoo-geo-ai' )
-					),
-					'updated'
-				);
 			}
 			return;
 		}
