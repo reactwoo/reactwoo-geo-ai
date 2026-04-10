@@ -93,7 +93,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 		<?php if ( is_array( $rwga_edit_rule ) ) : ?>
 			<div class="rwgc-card">
 				<h2><?php esc_html_e( 'Edit rule', 'reactwoo-geo-ai' ); ?></h2>
-				<p><a class="button-link" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Cancel edit', 'reactwoo-geo-ai' ); ?></a></p>
+				<p class="rwgc-actions"><a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Cancel edit', 'reactwoo-geo-ai' ); ?></a></p>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<input type="hidden" name="action" value="rwga_automation_rule_save" />
 					<input type="hidden" name="rule_id" value="<?php echo isset( $rwga_edit_rule['id'] ) ? (int) $rwga_edit_rule['id'] : 0; ?>" />
@@ -108,7 +108,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 						$rwga_auto_analysis_focus
 					);
 					?>
-					<?php submit_button( __( 'Update rule', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
+					<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Update rule', 'reactwoo-geo-ai' ); ?></button>
 				</form>
 			</div>
 		<?php else : ?>
@@ -137,7 +137,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 						'inherit'
 					);
 					?>
-					<?php submit_button( __( 'Create rule', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
+					<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Create rule', 'reactwoo-geo-ai' ); ?></button>
 				</form>
 			</div>
 		<?php endif; ?>
@@ -206,7 +206,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 										<input type="hidden" name="action" value="rwga_automation_rule_run" />
 										<input type="hidden" name="rule_id" value="<?php echo (int) $rid; ?>" />
 										<?php wp_nonce_field( 'rwga_automation_rule_run' ); ?>
-										<?php submit_button( __( 'Run', 'reactwoo-geo-ai' ), 'small', 'submit', false ); ?>
+										<button type="submit" class="rwgc-btn rwgc-btn--secondary rwgc-btn--sm"><?php esc_html_e( 'Run', 'reactwoo-geo-ai' ); ?></button>
 									</form>
 								<?php endif; ?>
 								<?php if ( $can_manage ) : ?>
@@ -214,7 +214,7 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 										<input type="hidden" name="action" value="rwga_automation_rule_delete" />
 										<input type="hidden" name="rule_id" value="<?php echo (int) $rid; ?>" />
 										<?php wp_nonce_field( 'rwga_automation_rule_delete' ); ?>
-										<?php submit_button( __( 'Delete', 'reactwoo-geo-ai' ), 'small delete', 'submit', false ); ?>
+										<button type="submit" class="rwgc-btn rwgc-btn--danger rwgc-btn--sm"><?php esc_html_e( 'Delete', 'reactwoo-geo-ai' ); ?></button>
 									</form>
 								<?php endif; ?>
 							</td>

@@ -49,7 +49,7 @@ $analyses_url = admin_url( 'admin.php?page=rwga-analyses' );
 				);
 			} else {
 				echo '<p class="rwga-empty-hint">' . esc_html__( 'No draft jobs in the queue yet.', 'reactwoo-geo-ai' ) . '</p>';
-				echo '<p><a class="button button-primary" href="' . esc_url( admin_url( 'edit.php?post_type=page' ) ) . '">' . esc_html__( 'Browse pages', 'reactwoo-geo-ai' ) . '</a></p>';
+				echo '<p class="rwgc-actions"><a class="rwgc-btn rwgc-btn--primary" href="' . esc_url( admin_url( 'edit.php?post_type=page' ) ) . '">' . esc_html__( 'Browse pages', 'reactwoo-geo-ai' ) . '</a></p>';
 			}
 			?>
 		<?php else : ?>

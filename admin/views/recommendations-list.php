@@ -57,9 +57,9 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 			<input type="hidden" name="page" value="rwga-recommendations" />
 			<label class="rwgc-field__label" for="rwga-filter-analysis"><?php esc_html_e( 'Analysis run #', 'reactwoo-geo-ai' ); ?></label>
 			<input type="number" min="0" name="analysis_run" id="rwga-filter-analysis" class="rwgc-input" value="<?php echo $rwga_filter_analysis > 0 ? (int) $rwga_filter_analysis : ''; ?>" style="max-width: 8rem;" />
-			<?php submit_button( __( 'Filter', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
+			<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Filter', 'reactwoo-geo-ai' ); ?></button>
 			<?php if ( $rwga_filter_analysis > 0 ) : ?>
-				<a class="button-link" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
+				<a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
 			<?php endif; ?>
 		</form>
 	</div>

@@ -126,9 +126,9 @@ $list_url             = admin_url( 'admin.php?page=rwga-competitors' );
 				);
 				?>
 			</p>
-			<?php submit_button( __( 'Filter', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
+			<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Filter', 'reactwoo-geo-ai' ); ?></button>
 			<?php if ( $rwga_filter_page > 0 ) : ?>
-				<a class="button-link" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
+				<a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
 			<?php endif; ?>
 		</form>
 	</div>

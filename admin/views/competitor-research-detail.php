@@ -36,6 +36,16 @@ $list_url = admin_url( 'admin.php?page=rwga-competitors' );
 	<p class="rwgc-actions"><a href="<?php echo esc_url( $list_url ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( '&larr; All competitor research', 'reactwoo-geo-ai' ); ?></a></p>
 
 	<div class="rwgc-card rwga-analysis-meta">
+		<?php
+		if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+			RWGC_Admin_UI::render_section_header(
+				__( 'Research details', 'reactwoo-geo-ai' ),
+				__( 'Competitor URL, your page, geo target, and when this run was created.', 'reactwoo-geo-ai' )
+			);
+		} else {
+			echo '<h2>' . esc_html__( 'Research details', 'reactwoo-geo-ai' ) . '</h2>';
+		}
+		?>
 		<dl class="rwga-license-dl">
 			<dt><?php esc_html_e( 'Competitor URL', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><a href="<?php echo esc_url( isset( $rwga_item['competitor_url'] ) ? (string) $rwga_item['competitor_url'] : '#' ); ?>" target="_blank" rel="noopener noreferrer"><?php echo isset( $rwga_item['competitor_url'] ) ? esc_html( (string) $rwga_item['competitor_url'] ) : ''; ?></a></dd>
@@ -46,15 +56,25 @@ $list_url = admin_url( 'admin.php?page=rwga-competitors' );
 			<dt><?php esc_html_e( 'Created (UTC)', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_item['created_at'] ) ? esc_html( (string) $rwga_item['created_at'] ) : '—'; ?></dd>
 		</dl>
-		<h2><?php esc_html_e( 'Summary', 'reactwoo-geo-ai' ); ?></h2>
-		<div class="rwga-pre-wrap"><?php echo isset( $rwga_item['summary'] ) ? wp_kses_post( wpautop( (string) $rwga_item['summary'] ) ) : ''; ?></div>
-		<h2><?php esc_html_e( 'Strengths', 'reactwoo-geo-ai' ); ?></h2>
-		<div class="rwga-pre-wrap"><?php echo isset( $rwga_item['strengths'] ) ? wp_kses_post( wpautop( (string) $rwga_item['strengths'] ) ) : ''; ?></div>
-		<h2><?php esc_html_e( 'Weaknesses', 'reactwoo-geo-ai' ); ?></h2>
-		<div class="rwga-pre-wrap"><?php echo isset( $rwga_item['weaknesses'] ) ? wp_kses_post( wpautop( (string) $rwga_item['weaknesses'] ) ) : ''; ?></div>
-		<h2><?php esc_html_e( 'Patterns', 'reactwoo-geo-ai' ); ?></h2>
-		<div class="rwga-pre-wrap"><?php echo isset( $rwga_item['patterns'] ) ? wp_kses_post( wpautop( (string) $rwga_item['patterns'] ) ) : ''; ?></div>
-		<h2><?php esc_html_e( 'Opportunities', 'reactwoo-geo-ai' ); ?></h2>
-		<div class="rwga-pre-wrap"><?php echo isset( $rwga_item['opportunities'] ) ? wp_kses_post( wpautop( (string) $rwga_item['opportunities'] ) ) : ''; ?></div>
+		<?php
+		$rwga_cr_sections = array(
+			'summary'       => __( 'Summary', 'reactwoo-geo-ai' ),
+			'strengths'     => __( 'Strengths', 'reactwoo-geo-ai' ),
+			'weaknesses'    => __( 'Weaknesses', 'reactwoo-geo-ai' ),
+			'patterns'      => __( 'Patterns', 'reactwoo-geo-ai' ),
+			'opportunities' => __( 'Opportunities', 'reactwoo-geo-ai' ),
+		);
+		foreach ( $rwga_cr_sections as $rwga_cr_key => $rwga_cr_label ) {
+			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+				RWGC_Admin_UI::render_section_header( $rwga_cr_label, '' );
+			} else {
+				echo '<h2>' . esc_html( $rwga_cr_label ) . '</h2>';
+			}
+			$rwga_cr_text = isset( $rwga_item[ $rwga_cr_key ] ) ? (string) $rwga_item[ $rwga_cr_key ] : '';
+			echo '<div class="rwga-pre-wrap">';
+			echo '' !== $rwga_cr_text ? wp_kses_post( wpautop( $rwga_cr_text ) ) : '';
+			echo '</div>';
+		}
+		?>
 	</div>
 </div>

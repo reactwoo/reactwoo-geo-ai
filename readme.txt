@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.8
+Stable tag: 0.4.9
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.9 =
+* **Admin UI:** Competitor research detail uses suite section headers for metadata and each insight block. List filters and queue fallback use `rwgc-btn`. Automation rules use suite buttons for create/update, run, delete, and cancel.
 
 = 0.4.8 =
 * **Admin UI:** Advanced page and competitor research detail aligned with Geo Core suite shell (`rwgc-btn`, `render_section_header`). REST “Open” links and connection checks use suite buttons.
