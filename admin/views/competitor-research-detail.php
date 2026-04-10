@@ -15,7 +15,7 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-compe
 $rid = isset( $rwga_item['id'] ) ? (int) $rwga_item['id'] : 0;
 $list_url = admin_url( 'admin.php?page=rwga-competitors' );
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--competitor-detail">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--competitor-detail">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(

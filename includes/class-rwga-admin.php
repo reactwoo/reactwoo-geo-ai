@@ -73,8 +73,8 @@ class RWGA_Admin {
 			</div>
 			<?php endif; ?>
 			<div class="rwgc-addon-card__actions">
-				<a href="<?php echo esc_url( $url ); ?>" class="button button-primary"><?php esc_html_e( 'Open Geo AI', 'reactwoo-geo-ai' ); ?></a>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="button"><?php esc_html_e( 'License', 'reactwoo-geo-ai' ); ?></a>
+				<a href="<?php echo esc_url( $url ); ?>" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Open Geo AI', 'reactwoo-geo-ai' ); ?></a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Settings', 'reactwoo-geo-ai' ); ?></a>
 			</div>
 		</div>
 		<?php
@@ -88,16 +88,16 @@ class RWGA_Admin {
 	 */
 	public static function render_inner_nav( $current ) {
 		$items = array(
-			self::MENU_PARENT => __( 'Overview', 'reactwoo-geo-ai' ),
-			'rwga-analyses'               => __( 'Analyses', 'reactwoo-geo-ai' ),
-			'rwga-recommendations'        => __( 'Recommendations', 'reactwoo-geo-ai' ),
-			'rwga-implementation-drafts'  => __( 'Implementation', 'reactwoo-geo-ai' ),
-			'rwga-competitors'            => __( 'Competitors', 'reactwoo-geo-ai' ),
-			'rwga-automation'             => __( 'Automation', 'reactwoo-geo-ai' ),
-			'rwga-license'                => __( 'License', 'reactwoo-geo-ai' ),
-			'rwga-drafts'     => __( 'Drafts / Queue', 'reactwoo-geo-ai' ),
-			'rwga-advanced'   => __( 'Advanced', 'reactwoo-geo-ai' ),
-			'rwga-help'       => __( 'Help', 'reactwoo-geo-ai' ),
+			self::MENU_PARENT            => __( 'Dashboard', 'reactwoo-geo-ai' ),
+			'rwga-analyses'              => __( 'Analyse', 'reactwoo-geo-ai' ),
+			'rwga-recommendations'       => __( 'Recommendations', 'reactwoo-geo-ai' ),
+			'rwga-implementation-drafts' => __( 'Implement', 'reactwoo-geo-ai' ),
+			'rwga-competitors'           => __( 'Competitors', 'reactwoo-geo-ai' ),
+			'rwga-automation'            => __( 'Automation', 'reactwoo-geo-ai' ),
+			'rwga-license'               => __( 'Settings', 'reactwoo-geo-ai' ),
+			'rwga-drafts'                => __( 'Queue', 'reactwoo-geo-ai' ),
+			'rwga-advanced'              => __( 'Advanced', 'reactwoo-geo-ai' ),
+			'rwga-help'                  => __( 'Help', 'reactwoo-geo-ai' ),
 		);
 		echo '<nav class="rwgc-inner-nav" aria-label="' . esc_attr__( 'Geo AI section navigation', 'reactwoo-geo-ai' ) . '">';
 		foreach ( $items as $slug => $label ) {
@@ -991,6 +991,20 @@ class RWGA_Admin {
 	}
 
 	/**
+	 * Recent recommendations for admin &lt;select&gt;s (newest first).
+	 *
+	 * @param int $limit Max rows (capped).
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function get_recommendation_rows_for_select( $limit = 300 ) {
+		if ( ! class_exists( 'RWGA_DB_Recommendations', false ) ) {
+			return array();
+		}
+		$limit = max( 1, min( 500, (int) $limit ) );
+		return RWGA_DB_Recommendations::list_paged( $limit, 1, 0 );
+	}
+
+	/**
 	 * @return void
 	 */
 	public static function register_menu() {
@@ -1008,8 +1022,8 @@ class RWGA_Admin {
 
 		add_submenu_page(
 			self::MENU_PARENT,
-			__( 'Overview', 'reactwoo-geo-ai' ),
-			__( 'Overview', 'reactwoo-geo-ai' ),
+			__( 'Geo AI — Dashboard', 'reactwoo-geo-ai' ),
+			__( 'Dashboard', 'reactwoo-geo-ai' ),
 			$cap_view,
 			self::MENU_PARENT,
 			array( __CLASS__, 'render_dashboard' )
@@ -1017,8 +1031,8 @@ class RWGA_Admin {
 
 		add_submenu_page(
 			self::MENU_PARENT,
-			__( 'Geo AI — Analyses', 'reactwoo-geo-ai' ),
-			__( 'Analyses', 'reactwoo-geo-ai' ),
+			__( 'Geo AI — Analyse', 'reactwoo-geo-ai' ),
+			__( 'Analyse', 'reactwoo-geo-ai' ),
 			$cap_view,
 			'rwga-analyses',
 			array( __CLASS__, 'render_analyses' )
@@ -1035,8 +1049,8 @@ class RWGA_Admin {
 
 		add_submenu_page(
 			self::MENU_PARENT,
-			__( 'Geo AI — Implementation drafts', 'reactwoo-geo-ai' ),
-			__( 'Implementation', 'reactwoo-geo-ai' ),
+			__( 'Geo AI — Implement', 'reactwoo-geo-ai' ),
+			__( 'Implement', 'reactwoo-geo-ai' ),
 			$cap_view,
 			'rwga-implementation-drafts',
 			array( __CLASS__, 'render_implementation_drafts' )
@@ -1062,8 +1076,8 @@ class RWGA_Admin {
 
 		add_submenu_page(
 			self::MENU_PARENT,
-			__( 'Geo AI — License', 'reactwoo-geo-ai' ),
-			__( 'License', 'reactwoo-geo-ai' ),
+			__( 'Geo AI — Settings', 'reactwoo-geo-ai' ),
+			__( 'Settings', 'reactwoo-geo-ai' ),
 			'manage_options',
 			'rwga-license',
 			array( __CLASS__, 'render_license_settings' )
@@ -1071,8 +1085,8 @@ class RWGA_Admin {
 
 		add_submenu_page(
 			self::MENU_PARENT,
-			__( 'Geo AI — Drafts / Queue', 'reactwoo-geo-ai' ),
-			__( 'Drafts / Queue', 'reactwoo-geo-ai' ),
+			__( 'Geo AI — Queue', 'reactwoo-geo-ai' ),
+			__( 'Queue', 'reactwoo-geo-ai' ),
 			$cap_view,
 			'rwga-drafts',
 			array( __CLASS__, 'render_drafts_queue' )
@@ -1097,9 +1111,6 @@ class RWGA_Admin {
 		);
 	}
 
-	/**
-	 * @return void
-	 */
 	/**
 	 * Analyses list or single run detail.
 	 *
@@ -1251,6 +1262,7 @@ class RWGA_Admin {
 		$rwga_filter_recommendation = $filter;
 		$rwga_filter_workflow       = $wk;
 		$rwgc_nav_current           = 'rwga-implementation-drafts';
+		$rwga_recommendation_rows   = self::get_recommendation_rows_for_select();
 		include RWGA_PATH . 'admin/views/implementation-drafts-list.php';
 	}
 

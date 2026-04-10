@@ -18,19 +18,20 @@ $rwga_pagination              = isset( $rwga_pagination ) && is_array( $rwga_pag
 $rwga_filter_recommendation   = isset( $rwga_filter_recommendation ) ? (int) $rwga_filter_recommendation : 0;
 $rwga_filter_workflow         = isset( $rwga_filter_workflow ) ? (string) $rwga_filter_workflow : '';
 $rwgc_nav_current             = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-implementation-drafts';
+$rwga_recommendation_rows     = isset( $rwga_recommendation_rows ) && is_array( $rwga_recommendation_rows ) ? $rwga_recommendation_rows : array();
 
 $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--implementation-drafts">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--implementation-drafts">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'Implementation drafts', 'reactwoo-geo-ai' ),
-			__( 'Reviewable copy and SEO drafts from bounded workflows (nothing is published automatically).', 'reactwoo-geo-ai' )
+			__( 'Implement', 'reactwoo-geo-ai' ),
+			__( 'Turn recommendations into reviewable copy and SEO drafts. Nothing is published automatically.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
-		<h1><?php esc_html_e( 'Implementation drafts', 'reactwoo-geo-ai' ); ?></h1>
+		<h1><?php esc_html_e( 'Implement', 'reactwoo-geo-ai' ); ?></h1>
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
@@ -86,45 +87,144 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
 	<div class="rwgc-card">
 		<h2><?php esc_html_e( 'Generate copy drafts', 'reactwoo-geo-ai' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Use a stored recommendation for context, or a page alone. You can also POST to /wp-json/geo-ai/v1/implement/copy.', 'reactwoo-geo-ai' ); ?></p>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<p class="description"><?php esc_html_e( 'Use a recommendation for full context, or choose a page on its own.', 'reactwoo-geo-ai' ); ?></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwgc-form-grid">
 			<input type="hidden" name="action" value="rwga_copy_implement" />
 			<?php wp_nonce_field( 'rwga_copy_implement' ); ?>
-			<p>
-				<label for="rwga_copy_rec_id"><?php esc_html_e( 'Recommendation ID (optional)', 'reactwoo-geo-ai' ); ?></label><br />
-				<input type="number" min="0" class="small-text" name="recommendation_id" id="rwga_copy_rec_id" value="<?php echo $rwga_filter_recommendation > 0 ? (int) $rwga_filter_recommendation : ''; ?>" />
+			<div class="rwgc-field">
+				<label class="rwgc-field__label" for="rwga_copy_rec_id"><?php esc_html_e( 'Select recommendation (optional)', 'reactwoo-geo-ai' ); ?></label>
+				<select name="recommendation_id" id="rwga_copy_rec_id" class="rwgc-select rwgc-input">
+					<option value="0"><?php esc_html_e( '— None —', 'reactwoo-geo-ai' ); ?></option>
+					<?php foreach ( $rwga_recommendation_rows as $rec_row ) : ?>
+						<?php
+						$rec_id = isset( $rec_row['id'] ) ? (int) $rec_row['id'] : 0;
+						if ( $rec_id <= 0 ) {
+							continue;
+						}
+						$rec_title = isset( $rec_row['title'] ) && (string) $rec_row['title'] !== '' ? (string) $rec_row['title'] : __( '(No title)', 'reactwoo-geo-ai' );
+						$rec_pid   = isset( $rec_row['page_id'] ) ? (int) $rec_row['page_id'] : 0;
+						$rec_pt    = $rec_pid > 0 ? get_the_title( $rec_pid ) : '';
+						$rec_date  = isset( $rec_row['created_at'] ) ? (string) $rec_row['created_at'] : '';
+						$opt_label = $rec_title;
+						if ( '' !== $rec_pt ) {
+							$opt_label .= ' — ' . $rec_pt;
+						}
+						if ( '' !== $rec_date ) {
+							$opt_label .= ' — ' . $rec_date;
+						}
+						?>
+						<option value="<?php echo (int) $rec_id; ?>" <?php selected( $rwga_filter_recommendation, $rec_id ); ?>><?php echo esc_html( $opt_label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</div>
+			<div class="rwgc-field">
+				<label class="rwgc-field__label" for="rwga_copy_page_id"><?php esc_html_e( 'Page (optional)', 'reactwoo-geo-ai' ); ?></label>
+				<?php
+				wp_dropdown_pages(
+					array(
+						'name'              => 'page_id',
+						'id'                => 'rwga_copy_page_id',
+						'show_option_none'  => __( '— Select page —', 'reactwoo-geo-ai' ),
+						'option_none_value' => '0',
+						'class'             => 'rwgc-select rwgc-input',
+					)
+				);
+				?>
+				<p class="rwgc-field__hint"><?php esc_html_e( 'Optional when the recommendation already references a page.', 'reactwoo-geo-ai' ); ?></p>
+			</div>
+			<div class="rwgc-field">
+				<span class="rwgc-field__label"><?php esc_html_e( 'Target country (optional)', 'reactwoo-geo-ai' ); ?></span>
+				<?php
+				if ( class_exists( 'RWGC_Admin', false ) ) {
+					RWGC_Admin::render_country_select(
+						'geo_target',
+						'',
+						array(
+							'id'                => 'rwga_copy_geo',
+							'class'             => 'rwgc-select rwgc-input regular-text',
+							'show_option_none'  => __( '— Any / default —', 'reactwoo-geo-ai' ),
+							'option_none_value' => '',
+						)
+					);
+				} else {
+					echo '<input type="text" maxlength="2" class="rwgc-input" name="geo_target" id="rwga_copy_geo" value="" />';
+				}
+				?>
+			</div>
+			<p class="rwgc-actions">
+				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate copy drafts', 'reactwoo-geo-ai' ); ?></button>
 			</p>
-			<p>
-				<label for="rwga_copy_page_id"><?php esc_html_e( 'Page ID (optional if recommendation has a page)', 'reactwoo-geo-ai' ); ?></label><br />
-				<input type="number" min="0" class="small-text" name="page_id" id="rwga_copy_page_id" value="" />
-			</p>
-			<p>
-				<label for="rwga_copy_geo"><?php esc_html_e( 'Geo target ISO2 (optional)', 'reactwoo-geo-ai' ); ?></label><br />
-				<input type="text" maxlength="2" class="small-text" name="geo_target" id="rwga_copy_geo" value="" />
-			</p>
-			<?php submit_button( __( 'Generate copy drafts', 'reactwoo-geo-ai' ), 'primary', 'submit', false ); ?>
 		</form>
 	</div>
 
 	<div class="rwgc-card">
 		<h2><?php esc_html_e( 'Generate SEO drafts', 'reactwoo-geo-ai' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Meta title/description, heading outline, and on-page checklist (bounded local engine). POST /wp-json/geo-ai/v1/implement/seo', 'reactwoo-geo-ai' ); ?></p>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<p class="description"><?php esc_html_e( 'Meta title and description, heading outline, and a short on-page checklist.', 'reactwoo-geo-ai' ); ?></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwgc-form-grid">
 			<input type="hidden" name="action" value="rwga_seo_implement" />
 			<?php wp_nonce_field( 'rwga_seo_implement' ); ?>
-			<p>
-				<label for="rwga_seo_rec_id"><?php esc_html_e( 'Recommendation ID (optional)', 'reactwoo-geo-ai' ); ?></label><br />
-				<input type="number" min="0" class="small-text" name="recommendation_id" id="rwga_seo_rec_id" value="<?php echo $rwga_filter_recommendation > 0 ? (int) $rwga_filter_recommendation : ''; ?>" />
+			<div class="rwgc-field">
+				<label class="rwgc-field__label" for="rwga_seo_rec_id"><?php esc_html_e( 'Select recommendation (optional)', 'reactwoo-geo-ai' ); ?></label>
+				<select name="recommendation_id" id="rwga_seo_rec_id" class="rwgc-select rwgc-input">
+					<option value="0"><?php esc_html_e( '— None —', 'reactwoo-geo-ai' ); ?></option>
+					<?php foreach ( $rwga_recommendation_rows as $rec_row ) : ?>
+						<?php
+						$rec_id = isset( $rec_row['id'] ) ? (int) $rec_row['id'] : 0;
+						if ( $rec_id <= 0 ) {
+							continue;
+						}
+						$rec_title = isset( $rec_row['title'] ) && (string) $rec_row['title'] !== '' ? (string) $rec_row['title'] : __( '(No title)', 'reactwoo-geo-ai' );
+						$rec_pid   = isset( $rec_row['page_id'] ) ? (int) $rec_row['page_id'] : 0;
+						$rec_pt    = $rec_pid > 0 ? get_the_title( $rec_pid ) : '';
+						$rec_date  = isset( $rec_row['created_at'] ) ? (string) $rec_row['created_at'] : '';
+						$opt_label = $rec_title;
+						if ( '' !== $rec_pt ) {
+							$opt_label .= ' — ' . $rec_pt;
+						}
+						if ( '' !== $rec_date ) {
+							$opt_label .= ' — ' . $rec_date;
+						}
+						?>
+						<option value="<?php echo (int) $rec_id; ?>" <?php selected( $rwga_filter_recommendation, $rec_id ); ?>><?php echo esc_html( $opt_label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</div>
+			<div class="rwgc-field">
+				<label class="rwgc-field__label" for="rwga_seo_page_id"><?php esc_html_e( 'Page (optional)', 'reactwoo-geo-ai' ); ?></label>
+				<?php
+				wp_dropdown_pages(
+					array(
+						'name'              => 'page_id',
+						'id'                => 'rwga_seo_page_id',
+						'show_option_none'  => __( '— Select page —', 'reactwoo-geo-ai' ),
+						'option_none_value' => '0',
+						'class'             => 'rwgc-select rwgc-input',
+					)
+				);
+				?>
+			</div>
+			<div class="rwgc-field">
+				<span class="rwgc-field__label"><?php esc_html_e( 'Target country (optional)', 'reactwoo-geo-ai' ); ?></span>
+				<?php
+				if ( class_exists( 'RWGC_Admin', false ) ) {
+					RWGC_Admin::render_country_select(
+						'geo_target',
+						'',
+						array(
+							'id'                => 'rwga_seo_geo',
+							'class'             => 'rwgc-select rwgc-input regular-text',
+							'show_option_none'  => __( '— Any / default —', 'reactwoo-geo-ai' ),
+							'option_none_value' => '',
+						)
+					);
+				} else {
+					echo '<input type="text" maxlength="2" class="rwgc-input" name="geo_target" id="rwga_seo_geo" value="" />';
+				}
+				?>
+			</div>
+			<p class="rwgc-actions">
+				<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Generate SEO drafts', 'reactwoo-geo-ai' ); ?></button>
 			</p>
-			<p>
-				<label for="rwga_seo_page_id"><?php esc_html_e( 'Page ID (optional if recommendation has a page)', 'reactwoo-geo-ai' ); ?></label><br />
-				<input type="number" min="0" class="small-text" name="page_id" id="rwga_seo_page_id" value="" />
-			</p>
-			<p>
-				<label for="rwga_seo_geo"><?php esc_html_e( 'Geo target ISO2 (optional)', 'reactwoo-geo-ai' ); ?></label><br />
-				<input type="text" maxlength="2" class="small-text" name="geo_target" id="rwga_seo_geo" value="" />
-			</p>
-			<?php submit_button( __( 'Generate SEO drafts', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
 		</form>
 	</div>
 	<?php elseif ( class_exists( 'RWGA_License', false ) && ! RWGA_License::can_run_workflows() ) : ?>
@@ -134,18 +234,30 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 	<?php endif; ?>
 
 	<div class="rwgc-card">
-		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="rwga-rec-filter">
+		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="rwga-rec-filter rwgc-form-grid">
 			<input type="hidden" name="page" value="rwga-implementation-drafts" />
 			<p>
-				<label for="rwga-filter-rec"><?php esc_html_e( 'Recommendation ID', 'reactwoo-geo-ai' ); ?></label>
-				<input type="number" min="0" name="recommendation_id" id="rwga-filter-rec" value="<?php echo $rwga_filter_recommendation > 0 ? (int) $rwga_filter_recommendation : ''; ?>" style="max-width: 8rem;" />
+				<label class="rwgc-field__label" for="rwga-filter-rec"><?php esc_html_e( 'Recommendation', 'reactwoo-geo-ai' ); ?></label>
+				<select name="recommendation_id" id="rwga-filter-rec" class="rwgc-select rwgc-input">
+					<option value="0"><?php esc_html_e( 'All', 'reactwoo-geo-ai' ); ?></option>
+					<?php foreach ( $rwga_recommendation_rows as $rec_row ) : ?>
+						<?php
+						$rec_id = isset( $rec_row['id'] ) ? (int) $rec_row['id'] : 0;
+						if ( $rec_id <= 0 ) {
+							continue;
+						}
+						$rec_title = isset( $rec_row['title'] ) && (string) $rec_row['title'] !== '' ? (string) $rec_row['title'] : __( '(No title)', 'reactwoo-geo-ai' );
+						?>
+						<option value="<?php echo (int) $rec_id; ?>" <?php selected( $rwga_filter_recommendation, $rec_id ); ?>><?php echo esc_html( '#' . $rec_id . ' — ' . $rec_title ); ?></option>
+					<?php endforeach; ?>
+				</select>
 			</p>
 			<p>
-				<label for="rwga-filter-wf"><?php esc_html_e( 'Workflow', 'reactwoo-geo-ai' ); ?></label>
-				<select name="workflow_key" id="rwga-filter-wf">
+				<label class="rwgc-field__label" for="rwga-filter-wf"><?php esc_html_e( 'Draft type', 'reactwoo-geo-ai' ); ?></label>
+				<select name="workflow_key" id="rwga-filter-wf" class="rwgc-select rwgc-input">
 					<option value="" <?php selected( '', $rwga_filter_workflow ); ?>><?php esc_html_e( 'All', 'reactwoo-geo-ai' ); ?></option>
-					<option value="copy_implement" <?php selected( 'copy_implement', $rwga_filter_workflow ); ?>>copy_implement</option>
-					<option value="seo_implement" <?php selected( 'seo_implement', $rwga_filter_workflow ); ?>>seo_implement</option>
+					<option value="copy_implement" <?php selected( 'copy_implement', $rwga_filter_workflow ); ?>><?php esc_html_e( 'Copy', 'reactwoo-geo-ai' ); ?></option>
+					<option value="seo_implement" <?php selected( 'seo_implement', $rwga_filter_workflow ); ?>><?php esc_html_e( 'SEO', 'reactwoo-geo-ai' ); ?></option>
 				</select>
 			</p>
 			<?php submit_button( __( 'Filter', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
@@ -157,7 +269,28 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 
 	<div class="rwgc-card">
 		<?php if ( empty( $rwga_rows ) ) : ?>
-			<p class="description"><?php esc_html_e( 'No implementation drafts yet. Generate from a recommendation or use the REST API.', 'reactwoo-geo-ai' ); ?></p>
+			<?php
+			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+				RWGC_Admin_UI::render_empty_state(
+					__( 'No drafts yet', 'reactwoo-geo-ai' ),
+					__( 'Drafts appear after you generate copy or SEO from a recommendation or page.', 'reactwoo-geo-ai' ),
+					array(
+						array(
+							'url'     => admin_url( 'admin.php?page=rwga-recommendations' ),
+							'label'   => __( 'View recommendations', 'reactwoo-geo-ai' ),
+							'primary' => true,
+						),
+						array(
+							'url'   => admin_url( 'admin.php?page=rwga-analyses' ),
+							'label' => __( 'Analyse a page', 'reactwoo-geo-ai' ),
+						),
+					),
+					array( 'dashicon' => 'dashicons-media-document' )
+				);
+			} else {
+				echo '<p class="description">' . esc_html__( 'No implementation drafts yet.', 'reactwoo-geo-ai' ) . '</p>';
+			}
+			?>
 		<?php else : ?>
 			<table class="widefat striped rwga-table-comfortable">
 				<thead>

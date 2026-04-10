@@ -22,7 +22,7 @@ $severity_class = array(
 	'low'    => 'rwga-severity--low',
 );
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--analysis-detail">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--analysis-detail">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(

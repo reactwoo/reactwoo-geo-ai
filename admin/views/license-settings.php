@@ -17,7 +17,7 @@ $refresh_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_actio
 $connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editable in Advanced when enabled by your integrator.', 'reactwoo-geo-ai' );
 
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--license">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--license">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(

@@ -2,17 +2,17 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-$rwga_summary       = isset( $rwga_summary ) && is_array( $rwga_summary ) ? $rwga_summary : array();
-$rwga_cache         = isset( $rwga_cache ) && is_array( $rwga_cache ) ? $rwga_cache : null;
-$rwga_queue_preview   = isset( $rwga_queue_preview ) && is_array( $rwga_queue_preview ) ? $rwga_queue_preview : array();
-$rwga_analysis_preview = isset( $rwga_analysis_preview ) && is_array( $rwga_analysis_preview ) ? $rwga_analysis_preview : array();
-$rwgc_nav_current     = isset( $rwgc_nav_current ) ? $rwgc_nav_current : RWGA_Admin::MENU_PARENT;
+$rwga_summary            = isset( $rwga_summary ) && is_array( $rwga_summary ) ? $rwga_summary : array();
+$rwga_cache              = isset( $rwga_cache ) && is_array( $rwga_cache ) ? $rwga_cache : null;
+$rwga_queue_preview      = isset( $rwga_queue_preview ) && is_array( $rwga_queue_preview ) ? $rwga_queue_preview : array();
+$rwga_analysis_preview   = isset( $rwga_analysis_preview ) && is_array( $rwga_analysis_preview ) ? $rwga_analysis_preview : array();
+$rwgc_nav_current        = isset( $rwgc_nav_current ) ? $rwgc_nav_current : RWGA_Admin::MENU_PARENT;
 
-$lic_ok = ! empty( $rwga_summary['license_configured'] );
+$lic_ok  = ! empty( $rwga_summary['license_configured'] );
 $rest_on = ! empty( $rwga_summary['rest_enabled'] );
 
 $plan_label = __( '—', 'reactwoo-geo-ai' );
-$usage_hint = __( 'Refresh usage on the License screen or in Advanced.', 'reactwoo-geo-ai' );
+$usage_hint = __( 'Refresh usage on the Settings screen.', 'reactwoo-geo-ai' );
 if ( null !== $rwga_cache ) {
 	if ( class_exists( 'RWGA_Usage', false ) ) {
 		$formatted_plan = RWGA_Usage::format_plan_label( $rwga_cache );
@@ -33,16 +33,17 @@ if ( null !== $rwga_cache ) {
 	}
 }
 
-$drafts_month  = apply_filters( 'rwga_dashboard_drafts_month_count', null );
-$drafts_month  = is_numeric( $drafts_month ) ? (string) (int) $drafts_month : '—';
-$awaiting      = apply_filters( 'rwga_dashboard_awaiting_review_count', null );
-$awaiting      = is_numeric( $awaiting ) ? (string) (int) $awaiting : '—';
+$drafts_month = apply_filters( 'rwga_dashboard_drafts_month_count', null );
+$drafts_month = is_numeric( $drafts_month ) ? (string) (int) $drafts_month : '—';
+$awaiting     = apply_filters( 'rwga_dashboard_awaiting_review_count', null );
+$awaiting     = is_numeric( $awaiting ) ? (string) (int) $awaiting : '—';
 
-$advanced_url = admin_url( 'admin.php?page=rwga-advanced' );
-$license_url  = admin_url( 'admin.php?page=rwga-license' );
-$drafts_url   = admin_url( 'admin.php?page=rwga-drafts' );
-$analyses_url = admin_url( 'admin.php?page=rwga-analyses' );
-$pages_url    = admin_url( 'edit.php?post_type=page' );
+$analyses_url     = admin_url( 'admin.php?page=rwga-analyses' );
+$recommendations_url = admin_url( 'admin.php?page=rwga-recommendations' );
+$implement_url    = admin_url( 'admin.php?page=rwga-implementation-drafts' );
+$license_url      = admin_url( 'admin.php?page=rwga-license' );
+$drafts_url       = admin_url( 'admin.php?page=rwga-drafts' );
+$advanced_url     = admin_url( 'admin.php?page=rwga-advanced' );
 
 $rwga_ux_site_focus = 'messaging';
 if ( class_exists( 'RWGA_Settings', false ) ) {
@@ -54,17 +55,17 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 }
 
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--overview">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--overview">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
 			__( 'Geo AI', 'reactwoo-geo-ai' ),
-			__( 'Create and review geo-aware content drafts using your ReactWoo plan — without exposing raw API wiring in day-to-day screens.', 'reactwoo-geo-ai' )
+			__( 'Turn visitor context into clearer pages: analyse content, review AI suggestions, then apply copy and SEO drafts when you are ready.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
 		<h1><?php esc_html_e( 'Geo AI', 'reactwoo-geo-ai' ); ?></h1>
-		<p class="description"><?php esc_html_e( 'AI-assisted geo content drafts for WordPress.', 'reactwoo-geo-ai' ); ?></p>
+		<p class="description"><?php esc_html_e( 'AI-assisted geo content for WordPress.', 'reactwoo-geo-ai' ); ?></p>
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
@@ -79,13 +80,13 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 		echo esc_html(
 			sprintf(
 				/* translators: %d: analysis run id */
-				__( 'Sample UX analysis saved as run #%d.', 'reactwoo-geo-ai' ),
+				__( 'Analysis saved as run #%d.', 'reactwoo-geo-ai' ),
 				$rid
 			)
 		);
 		echo '</p></div>';
 	} elseif ( 'unlicensed' === $rwga_sample ) {
-		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to run bounded workflows.', 'reactwoo-geo-ai' ) . '</p></div>';
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to run workflows.', 'reactwoo-geo-ai' ) . '</p></div>';
 	} elseif ( 'nopage' === $rwga_sample ) {
 		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'No published page was found to analyse. Create a page first.', 'reactwoo-geo-ai' ) . '</p></div>';
 	} elseif ( 'error' === $rwga_sample && ! empty( $_GET['rwga_err'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -98,12 +99,12 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 
 	<?php RWGA_Admin::render_suite_satellite_quick_links(); ?>
 
-	<div class="rwga-hero">
-		<h2><?php esc_html_e( 'What to do next', 'reactwoo-geo-ai' ); ?></h2>
+	<div class="rwga-hero rwga-workflow-launch">
+		<h2><?php esc_html_e( 'Start here', 'reactwoo-geo-ai' ); ?></h2>
 		<ol class="rwga-steps">
-			<li><?php esc_html_e( 'Add your product license under License.', 'reactwoo-geo-ai' ); ?></li>
-			<li><?php esc_html_e( 'Turn on REST in Geo Core if you use automated variant drafts.', 'reactwoo-geo-ai' ); ?></li>
-			<li><?php esc_html_e( 'Open your pages and use the block editor tools to generate drafts, then track them in Drafts / Queue.', 'reactwoo-geo-ai' ); ?></li>
+			<li><?php esc_html_e( 'Connect your license in Settings so workflows can run.', 'reactwoo-geo-ai' ); ?></li>
+			<li><?php esc_html_e( 'Analyse a key page to capture strengths, gaps, and opportunities.', 'reactwoo-geo-ai' ); ?></li>
+			<li><?php esc_html_e( 'Turn recommendations into implementation drafts you can review before publishing.', 'reactwoo-geo-ai' ); ?></li>
 		</ol>
 	</div>
 
@@ -112,9 +113,9 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 		RWGC_Admin_UI::render_stat_grid_open();
 		RWGC_Admin_UI::render_stat_card(
 			__( 'License', 'reactwoo-geo-ai' ),
-			$lic_ok ? __( 'Active', 'reactwoo-geo-ai' ) : __( 'Not set', 'reactwoo-geo-ai' ),
+			$lic_ok ? __( 'Connected', 'reactwoo-geo-ai' ) : __( 'Not set', 'reactwoo-geo-ai' ),
 			array(
-				'hint' => $lic_ok ? __( 'Key stored for this site', 'reactwoo-geo-ai' ) : __( 'Enter your key under License', 'reactwoo-geo-ai' ),
+				'hint' => $lic_ok ? __( 'Key stored for this site', 'reactwoo-geo-ai' ) : __( 'Open Settings to add your key', 'reactwoo-geo-ai' ),
 				'tone' => $lic_ok ? 'success' : 'warning',
 			)
 		);
@@ -130,7 +131,7 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 			__( 'Drafts this month', 'reactwoo-geo-ai' ),
 			$drafts_month,
 			array(
-				'hint' => __( 'Tracked when your site records draft events', 'reactwoo-geo-ai' ),
+				'hint' => __( 'When your site records draft events', 'reactwoo-geo-ai' ),
 				'tone' => 'neutral',
 			)
 		);
@@ -138,7 +139,7 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 			__( 'Awaiting review', 'reactwoo-geo-ai' ),
 			$awaiting,
 			array(
-				'hint' => __( 'Open Drafts / Queue for the full list', 'reactwoo-geo-ai' ),
+				'hint' => __( 'Items needing a decision', 'reactwoo-geo-ai' ),
 				'tone' => 'neutral',
 			)
 		);
@@ -147,72 +148,93 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 	<?php endif; ?>
 
 	<div class="rwgc-card">
-		<h2><?php esc_html_e( 'Quick actions', 'reactwoo-geo-ai' ); ?></h2>
 		<?php
+		if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+			RWGC_Admin_UI::render_section_header(
+				__( 'Quick actions', 'reactwoo-geo-ai' ),
+				__( 'One place to jump into the workflow.', 'reactwoo-geo-ai' )
+			);
+		} else {
+			echo '<h2>' . esc_html__( 'Quick actions', 'reactwoo-geo-ai' ) . '</h2>';
+		}
 		if ( class_exists( 'RWGC_Admin_UI', false ) ) {
 			RWGC_Admin_UI::render_quick_actions(
 				array(
 					array(
-						'url'     => $pages_url,
-						'label'   => __( 'Open Pages', 'reactwoo-geo-ai' ),
+						'url'     => $analyses_url,
+						'label'   => __( 'Analyse a page', 'reactwoo-geo-ai' ),
 						'primary' => true,
 					),
 					array(
+						'url'   => $recommendations_url,
+						'label' => __( 'Recommendations', 'reactwoo-geo-ai' ),
+					),
+					array(
+						'url'   => $implement_url,
+						'label' => __( 'Implementation drafts', 'reactwoo-geo-ai' ),
+					),
+					array(
 						'url'   => $drafts_url,
-						'label' => __( 'Open draft queue', 'reactwoo-geo-ai' ),
+						'label' => __( 'Queue', 'reactwoo-geo-ai' ),
 					),
 					array(
 						'url'   => $license_url,
-						'label' => __( 'License & connection', 'reactwoo-geo-ai' ),
-					),
-					array(
-						'url'   => $advanced_url,
-						'label' => __( 'Advanced tools', 'reactwoo-geo-ai' ),
+						'label' => __( 'Settings', 'reactwoo-geo-ai' ),
 					),
 				)
 			);
-		} else {
-			echo '<p><a class="button button-primary" href="' . esc_url( $pages_url ) . '">' . esc_html__( 'Open Pages', 'reactwoo-geo-ai' ) . '</a></p>';
 		}
 		?>
 	</div>
 
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) : ?>
 	<div class="rwgc-card">
-		<h2><?php esc_html_e( 'Foundation: sample UX analysis', 'reactwoo-geo-ai' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Runs the configured workflow engine (local stub or API). Choose what to emphasise; messaging-only scans usually use fewer tokens than layout or combined scans.', 'reactwoo-geo-ai' ); ?></p>
+		<?php
+		if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+			RWGC_Admin_UI::render_section_header(
+				__( 'Analyse a page', 'reactwoo-geo-ai' ),
+				__( 'Pick a page and what to emphasise. Nothing is published automatically.', 'reactwoo-geo-ai' )
+			);
+		} else {
+			echo '<h2>' . esc_html__( 'Analyse a page', 'reactwoo-geo-ai' ) . '</h2>';
+		}
+		?>
 		<?php if ( class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-sample-ux">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwgc-form-grid rwga-sample-ux">
 				<input type="hidden" name="action" value="rwga_sample_ux" />
 				<?php wp_nonce_field( 'rwga_sample_ux' ); ?>
-				<p>
-					<label for="rwga_sample_page_id"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></label>
+				<div class="rwgc-field">
+					<label class="rwgc-field__label" for="rwga_sample_page_id"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></label>
 					<?php
 					wp_dropdown_pages(
 						array(
 							'name'              => 'page_id',
 							'id'                => 'rwga_sample_page_id',
-							'show_option_none'  => __( '— Use front page or latest page —', 'reactwoo-geo-ai' ),
-							'option_none_value' => '0',
+							'class'             => 'rwgc-select rwgc-input',
+							'show_option_none'    => __( '— Use home or most recently updated page —', 'reactwoo-geo-ai' ),
+							'option_none_value'   => '0',
+							'sort_column'         => 'post_title',
 						)
 					);
 					?>
-				</p>
-				<p>
-					<label for="rwga_sample_analysis_focus"><?php esc_html_e( 'Analysis focus', 'reactwoo-geo-ai' ); ?></label><br />
-					<select name="analysis_focus" id="rwga_sample_analysis_focus">
+					<p class="rwgc-field__hint"><?php esc_html_e( 'We use the page you publish or edit most often when you leave this blank.', 'reactwoo-geo-ai' ); ?></p>
+				</div>
+				<div class="rwgc-field">
+					<label class="rwgc-field__label" for="rwga_sample_analysis_focus"><?php esc_html_e( 'What to look at first', 'reactwoo-geo-ai' ); ?></label>
+					<select name="analysis_focus" id="rwga_sample_analysis_focus" class="rwgc-select rwgc-input">
 						<option value="messaging" <?php selected( $rwga_ux_site_focus, 'messaging' ); ?>><?php esc_html_e( 'Messaging (copy, CTA, trust)', 'reactwoo-geo-ai' ); ?></option>
 						<option value="layout" <?php selected( $rwga_ux_site_focus, 'layout' ); ?>><?php esc_html_e( 'Layout (structure, hierarchy)', 'reactwoo-geo-ai' ); ?></option>
-						<option value="both" <?php selected( $rwga_ux_site_focus, 'both' ); ?>><?php esc_html_e( 'Messaging + layout', 'reactwoo-geo-ai' ); ?></option>
+						<option value="both" <?php selected( $rwga_ux_site_focus, 'both' ); ?>><?php esc_html_e( 'Messaging and layout', 'reactwoo-geo-ai' ); ?></option>
 					</select>
+					<p class="rwgc-field__hint"><?php esc_html_e( 'Messaging-only reviews usually use fewer tokens than a full layout pass.', 'reactwoo-geo-ai' ); ?></p>
+				</div>
+				<p class="rwgc-actions">
+					<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Analyse this page', 'reactwoo-geo-ai' ); ?></button>
 				</p>
-				<p class="description"><?php esc_html_e( 'Messaging focuses on words and conversion intent from extracted text. Layout infers structure from headings and block order (no screenshot). “Both” covers both and typically uses the most tokens. Default matches Advanced → default focus.', 'reactwoo-geo-ai' ); ?></p>
-				<?php submit_button( __( 'Run sample UX analysis', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
 			</form>
-			<p class="description"><?php esc_html_e( 'REST: POST /wp-json/geo-ai/v1/analyse/ux with JSON body { "page_id": 123, "analysis_focus": "messaging" } (optional analysis_focus: messaging | layout | both; requires license + rwga_run_ai).', 'reactwoo-geo-ai' ); ?></p>
 		<?php else : ?>
-			<p class="description"><?php esc_html_e( 'Configure a license key to enable workflow runs.', 'reactwoo-geo-ai' ); ?></p>
-			<p><a class="button button-primary" href="<?php echo esc_url( $license_url ); ?>"><?php esc_html_e( 'Open License', 'reactwoo-geo-ai' ); ?></a></p>
+			<p class="description"><?php esc_html_e( 'Save a license key in Settings to run analyses.', 'reactwoo-geo-ai' ); ?></p>
+			<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( $license_url ); ?>"><?php esc_html_e( 'Open Settings', 'reactwoo-geo-ai' ); ?></a></p>
 		<?php endif; ?>
 	</div>
 	<?php endif; ?>
@@ -224,62 +246,29 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
 				RWGC_Admin_UI::render_checklist_row(
 					$lic_ok,
-					__( 'License key saved', 'reactwoo-geo-ai' ),
+					__( 'License saved for this site', 'reactwoo-geo-ai' ),
 					$license_url,
 					__( 'Add license', 'reactwoo-geo-ai' )
 				);
 				RWGC_Admin_UI::render_checklist_row(
 					null !== $rwga_cache,
-					__( 'Usage snapshot available (refresh after connecting)', 'reactwoo-geo-ai' ),
-					$advanced_url,
+					__( 'Usage snapshot available', 'reactwoo-geo-ai' ),
+					$license_url,
 					__( 'Refresh usage', 'reactwoo-geo-ai' )
 				);
 				RWGC_Admin_UI::render_checklist_row(
 					$rest_on,
-					__( 'Geo Core REST enabled for variant drafts', 'reactwoo-geo-ai' ),
+					__( 'Geo Core REST enabled for automated drafts', 'reactwoo-geo-ai' ),
 					admin_url( 'admin.php?page=rwgc-settings' ),
-					__( 'Geo Core settings', 'reactwoo-geo-ai' )
+					__( 'Geo Core settings', 'reactwoo-geocore' )
 				);
-			} else {
-				echo '<li>' . esc_html( $lic_ok ? __( 'License: OK', 'reactwoo-geo-ai' ) : __( 'License: needed', 'reactwoo-geo-ai' ) ) . '</li>';
 			}
 			?>
 		</ul>
 	</div>
 
 	<div class="rwgc-card">
-		<h2><?php esc_html_e( 'Queue preview', 'reactwoo-geo-ai' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Recent draft jobs (extend via rwga_draft_queue_rows).', 'reactwoo-geo-ai' ); ?></p>
-		<?php if ( ! empty( $rwga_queue_preview ) ) : ?>
-			<table class="widefat striped rwga-table-comfortable">
-				<thead>
-					<tr>
-						<th scope="col"><?php esc_html_e( 'Source', 'reactwoo-geo-ai' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Context', 'reactwoo-geo-ai' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Date', 'reactwoo-geo-ai' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php foreach ( $rwga_queue_preview as $row ) : ?>
-						<tr>
-							<td><?php echo isset( $row['source_label'] ) ? esc_html( (string) $row['source_label'] ) : '—'; ?></td>
-							<td><?php echo isset( $row['context_label'] ) ? esc_html( (string) $row['context_label'] ) : '—'; ?></td>
-							<td><?php echo isset( $row['status_label'] ) ? esc_html( (string) $row['status_label'] ) : '—'; ?></td>
-							<td><?php echo isset( $row['created_gmt'] ) ? esc_html( (string) $row['created_gmt'] ) : '—'; ?></td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-			<p><a class="button" href="<?php echo esc_url( $drafts_url ); ?>"><?php esc_html_e( 'View full queue', 'reactwoo-geo-ai' ); ?></a></p>
-		<?php else : ?>
-			<p class="rwga-empty-hint"><?php esc_html_e( 'No queued drafts yet. When integrations record jobs, they will appear here and on Drafts / Queue.', 'reactwoo-geo-ai' ); ?></p>
-		<?php endif; ?>
-	</div>
-
-	<div class="rwgc-card">
 		<h2><?php esc_html_e( 'Recent analyses', 'reactwoo-geo-ai' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Stored UX analysis runs (foundation).', 'reactwoo-geo-ai' ); ?></p>
 		<?php if ( ! empty( $rwga_analysis_preview ) ) : ?>
 			<table class="widefat striped rwga-table-comfortable">
 				<thead>
@@ -321,14 +310,73 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
-			<p><a class="button" href="<?php echo esc_url( $analyses_url ); ?>"><?php esc_html_e( 'View all analyses', 'reactwoo-geo-ai' ); ?></a></p>
+			<p><a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $analyses_url ); ?>"><?php esc_html_e( 'View all analyses', 'reactwoo-geo-ai' ); ?></a></p>
+		<?php elseif ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+			<?php
+			RWGC_Admin_UI::render_empty_state(
+				__( 'No analyses yet', 'reactwoo-geo-ai' ),
+				__( 'Run your first page analysis to see findings and unlock recommendations.', 'reactwoo-geo-ai' ),
+				array(
+					array(
+						'url'     => $analyses_url,
+						'label'   => __( 'Go to Analyse', 'reactwoo-geo-ai' ),
+						'primary' => true,
+					),
+				),
+				array( 'dashicon' => 'dashicons-chart-line' )
+			);
+			?>
 		<?php else : ?>
-			<p class="rwga-empty-hint"><?php esc_html_e( 'No analysis runs yet. Use the sample UX analysis above or the REST endpoint.', 'reactwoo-geo-ai' ); ?></p>
+			<p class="rwga-empty-hint"><?php esc_html_e( 'No analyses yet.', 'reactwoo-geo-ai' ); ?></p>
+		<?php endif; ?>
+	</div>
+
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Queue preview', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Latest draft jobs from integrations.', 'reactwoo-geo-ai' ); ?></p>
+		<?php if ( ! empty( $rwga_queue_preview ) ) : ?>
+			<table class="widefat striped rwga-table-comfortable">
+				<thead>
+					<tr>
+						<th scope="col"><?php esc_html_e( 'Source', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Context', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Date', 'reactwoo-geo-ai' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $rwga_queue_preview as $row ) : ?>
+						<tr>
+							<td><?php echo isset( $row['source_label'] ) ? esc_html( (string) $row['source_label'] ) : '—'; ?></td>
+							<td><?php echo isset( $row['context_label'] ) ? esc_html( (string) $row['context_label'] ) : '—'; ?></td>
+							<td><?php echo isset( $row['status_label'] ) ? esc_html( (string) $row['status_label'] ) : '—'; ?></td>
+							<td><?php echo isset( $row['created_gmt'] ) ? esc_html( (string) $row['created_gmt'] ) : '—'; ?></td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+			<p><a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $drafts_url ); ?>"><?php esc_html_e( 'Open full queue', 'reactwoo-geo-ai' ); ?></a></p>
+		<?php elseif ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+			<?php
+			RWGC_Admin_UI::render_empty_state(
+				__( 'Queue is empty', 'reactwoo-geo-ai' ),
+				__( 'When draft jobs are created from the editor or integrations, they will show here.', 'reactwoo-geo-ai' ),
+				array(
+					array(
+						'url'   => $implement_url,
+						'label' => __( 'Open implementation drafts', 'reactwoo-geo-ai' ),
+					),
+				),
+				array( 'dashicon' => 'dashicons-list-view' )
+			);
+			?>
+		<?php else : ?>
+			<p class="rwga-empty-hint"><?php esc_html_e( 'No queued drafts yet.', 'reactwoo-geo-ai' ); ?></p>
 		<?php endif; ?>
 	</div>
 
 	<details class="rwga-dev-details">
-		<summary><?php esc_html_e( 'Status details', 'reactwoo-geo-ai' ); ?></summary>
+		<summary><?php esc_html_e( 'Connection details', 'reactwoo-geo-ai' ); ?></summary>
 		<table class="widefat striped">
 			<tbody>
 				<tr>
@@ -336,11 +384,11 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 					<td><?php echo $rest_on ? esc_html__( 'Enabled', 'reactwoo-geo-ai' ) : esc_html__( 'Disabled', 'reactwoo-geo-ai' ); ?></td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Connection', 'reactwoo-geo-ai' ); ?></th>
-					<td><?php echo $lic_ok ? esc_html__( 'License key on file', 'reactwoo-geo-ai' ) : esc_html__( 'No license key', 'reactwoo-geo-ai' ); ?></td>
+					<th scope="row"><?php esc_html_e( 'License', 'reactwoo-geo-ai' ); ?></th>
+					<td><?php echo $lic_ok ? esc_html__( 'Key on file', 'reactwoo-geo-ai' ) : esc_html__( 'No key', 'reactwoo-geo-ai' ); ?></td>
 				</tr>
 			</tbody>
 		</table>
-		<p><a class="button" href="<?php echo esc_url( $advanced_url ); ?>"><?php esc_html_e( 'Open Advanced (diagnostics)', 'reactwoo-geo-ai' ); ?></a></p>
+		<p><a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $advanced_url ); ?>"><?php esc_html_e( 'Advanced diagnostics', 'reactwoo-geo-ai' ); ?></a></p>
 	</details>
 </div>

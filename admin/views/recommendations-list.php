@@ -20,12 +20,12 @@ $rwgc_nav_current       = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga
 
 $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--recommendations">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--recommendations">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
 			__( 'Recommendations', 'reactwoo-geo-ai' ),
-			__( 'Structured actions from UX analysis — problem, rationale, impact, and confidence.', 'reactwoo-geo-ai' )
+			__( 'After you analyse a page, recommendations list clear next steps with impact and confidence.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
@@ -55,8 +55,8 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 	<div class="rwgc-card">
 		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="rwga-rec-filter">
 			<input type="hidden" name="page" value="rwga-recommendations" />
-			<label for="rwga-filter-analysis"><?php esc_html_e( 'Filter by analysis run ID', 'reactwoo-geo-ai' ); ?></label>
-			<input type="number" min="0" name="analysis_run" id="rwga-filter-analysis" value="<?php echo $rwga_filter_analysis > 0 ? (int) $rwga_filter_analysis : ''; ?>" style="max-width: 8rem;" />
+			<label class="rwgc-field__label" for="rwga-filter-analysis"><?php esc_html_e( 'Analysis run #', 'reactwoo-geo-ai' ); ?></label>
+			<input type="number" min="0" name="analysis_run" id="rwga-filter-analysis" class="rwgc-input" value="<?php echo $rwga_filter_analysis > 0 ? (int) $rwga_filter_analysis : ''; ?>" style="max-width: 8rem;" />
 			<?php submit_button( __( 'Filter', 'reactwoo-geo-ai' ), 'secondary', 'submit', false ); ?>
 			<?php if ( $rwga_filter_analysis > 0 ) : ?>
 				<a class="button-link" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
@@ -66,7 +66,28 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 
 	<div class="rwgc-card">
 		<?php if ( empty( $rwga_rows ) ) : ?>
-			<p class="description"><?php esc_html_e( 'No recommendations yet. Open an analysis and choose “Generate recommendations”, or POST to /wp-json/geo-ai/v1/recommend/ux.', 'reactwoo-geo-ai' ); ?></p>
+			<?php
+			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+				RWGC_Admin_UI::render_empty_state(
+					__( 'No recommendations yet', 'reactwoo-geo-ai' ),
+					__( 'They appear after you run an analysis and generate recommendations for that run.', 'reactwoo-geo-ai' ),
+					array(
+						array(
+							'url'     => admin_url( 'admin.php?page=rwga-analyses' ),
+							'label'   => __( 'View analyses', 'reactwoo-geo-ai' ),
+							'primary' => true,
+						),
+						array(
+							'url'   => admin_url( 'admin.php?page=rwga-dashboard' ),
+							'label' => __( 'Analyse a page', 'reactwoo-geo-ai' ),
+						),
+					),
+					array( 'dashicon' => 'dashicons-lightbulb' )
+				);
+			} else {
+				echo '<p class="description">' . esc_html__( 'No recommendations yet.', 'reactwoo-geo-ai' ) . '</p>';
+			}
+			?>
 		<?php else : ?>
 			<table class="widefat striped rwga-table-comfortable">
 				<thead>

@@ -23,7 +23,7 @@ $payload_text = is_array( $payload_dec )
 
 $ctx_raw = isset( $rwga_draft['input_context'] ) ? (string) $rwga_draft['input_context'] : '';
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--implementation-draft-detail">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--implementation-draft-detail">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(

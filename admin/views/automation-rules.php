@@ -57,12 +57,12 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 	}
 }
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--automation">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--automation">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'Automation rules', 'reactwoo-geo-ai' ),
-			__( 'Schedule hooks for bounded workflows (cron and manual runs execute the workflow when the rule supplies the required fields).', 'reactwoo-geo-ai' )
+			__( 'Automation', 'reactwoo-geo-ai' ),
+			__( 'Run analyses or research on a schedule, or trigger a rule manually when you are ready.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
@@ -112,9 +112,9 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 				</form>
 			</div>
 		<?php else : ?>
-			<div class="rwgc-card">
+			<div class="rwgc-card" id="rwga-ar-top">
 				<h2><?php esc_html_e( 'Add rule', 'reactwoo-geo-ai' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'REST: GET/POST/PATCH/DELETE /wp-json/geo-ai/v1/automation/rules — POST …/run to execute the workflow.', 'reactwoo-geo-ai' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Choose a workflow, scope, and optional page or country. Advanced shows API details.', 'reactwoo-geo-ai' ); ?></p>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<input type="hidden" name="action" value="rwga_automation_rule_save" />
 					<input type="hidden" name="rule_id" value="0" />
@@ -150,7 +150,24 @@ if ( is_array( $rwga_edit_rule ) && isset( $rwga_edit_rule['rule_config'] ) ) {
 	<div class="rwgc-card">
 		<h2><?php esc_html_e( 'Rules', 'reactwoo-geo-ai' ); ?></h2>
 		<?php if ( empty( $rwga_rows ) ) : ?>
-			<p class="description"><?php esc_html_e( 'No rules yet.', 'reactwoo-geo-ai' ); ?></p>
+			<?php
+			if ( class_exists( 'RWGC_Admin_UI', false ) && $can_manage ) {
+				RWGC_Admin_UI::render_empty_state(
+					__( 'No automation rules yet', 'reactwoo-geo-ai' ),
+					__( 'Create a rule to run a workflow on a schedule or when you click Run.', 'reactwoo-geo-ai' ),
+					array(
+						array(
+							'url'     => '#rwga-ar-top',
+							'label'   => __( 'Create your first rule', 'reactwoo-geo-ai' ),
+							'primary' => true,
+						),
+					),
+					array( 'dashicon' => 'dashicons-controls-repeat' )
+				);
+			} else {
+				echo '<p class="description">' . esc_html__( 'No rules yet.', 'reactwoo-geo-ai' ) . '</p>';
+			}
+			?>
 		<?php else : ?>
 			<table class="widefat striped rwga-table-comfortable">
 				<thead>
@@ -278,12 +295,38 @@ if ( ! function_exists( 'rwga_render_automation_rule_fields' ) ) {
 		</select>
 	</p>
 	<p>
-		<label for="rwga_ar_pid"><?php esc_html_e( 'Page ID (if scope is page)', 'reactwoo-geo-ai' ); ?></label><br />
-		<input type="number" min="0" class="small-text" name="page_id" id="rwga_ar_pid" value="<?php echo $pid > 0 ? (int) $pid : ''; ?>" />
+		<label for="rwga_ar_pid"><?php esc_html_e( 'Page (if scope is page)', 'reactwoo-geo-ai' ); ?></label><br />
+		<?php
+		wp_dropdown_pages(
+			array(
+				'name'              => 'page_id',
+				'id'                => 'rwga_ar_pid',
+				'selected'          => $pid > 0 ? $pid : 0,
+				'show_option_none'  => __( '— Select page —', 'reactwoo-geo-ai' ),
+				'option_none_value' => '0',
+				'class'             => 'rwgc-select rwgc-input',
+			)
+		);
+		?>
 	</p>
 	<p>
-		<label for="rwga_ar_geo"><?php esc_html_e( 'Geo ISO2 (optional)', 'reactwoo-geo-ai' ); ?></label><br />
-		<input type="text" maxlength="2" class="small-text" name="geo_target" id="rwga_ar_geo" value="<?php echo esc_attr( $geo ); ?>" />
+		<label for="rwga_ar_geo"><?php esc_html_e( 'Target country (optional)', 'reactwoo-geo-ai' ); ?></label><br />
+		<?php
+		if ( class_exists( 'RWGC_Admin', false ) ) {
+			RWGC_Admin::render_country_select(
+				'geo_target',
+				$geo,
+				array(
+					'id'                => 'rwga_ar_geo',
+					'class'             => 'rwgc-select rwgc-input regular-text',
+					'show_option_none'  => __( '— Any —', 'reactwoo-geo-ai' ),
+					'option_none_value' => '',
+				)
+			);
+		} else {
+			echo '<input type="text" maxlength="2" class="small-text" name="geo_target" id="rwga_ar_geo" value="' . esc_attr( $geo ) . '" />';
+		}
+		?>
 	</p>
 	<p>
 		<label for="rwga_ar_st"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></label><br />

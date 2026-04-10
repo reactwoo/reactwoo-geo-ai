@@ -2,6 +2,15 @@
  * Geo AI admin — complements Geo Core .rwgc-* styles.
  */
 
+.rwga-wrap.rwgc-suite {
+  --rwga-accent: var(--rw-suite-accent, #1d4ed8);
+  --rwga-accent-soft: var(--rw-suite-accent-soft, #eff6ff);
+  --rwga-accent-strong: var(--rw-suite-accent-strong, #1e40af);
+  --rwga-severity-high: #991b1b;
+  --rwga-severity-medium: #92400e;
+  --rwga-severity-low: #166534;
+}
+
 .rwga-wrap .rwga-hero {
   background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 50%, #f8fafc 100%);
   border: 1px solid #bfdbfe;

@@ -5,7 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $rwga_queue_rows = isset( $rwga_queue_rows ) && is_array( $rwga_queue_rows ) ? $rwga_queue_rows : array();
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-drafts';
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--drafts">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--drafts">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(

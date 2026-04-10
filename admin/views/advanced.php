@@ -25,7 +25,7 @@ if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 }
 
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--advanced">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--advanced">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(

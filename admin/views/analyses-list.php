@@ -19,12 +19,12 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-analy
 
 $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--analyses">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--analyses">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'Analyses', 'reactwoo-geo-ai' ),
-			__( 'Stored UX and workflow runs for this site.', 'reactwoo-geo-ai' )
+			__( 'Analyse pages', 'reactwoo-geo-ai' ),
+			__( 'Each run captures a snapshot of a page so you can review findings and build recommendations.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
@@ -33,13 +33,48 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
+	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) : ?>
+	<div class="rwgc-card">
+		<?php
+		if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+			RWGC_Admin_UI::render_button_row(
+				array(
+					array(
+						'url'     => admin_url( 'admin.php?page=rwga-dashboard' ),
+						'label'   => __( 'Analyse a page', 'reactwoo-geo-ai' ),
+						'variant' => 'primary',
+					),
+				)
+			);
+		}
+		?>
+	</div>
+	<?php endif; ?>
+
 	<?php if ( isset( $_GET['rwga_sample'] ) && 'ok' === sanitize_key( wp_unslash( $_GET['rwga_sample'] ) ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Analysis run completed.', 'reactwoo-geo-ai' ); ?></p></div>
 	<?php endif; ?>
 
 	<div class="rwgc-card">
 		<?php if ( empty( $rwga_rows ) ) : ?>
-			<p class="description"><?php esc_html_e( 'No analyses yet. Run a sample from Overview or call the REST API.', 'reactwoo-geo-ai' ); ?></p>
+			<?php
+			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+				RWGC_Admin_UI::render_empty_state(
+					__( 'No analyses yet', 'reactwoo-geo-ai' ),
+					__( 'Start from the dashboard: pick a page and run an analysis.', 'reactwoo-geo-ai' ),
+					array(
+						array(
+							'url'     => admin_url( 'admin.php?page=rwga-dashboard' ),
+							'label'   => __( 'Go to dashboard', 'reactwoo-geo-ai' ),
+							'primary' => true,
+						),
+					),
+					array( 'dashicon' => 'dashicons-visibility' )
+				);
+			} else {
+				echo '<p class="description">' . esc_html__( 'No analyses yet.', 'reactwoo-geo-ai' ) . '</p>';
+			}
+			?>
 		<?php else : ?>
 			<table class="widefat striped rwga-table-comfortable">
 				<thead>
@@ -48,7 +83,7 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 						<th scope="col"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Score', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Workflow', 'reactwoo-geo-ai' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Geo', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Country', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Date (UTC)', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Actions', 'reactwoo-geo-ai' ); ?></th>
 					</tr>
@@ -83,7 +118,7 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 							<td><code><?php echo isset( $row['workflow_key'] ) ? esc_html( (string) $row['workflow_key'] ) : '—'; ?></code></td>
 							<td><?php echo isset( $row['geo_target'] ) && $row['geo_target'] ? esc_html( (string) $row['geo_target'] ) : '—'; ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
-							<td><a class="button button-small" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'View', 'reactwoo-geo-ai' ); ?></a></td>
+							<td><a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'View', 'reactwoo-geo-ai' ); ?></a></td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>

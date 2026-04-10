@@ -19,7 +19,7 @@ $analysis_run_id = isset( $rwga_rec['analysis_run_id'] ) ? (int) $rwga_rec['anal
 $page_id         = isset( $rwga_rec['page_id'] ) ? (int) $rwga_rec['page_id'] : 0;
 $geo             = isset( $rwga_rec['geo_target'] ) ? (string) $rwga_rec['geo_target'] : '';
 ?>
-<div class="wrap rwgc-wrap rwga-wrap rwga-wrap--recommendation-detail">
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--recommendation-detail">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
