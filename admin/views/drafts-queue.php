@@ -4,31 +4,60 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 $rwga_queue_rows = isset( $rwga_queue_rows ) && is_array( $rwga_queue_rows ) ? $rwga_queue_rows : array();
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-drafts';
+
+$dash_url     = admin_url( 'admin.php?page=rwga-dashboard' );
+$implement_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
+$analyses_url = admin_url( 'admin.php?page=rwga-analyses' );
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--drafts">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'Drafts / Queue', 'reactwoo-geo-ai' ),
-			__( 'Review generated drafts: preview, approve, discard, or regenerate when your workflow supplies queue data.', 'reactwoo-geo-ai' )
+			__( 'Queue', 'reactwoo-geo-ai' ),
+			__( 'A holding area for draft jobs from the editor or integrations. Use the main workflow when you are starting out.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
-		<h1><?php esc_html_e( 'Drafts / Queue', 'reactwoo-geo-ai' ); ?></h1>
+		<h1><?php esc_html_e( 'Queue', 'reactwoo-geo-ai' ); ?></h1>
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
 	<div class="rwgc-card">
 		<?php if ( empty( $rwga_queue_rows ) ) : ?>
-			<p class="rwga-empty-hint"><?php esc_html_e( 'No draft jobs in the queue yet. When the integration stores drafts in WordPress (or extends rwga_draft_queue_rows), they will appear here with actions.', 'reactwoo-geo-ai' ); ?></p>
-			<p><a class="button button-primary" href="<?php echo esc_url( admin_url( 'edit.php?post_type=page' ) ); ?>"><?php esc_html_e( 'Browse pages', 'reactwoo-geo-ai' ); ?></a></p>
+			<?php
+			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+				RWGC_Admin_UI::render_empty_state(
+					__( 'Nothing in the queue yet', 'reactwoo-geo-ai' ),
+					__( 'When a workflow or integration records a job, it will appear here with any actions your site provides.', 'reactwoo-geo-ai' ),
+					array(
+						array(
+							'url'     => $dash_url,
+							'label'   => __( 'Go to dashboard', 'reactwoo-geo-ai' ),
+							'primary' => true,
+						),
+						array(
+							'url'   => $analyses_url,
+							'label' => __( 'Analyse a page', 'reactwoo-geo-ai' ),
+						),
+						array(
+							'url'   => $implement_url,
+							'label' => __( 'Implementation drafts', 'reactwoo-geo-ai' ),
+						),
+					),
+					array( 'dashicon' => 'dashicons-list-view' )
+				);
+			} else {
+				echo '<p class="rwga-empty-hint">' . esc_html__( 'No draft jobs in the queue yet.', 'reactwoo-geo-ai' ) . '</p>';
+				echo '<p><a class="button button-primary" href="' . esc_url( admin_url( 'edit.php?post_type=page' ) ) . '">' . esc_html__( 'Browse pages', 'reactwoo-geo-ai' ) . '</a></p>';
+			}
+			?>
 		<?php else : ?>
 			<table class="widefat striped rwga-table-comfortable">
 				<thead>
 					<tr>
 						<th scope="col"><?php esc_html_e( 'Source', 'reactwoo-geo-ai' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Target context', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Context', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Type', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Created', 'reactwoo-geo-ai' ); ?></th>

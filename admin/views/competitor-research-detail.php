@@ -33,7 +33,7 @@ $list_url = admin_url( 'admin.php?page=rwga-competitors' );
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
-	<p><a href="<?php echo esc_url( $list_url ); ?>" class="button"><?php esc_html_e( '&larr; All competitor research', 'reactwoo-geo-ai' ); ?></a></p>
+	<p class="rwgc-actions"><a href="<?php echo esc_url( $list_url ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( '&larr; All competitor research', 'reactwoo-geo-ai' ); ?></a></p>
 
 	<div class="rwgc-card rwga-analysis-meta">
 		<dl class="rwga-license-dl">

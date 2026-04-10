@@ -14,19 +14,19 @@ $lic_ok = ! empty( $summary['license_configured'] );
 $last_refresh = ( null !== $cache && ! empty( $cache['refreshed_at_gmt'] ) ) ? (string) $cache['refreshed_at_gmt'] : __( 'Never', 'reactwoo-geo-ai' );
 
 $refresh_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
-$connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editable in Advanced when enabled by your integrator.', 'reactwoo-geo-ai' );
+$connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied to this key on this site.', 'reactwoo-geo-ai' );
 
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--license">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'License', 'reactwoo-geo-ai' ),
-			__( 'Activate your plan and refresh usage. API infrastructure is managed for you unless Advanced overrides are explicitly enabled.', 'reactwoo-geo-ai' )
+			__( 'Settings', 'reactwoo-geo-ai' ),
+			__( 'License, usage, and connection. Advanced API overrides stay under Advanced.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
-		<h1><?php esc_html_e( 'Geo AI — License', 'reactwoo-geo-ai' ); ?></h1>
+		<h1><?php esc_html_e( 'Geo AI — Settings', 'reactwoo-geo-ai' ); ?></h1>
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
@@ -44,15 +44,23 @@ $connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editabl
 	<?php endif; ?>
 
 	<div class="rwgc-grid" style="align-items: flex-start;">
-		<div class="rwgc-card" style="max-width: 520px;">
-			<h2><?php esc_html_e( 'Product license', 'reactwoo-geo-ai' ); ?></h2>
-			<p class="description"><?php echo esc_html( $connect_hint ); ?></p>
+		<div class="rwgc-card" style="max-width: 560px;">
+			<?php
+			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+				RWGC_Admin_UI::render_section_header(
+					__( 'License & connection', 'reactwoo-geo-ai' ),
+					$connect_hint
+				);
+			} else {
+				echo '<h2>' . esc_html__( 'Product license', 'reactwoo-geo-ai' ) . '</h2>';
+			}
+			?>
 
 			<p style="margin: 12px 0;">
 				<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 					<?php
 					RWGC_Admin_UI::render_badge(
-						$lic_ok ? __( 'Key on file', 'reactwoo-geo-ai' ) : __( 'Not configured', 'reactwoo-geo-ai' ),
+						$lic_ok ? __( 'Connected', 'reactwoo-geo-ai' ) : __( 'Not configured', 'reactwoo-geo-ai' ),
 						$lic_ok ? 'success' : 'warning'
 					);
 					?>
@@ -78,7 +86,7 @@ $connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editabl
 					<dd><?php echo esc_html( (string) (int) $cache['used'] . ' / ' . (int) $cache['limit'] ); ?></dd>
 				<?php endif; ?>
 			</dl>
-			<p class="description"><?php esc_html_e( 'Plan name and token cap are returned by the ReactWoo API from your license. After a paid upgrade, save the license and refresh usage (or re-activate) so a new token includes the correct tier.', 'reactwoo-geo-ai' ); ?></p>
+			<p class="description"><?php esc_html_e( 'After upgrading your ReactWoo plan, save the license here and refresh usage so limits stay accurate.', 'reactwoo-geo-ai' ); ?></p>
 
 			<form method="post" action="options.php" class="rwga-license-form">
 				<?php settings_fields( 'rwga_license_group' ); ?>
@@ -96,21 +104,28 @@ $connect_hint = __( 'ReactWoo Cloud (default). Custom endpoints are only editabl
 			</form>
 
 			<?php if ( ! empty( $import_sources ) ) : ?>
-				<p class="description"><?php esc_html_e( 'Optional: import a key once from another ReactWoo plugin. This does not create ongoing sharing between plugins.', 'reactwoo-geo-ai' ); ?></p>
+				<?php
+				if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+					RWGC_Admin_UI::render_section_header(
+						__( 'Import key once', 'reactwoo-geo-ai' ),
+						__( 'Copy a key from another ReactWoo plugin on this site. This does not sync ongoing changes between plugins.', 'reactwoo-geo-ai' )
+					);
+				}
+				?>
 				<p class="rwga-license-actions">
 					<?php foreach ( $import_sources as $source => $label ) : ?>
-						<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=import_license&source=' . rawurlencode( $source ) ), 'rwga_import_license' ) ); ?>"><?php echo esc_html( sprintf( __( 'Import from %s', 'reactwoo-geo-ai' ), $label ) ); ?></a>
+						<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=import_license&source=' . rawurlencode( $source ) ), 'rwga_import_license' ) ); ?>"><?php echo esc_html( sprintf( __( 'Import from %s', 'reactwoo-geo-ai' ), $label ) ); ?></a>
 					<?php endforeach; ?>
 				</p>
 			<?php endif; ?>
 
 			<p class="rwga-license-actions">
-				<a class="button" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>
+				<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>
 				<?php if ( $lic_ok ) : ?>
-					<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=clear_license' ), 'rwga_clear_license' ) ); ?>" onclick="return window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>);"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></a>
+					<a class="rwgc-btn rwgc-btn--danger" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=clear_license' ), 'rwga_clear_license' ) ); ?>" onclick="return window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>);"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></a>
 				<?php endif; ?>
 			</p>
-			<p class="description"><?php esc_html_e( 'Manage subscription and billing in your ReactWoo account (link varies by product).', 'reactwoo-geo-ai' ); ?></p>
+			<p class="description"><?php esc_html_e( 'Subscription and billing are managed in your ReactWoo account.', 'reactwoo-geo-ai' ); ?></p>
 		</div>
 	</div>
 </div>

@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.6.2
+Stable tag: 0.4.8
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.8 =
+* **Admin UI:** Advanced page and competitor research detail aligned with Geo Core suite shell (`rwgc-btn`, `render_section_header`). REST “Open” links and connection checks use suite buttons.
 
 = 0.4.6.2 =
 * **License login / usage:** `RWGA_Platform_Client` now runs the same `rwgc_auth_login_body` filter as Geo Core before POST `/api/v5/auth/login`, and `RWGA_Settings::filter_auth_login_body` is registered so the license server receives the same product metadata as the shared client. Assistant usage JSON is normalized with additional shapes (`license_tier`, unwrapped `data`, snake_case usage fields). Admin-only shows “Usage refreshed” when the response was parsed and cached; parse failures surface a clear error instead of a false success.
