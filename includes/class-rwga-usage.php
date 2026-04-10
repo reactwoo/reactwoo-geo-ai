@@ -73,6 +73,12 @@ class RWGA_Usage {
 	 * @return array<string, mixed>|null
 	 */
 	public static function get_cache() {
+		if ( class_exists( 'RWGA_Settings', false ) && ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
+			if ( false !== get_option( self::OPTION_KEY, false ) ) {
+				delete_option( self::OPTION_KEY );
+			}
+			return null;
+		}
 		$c = get_option( self::OPTION_KEY, null );
 		if ( ! is_array( $c ) ) {
 			return null;
@@ -96,6 +102,9 @@ class RWGA_Usage {
 	 */
 	public static function format_plan_label( $cache ) {
 		if ( ! is_array( $cache ) ) {
+			return '';
+		}
+		if ( class_exists( 'RWGA_Settings', false ) && ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
 			return '';
 		}
 		$tier = isset( $cache['license_tier'] ) ? sanitize_key( (string) $cache['license_tier'] ) : '';

@@ -23,9 +23,7 @@ class RWGA_License {
 		if ( ! class_exists( 'RWGA_Settings', false ) ) {
 			return false;
 		}
-		$s = RWGA_Settings::get_settings();
-		$k = is_array( $s ) && isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
-		return '' !== $k;
+		return RWGA_Settings::is_license_configured_for_geo_ai_ui();
 	}
 
 	/**

@@ -336,7 +336,7 @@ class RWGA_Admin {
 			return;
 		}
 		if ( 'ai_usage' === $action ) {
-			if ( ! class_exists( 'RWGA_License', false ) || ! RWGA_License::is_configured() ) {
+			if ( ! class_exists( 'RWGA_Settings', false ) || ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
 				delete_option( 'rwga_assistant_usage_cache' );
 				add_settings_error(
 					'rwga_geo_ai',

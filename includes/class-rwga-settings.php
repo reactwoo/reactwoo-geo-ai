@@ -342,8 +342,14 @@ class RWGA_Settings {
 		}
 
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
+		$bridge_on   = ( 1 === (int) get_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 0 ) );
 		if ( 'license' === $scope || 'advanced' === $scope ) {
-			$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
+			// After Disconnect, do not restore the previous key when the field is empty or omitted (password inputs may be absent from POST).
+			if ( $bridge_on && '' === trim( (string) $new_license ) ) {
+				$out['reactwoo_license_key'] = '';
+			} else {
+				$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
+			}
 			if ( '' !== trim( (string) $out['reactwoo_license_key'] ) ) {
 				$out['reactwoo_license_use_core_fallback'] = true;
 				delete_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE );
