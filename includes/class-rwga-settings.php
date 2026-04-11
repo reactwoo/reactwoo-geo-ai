@@ -198,12 +198,16 @@ class RWGA_Settings {
 	 * @return void
 	 */
 	public static function clear_license_key() {
-		$s = self::get_settings();
-		$s['reactwoo_license_key']                  = '';
-		$s['reactwoo_license_use_core_fallback'] = false;
-		update_option( self::OPTION_KEY, $s );
-		update_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 1 );
+		$raw = get_option( self::OPTION_KEY, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+		// Write empty key directly so merge/sanitize paths cannot leave a stale key in object cache.
+		$raw['reactwoo_license_key']               = '';
+		$raw['reactwoo_license_use_core_fallback'] = false;
+		update_option( self::OPTION_KEY, $raw, true );
+		update_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 1, true );
 		delete_option( 'rwga_assistant_usage_cache' );
+		wp_cache_delete( self::OPTION_KEY, 'options' );
+		wp_cache_delete( 'rwga_assistant_usage_cache', 'options' );
 		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 			RWGA_Platform_Client::clear_token_cache();
 		}

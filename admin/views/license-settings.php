@@ -73,7 +73,12 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 			<dl class="rwga-license-dl">
 				<dt><?php esc_html_e( 'Last usage refresh', 'reactwoo-geo-ai' ); ?></dt>
 				<dd><?php echo esc_html( $last_refresh ); ?></dd>
-				<?php if ( null !== $cache && class_exists( 'RWGA_Usage', false ) ) : ?>
+				<?php if ( $lic_ok && null === $cache && class_exists( 'RWGA_Usage', false ) ) : ?>
+					<dt><?php esc_html_e( 'Plan', 'reactwoo-geo-ai' ); ?></dt>
+					<dd><span class="description"><?php esc_html_e( 'Not loaded yet — use Refresh usage below after saving your key.', 'reactwoo-geo-ai' ); ?></span></dd>
+					<dt><?php esc_html_e( 'Usage (this period)', 'reactwoo-geo-ai' ); ?></dt>
+					<dd><span class="description"><?php esc_html_e( '—', 'reactwoo-geo-ai' ); ?></span></dd>
+				<?php elseif ( null !== $cache && class_exists( 'RWGA_Usage', false ) ) : ?>
 					<?php
 					$plan_line = RWGA_Usage::format_plan_label( $cache );
 					if ( '' !== $plan_line ) :
@@ -89,7 +94,7 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 			</dl>
 			<p class="description"><?php esc_html_e( 'After upgrading your ReactWoo plan, save the license here and refresh usage so limits stay accurate.', 'reactwoo-geo-ai' ); ?></p>
 
-			<form method="post" action="options.php" class="rwga-license-form">
+			<form id="rwga-license-save-form" method="post" action="options.php" class="rwga-license-form">
 				<?php settings_fields( 'rwga_license_group' ); ?>
 				<input type="hidden" name="<?php echo esc_attr( $option_key ); ?>[rwga_form_scope]" value="license" />
 				<table class="form-table" role="presentation">
@@ -101,10 +106,17 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 						</td>
 					</tr>
 				</table>
-				<p class="rwgc-actions">
-					<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Save license', 'reactwoo-geo-ai' ); ?></button>
-				</p>
 			</form>
+			<p class="rwgc-actions rwga-license-primary-actions">
+				<button type="submit" form="rwga-license-save-form" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Save license', 'reactwoo-geo-ai' ); ?></button>
+				<?php if ( $lic_ok ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-license-disconnect-form" onsubmit="return window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>);">
+						<?php wp_nonce_field( 'rwga_clear_license' ); ?>
+						<input type="hidden" name="action" value="rwga_clear_geo_ai_license" />
+						<button type="submit" class="rwgc-btn rwgc-btn--danger"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></button>
+					</form>
+				<?php endif; ?>
+			</p>
 		</div>
 
 		<div class="rwgc-card" style="max-width: 560px;">
@@ -112,7 +124,7 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
 				RWGC_Admin_UI::render_section_header(
 					__( 'Import & usage', 'reactwoo-geo-ai' ),
-					__( 'Optionally copy a key from another ReactWoo plugin on this site, refresh plan limits from the API, or disconnect.', 'reactwoo-geo-ai' )
+					__( 'Copy a key from another ReactWoo plugin on this site, or refresh plan limits from the API.', 'reactwoo-geo-ai' )
 				);
 			} else {
 				echo '<h2>' . esc_html__( 'Import & usage', 'reactwoo-geo-ai' ) . '</h2>';
@@ -128,9 +140,6 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 
 			<p class="rwgc-actions rwga-license-actions">
 				<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>
-				<?php if ( $lic_ok ) : ?>
-					<a class="rwgc-btn rwgc-btn--danger" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=clear_license' ), 'rwga_clear_license' ) ); ?>" onclick="return window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>);"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></a>
-				<?php endif; ?>
 			</p>
 			<p class="description"><?php esc_html_e( 'Subscription and billing are managed in your ReactWoo account.', 'reactwoo-geo-ai' ); ?></p>
 		</div>

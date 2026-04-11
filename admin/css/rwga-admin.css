@@ -184,3 +184,12 @@
   background: #dcfce7;
   color: #166534;
 }
+
+.rwga-wrap .rwga-license-primary-actions.rwgc-actions {
+  align-items: center;
+}
+
+.rwga-wrap .rwga-license-disconnect-form {
+  display: inline-flex;
+  margin: 0;
+}

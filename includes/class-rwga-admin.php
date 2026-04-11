@@ -33,6 +33,7 @@ class RWGA_Admin {
 		add_action( 'admin_post_rwga_automation_rule_save', array( __CLASS__, 'handle_automation_rule_save' ) );
 		add_action( 'admin_post_rwga_automation_rule_run', array( __CLASS__, 'handle_automation_rule_run' ) );
 		add_action( 'admin_post_rwga_automation_rule_delete', array( __CLASS__, 'handle_automation_rule_delete' ) );
+		add_action( 'admin_post_rwga_clear_geo_ai_license', array( __CLASS__, 'handle_clear_license_post' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
 
@@ -484,7 +485,24 @@ class RWGA_Admin {
 	}
 
 	/**
-	 * License screen GET actions (disconnect).
+	 * Disconnect license (POST from Settings — preferred over GET for a single reliable clear).
+	 *
+	 * @return void
+	 */
+	public static function handle_clear_license_post() {
+		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to disconnect the license.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_clear_license' );
+		if ( class_exists( 'RWGA_Settings', false ) ) {
+			RWGA_Settings::clear_license_key();
+		}
+		wp_safe_redirect( admin_url( 'admin.php?page=rwga-license&rwga_disconnected=1' ) );
+		exit;
+	}
+
+	/**
+	 * License screen GET actions (disconnect, import).
 	 *
 	 * @return void
 	 */
