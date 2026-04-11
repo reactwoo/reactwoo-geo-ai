@@ -107,16 +107,16 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 					</tr>
 				</table>
 			</form>
-			<p class="rwgc-actions rwga-license-primary-actions">
+			<div class="rwgc-actions rwga-license-primary-actions">
 				<button type="submit" form="rwga-license-save-form" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Save license', 'reactwoo-geo-ai' ); ?></button>
 				<?php if ( $lic_ok ) : ?>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-license-disconnect-form" onsubmit="return window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>);">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-license-disconnect-form" onsubmit="if(!window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>)){return false;}var b=this.querySelector('button[type=submit]');if(b){b.disabled=true;}return true;">
 						<?php wp_nonce_field( 'rwga_clear_license' ); ?>
 						<input type="hidden" name="action" value="rwga_clear_geo_ai_license" />
 						<button type="submit" class="rwgc-btn rwgc-btn--danger"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></button>
 					</form>
 				<?php endif; ?>
-			</p>
+			</div>
 		</div>
 
 		<div class="rwgc-card" style="max-width: 560px;">

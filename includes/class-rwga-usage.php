@@ -57,6 +57,10 @@ class RWGA_Usage {
 		if ( null === $inner || ! is_array( $inner ) ) {
 			return null;
 		}
+		// Some gateways double-wrap: { data: { data: { usage, licenseTier } } }.
+		if ( isset( $inner['data'] ) && is_array( $inner['data'] ) && isset( $inner['data']['usage'] ) && is_array( $inner['data']['usage'] ) ) {
+			$inner = $inner['data'];
+		}
 		$usage = isset( $inner['usage'] ) && is_array( $inner['usage'] ) ? $inner['usage'] : null;
 		if ( null === $usage ) {
 			return null;
@@ -99,19 +103,7 @@ class RWGA_Usage {
 		}
 		$over = ! empty( $usage['overLimit'] ) || ! empty( $usage['over_limit'] );
 
-		// If the API omits licenseTier but returns token limits, infer tier from plan caps (tokenTracker: free 50k, pro 2M, enterprise 10M).
-		if ( '' === $tier ) {
-			$lim = isset( $usage['limit'] ) ? (int) $usage['limit'] : 0;
-			if ( $lim > 0 ) {
-				if ( $lim >= 9_000_000 ) {
-					$tier = 'enterprise';
-				} elseif ( $lim >= 1_000_000 ) {
-					$tier = 'pro';
-				} elseif ( $lim <= 100_000 ) {
-					$tier = 'free';
-				}
-			}
-		}
+		$tier = self::normalize_tier_with_limit( $tier, $limit );
 
 		return array(
 			'license_tier' => $tier,
@@ -145,6 +137,49 @@ class RWGA_Usage {
 	}
 
 	/**
+	 * Infer plan tier from the API token cap when licenseTier is missing or stale.
+	 * Fills the gap between the free cap (~100k) and 1M+ quotas so mid-tier Pro limits are not shown as Free.
+	 *
+	 * @param int $limit Assistant token limit for the billing period.
+	 * @return string One of free, pro, enterprise, or '' when unknown.
+	 */
+	private static function infer_tier_from_token_limit( $limit ) {
+		$lim = (int) $limit;
+		if ( $lim <= 0 ) {
+			return '';
+		}
+		if ( $lim >= 9_000_000 ) {
+			return 'enterprise';
+		}
+		if ( $lim >= 1_000_000 ) {
+			return 'pro';
+		}
+		if ( $lim <= 100_000 ) {
+			return 'free';
+		}
+		return 'pro';
+	}
+
+	/**
+	 * Combine API tier with token limit so cached usage matches the real quota (paid caps vs stale "free").
+	 *
+	 * @param string $tier  Sanitized tier from API (may be empty).
+	 * @param int    $limit Token limit for the period.
+	 * @return string
+	 */
+	private static function normalize_tier_with_limit( $tier, $limit ) {
+		$tier = is_string( $tier ) ? sanitize_key( $tier ) : '';
+		$inf  = self::infer_tier_from_token_limit( $limit );
+		if ( '' === $tier ) {
+			return '' !== $inf ? $inf : 'free';
+		}
+		if ( 'free' === $tier && '' !== $inf && 'free' !== $inf ) {
+			return $inf;
+		}
+		return $tier;
+	}
+
+	/**
 	 * Rows for a widefat table (label => display value).
 	 *
 	 * @return array<string, string>
@@ -162,11 +197,12 @@ class RWGA_Usage {
 		if ( class_exists( 'RWGA_Settings', false ) && ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
 			return '';
 		}
-		$tier = isset( $cache['license_tier'] ) ? sanitize_key( (string) $cache['license_tier'] ) : '';
+		$tier  = isset( $cache['license_tier'] ) ? sanitize_key( (string) $cache['license_tier'] ) : '';
+		$limit = isset( $cache['limit'] ) ? (int) $cache['limit'] : 0;
+		$tier  = self::normalize_tier_with_limit( $tier, $limit );
 		if ( '' === $tier ) {
 			$tier = 'free';
 		}
-		$limit = isset( $cache['limit'] ) ? (int) $cache['limit'] : 0;
 		$names = array(
 			'free'       => __( 'Free', 'reactwoo-geo-ai' ),
 			'pro'        => __( 'Pro', 'reactwoo-geo-ai' ),

@@ -207,7 +207,11 @@ class RWGA_Settings {
 		update_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 1, true );
 		delete_option( 'rwga_assistant_usage_cache' );
 		wp_cache_delete( self::OPTION_KEY, 'options' );
+		wp_cache_delete( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 'options' );
 		wp_cache_delete( 'rwga_assistant_usage_cache', 'options' );
+		// Autoloaded options are often served from the `alloptions` cache; clear it so the next read sees the empty key immediately.
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
 		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 			RWGA_Platform_Client::clear_token_cache();
 		}

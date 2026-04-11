@@ -497,6 +497,9 @@ class RWGA_Admin {
 		if ( class_exists( 'RWGA_Settings', false ) ) {
 			RWGA_Settings::clear_license_key();
 		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
 		wp_safe_redirect( admin_url( 'admin.php?page=rwga-license&rwga_disconnected=1' ) );
 		exit;
 	}

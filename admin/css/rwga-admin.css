@@ -185,11 +185,22 @@
   color: #166534;
 }
 
-.rwga-wrap .rwga-license-primary-actions.rwgc-actions {
+/* Beat Geo Core `.rwgc-wrap.rwgc-suite .rwgc-actions { flex-wrap: wrap }` so Save + Disconnect stay on one row. */
+.rwga-wrap.rwgc-suite .rwga-license-primary-actions.rwgc-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
+  gap: 10px;
+  margin-top: 12px;
 }
 
-.rwga-wrap .rwga-license-disconnect-form {
+.rwga-wrap.rwgc-suite .rwga-license-disconnect-form {
   display: inline-flex;
   margin: 0;
+  flex: 0 0 auto;
+}
+
+.rwga-wrap.rwgc-suite .rwga-license-primary-actions > .rwgc-btn--primary {
+  flex: 0 0 auto;
 }

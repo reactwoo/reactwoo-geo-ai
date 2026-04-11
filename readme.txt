@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.14
+Stable tag: 0.4.16
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,15 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.16 =
+* **License / layout:** Save + Disconnect use a higher-specificity flex row so Geo Core’s `.rwgc-actions` wrap rule cannot stack Disconnect under Save.
+* **Disconnect:** Also clear `notoptions` and the bridge option from the options cache so a single POST reliably shows “Not configured” with persistent object cache.
+* **Plan label:** Infer **Pro** for token limits between the free cap (100k) and 1M — previously an empty/stale tier in that range defaulted to **Free** after refresh.
+
+= 0.4.15 =
+* **License:** Disconnect clears WordPress `alloptions` cache so the empty key is visible immediately (fixes “two clicks” when object cache served stale `rwga_settings`). No-cache headers on disconnect redirect; Save + Disconnect stay on one row (flex nowrap); disconnect button disables after submit.
+* **Usage / plan label:** Unwrap double-nested `data.data` usage JSON; plan line upgrades stale **free** tier when token **limit** indicates Pro/Enterprise.
 
 = 0.4.14 =
 * **License:** Disconnect is a POST action next to **Save license** (not under Import & usage); clears the saved key in one step with reliable option/cache updates.
