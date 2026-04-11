@@ -16,6 +16,52 @@ $last_refresh = ( null !== $cache && ! empty( $cache['refreshed_at_gmt'] ) ) ? (
 $refresh_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
 $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied to this key on this site.', 'reactwoo-geo-ai' );
 
+$site_host    = class_exists( 'RWGA_Platform_Client', false ) ? RWGA_Platform_Client::get_site_domain() : '';
+$expect_slug  = class_exists( 'RWGA_Platform_Client', false ) ? RWGA_Platform_Client::PRODUCT_SLUG : 'reactwoo-geo-ai';
+$live_claims  = ( $lic_ok && class_exists( 'RWGA_License_Introspection', false ) ) ? RWGA_License_Introspection::get_bearer_claims() : null;
+$jwt_domain   = is_array( $cache ) && isset( $cache['jwt_domain'] ) ? (string) $cache['jwt_domain'] : '';
+$jwt_prod     = is_array( $cache ) && isset( $cache['jwt_product_slug'] ) ? (string) $cache['jwt_product_slug'] : '';
+$jwt_cat      = is_array( $cache ) && isset( $cache['jwt_catalog_slug'] ) ? (string) $cache['jwt_catalog_slug'] : '';
+$jwt_pkg      = is_array( $cache ) && isset( $cache['jwt_package_type'] ) ? (string) $cache['jwt_package_type'] : '';
+$jwt_plan     = is_array( $cache ) && isset( $cache['jwt_plan_code'] ) ? (string) $cache['jwt_plan_code'] : '';
+$jwt_tier_c   = is_array( $cache ) && isset( $cache['jwt_tier'] ) ? (string) $cache['jwt_tier'] : '';
+$jwt_label    = is_array( $cache ) && isset( $cache['jwt_package_label'] ) ? (string) $cache['jwt_package_label'] : '';
+$api_tier_raw = is_array( $cache ) && isset( $cache['api_license_tier_raw'] ) ? (string) $cache['api_license_tier_raw'] : '';
+if ( is_array( $live_claims ) ) {
+	if ( '' === $jwt_domain && isset( $live_claims['domain'] ) ) {
+		$jwt_domain = sanitize_text_field( (string) $live_claims['domain'] );
+	}
+	if ( '' === $jwt_prod && isset( $live_claims['product_slug'] ) ) {
+		$jwt_prod = sanitize_key( (string) $live_claims['product_slug'] );
+	}
+	if ( '' === $jwt_cat && isset( $live_claims['catalog_slug'] ) ) {
+		$jwt_cat = sanitize_key( (string) $live_claims['catalog_slug'] );
+	}
+	if ( '' === $jwt_pkg && isset( $live_claims['packageType'] ) ) {
+		$jwt_pkg = sanitize_text_field( (string) $live_claims['packageType'] );
+	}
+	if ( '' === $jwt_plan && isset( $live_claims['plan_code'] ) ) {
+		$jwt_plan = sanitize_text_field( (string) $live_claims['plan_code'] );
+	}
+	if ( '' === $jwt_tier_c && class_exists( 'RWGA_License_Introspection', false ) ) {
+		$jwt_tier_c = RWGA_License_Introspection::tier_from_claims( $live_claims );
+	}
+	if ( '' === $jwt_label && class_exists( 'RWGA_License_Introspection', false ) ) {
+		$jwt_label = RWGA_License_Introspection::format_package_summary( $live_claims );
+	}
+}
+$domain_ok = ( '' !== $jwt_domain && '' !== $site_host && class_exists( 'RWGA_License_Introspection', false ) )
+	? RWGA_License_Introspection::domain_matches_token( $site_host, $jwt_domain )
+	: null;
+$slug_ok = null;
+if ( '' !== $jwt_prod || '' !== $jwt_cat ) {
+	$slug_ok = ( $expect_slug === $jwt_prod || $expect_slug === $jwt_cat );
+}
+$tier_mismatch = false;
+if ( '' !== $jwt_tier_c && is_array( $cache ) && isset( $cache['license_tier'] ) ) {
+	$tier_mismatch = ( sanitize_key( (string) $cache['license_tier'] ) !== $jwt_tier_c );
+}
+
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--license">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
@@ -92,6 +138,64 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 					<dd><?php echo esc_html( (string) (int) $cache['used'] . ' / ' . (int) $cache['limit'] ); ?></dd>
 				<?php endif; ?>
 			</dl>
+			<?php if ( $lic_ok && ( null !== $cache || is_array( $live_claims ) ) ) : ?>
+				<div class="rwga-license-introspection" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+					<p class="description" style="margin-bottom: 8px;"><strong><?php esc_html_e( 'License server check (token + last API response)', 'reactwoo-geo-ai' ); ?></strong></p>
+					<p class="description" style="margin-top: 0;">
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: 1: product slug Geo AI sends at login, 2: site hostname used for license binding */
+								__( 'Login sends product/catalog slug %1$s with domain %2$s. The API combines your JWT claims with GET /api/v5/ai/assistant/usage (licenseTier + usage limits).', 'reactwoo-geo-ai' ),
+								$expect_slug,
+								$site_host ? $site_host : __( '(unknown)', 'reactwoo-geo-ai' )
+							)
+						);
+						?>
+					</p>
+					<dl class="rwga-license-dl" style="margin-top: 10px;">
+						<dt><?php esc_html_e( 'This site (home URL host)', 'reactwoo-geo-ai' ); ?></dt>
+						<dd><code><?php echo esc_html( $site_host ? $site_host : '—' ); ?></code></dd>
+						<dt><?php esc_html_e( 'Domain in license token', 'reactwoo-geo-ai' ); ?></dt>
+						<dd><code><?php echo esc_html( $jwt_domain !== '' ? $jwt_domain : '—' ); ?></code></dd>
+						<?php if ( null !== $domain_ok ) : ?>
+							<dt><?php esc_html_e( 'Domain match', 'reactwoo-geo-ai' ); ?></dt>
+							<dd>
+								<?php if ( $domain_ok ) : ?>
+									<?php esc_html_e( 'Yes', 'reactwoo-geo-ai' ); ?>
+								<?php else : ?>
+									<span class="notice-warning" style="display:inline;padding:2px 6px;"><?php esc_html_e( 'No — activate this site’s host for the key or use the correct key.', 'reactwoo-geo-ai' ); ?></span>
+								<?php endif; ?>
+							</dd>
+						<?php endif; ?>
+						<dt><?php esc_html_e( 'Product slug (token)', 'reactwoo-geo-ai' ); ?></dt>
+						<dd><code><?php echo esc_html( $jwt_prod !== '' ? $jwt_prod : '—' ); ?></code></dd>
+						<dt><?php esc_html_e( 'Catalog slug (token)', 'reactwoo-geo-ai' ); ?></dt>
+						<dd><code><?php echo esc_html( $jwt_cat !== '' ? $jwt_cat : '—' ); ?></code></dd>
+						<?php if ( null !== $slug_ok ) : ?>
+							<dt><?php esc_html_e( 'Geo AI product match', 'reactwoo-geo-ai' ); ?></dt>
+							<dd>
+								<?php if ( $slug_ok ) : ?>
+									<?php esc_html_e( 'Yes', 'reactwoo-geo-ai' ); ?>
+								<?php else : ?>
+									<span class="notice-warning" style="display:inline;padding:2px 6px;"><?php esc_html_e( 'No — token is for another product; usage may not reflect this plugin’s plan.', 'reactwoo-geo-ai' ); ?></span>
+								<?php endif; ?>
+							</dd>
+						<?php endif; ?>
+						<dt><?php esc_html_e( 'Package / plan (token)', 'reactwoo-geo-ai' ); ?></dt>
+						<dd><?php echo esc_html( $jwt_label !== '' ? $jwt_label : ( $jwt_pkg !== '' || $jwt_plan !== '' ? trim( $jwt_pkg . ( $jwt_pkg && $jwt_plan ? ' — ' : '' ) . $jwt_plan ) : '—' ) ); ?></dd>
+						<dt><?php esc_html_e( 'Tier in token (if present)', 'reactwoo-geo-ai' ); ?></dt>
+						<dd><code><?php echo esc_html( $jwt_tier_c !== '' ? $jwt_tier_c : '—' ); ?></code></dd>
+						<dt><?php esc_html_e( 'Tier from usage API (raw)', 'reactwoo-geo-ai' ); ?></dt>
+						<dd><code><?php echo esc_html( $api_tier_raw !== '' ? $api_tier_raw : '—' ); ?></code></dd>
+						<?php if ( $tier_mismatch ) : ?>
+							<dt><?php esc_html_e( 'Tier note', 'reactwoo-geo-ai' ); ?></dt>
+							<dd><span class="notice-warning" style="display:inline;padding:2px 6px;"><?php esc_html_e( 'Token tier and usage API tier differ — the UI uses the usage response + limits after refresh.', 'reactwoo-geo-ai' ); ?></span></dd>
+						<?php endif; ?>
+					</dl>
+					<p class="description" style="margin-bottom: 0;"><?php esc_html_e( 'Refresh usage after saving your key to capture API + token details. If package text is wrong, verify the license in ReactWoo is for Geo AI and this domain.', 'reactwoo-geo-ai' ); ?></p>
+				</div>
+			<?php endif; ?>
 			<p class="description"><?php esc_html_e( 'After upgrading your ReactWoo plan, save the license here and refresh usage so limits stay accurate.', 'reactwoo-geo-ai' ); ?></p>
 
 			<form id="rwga-license-save-form" method="post" action="options.php" class="rwga-license-form">

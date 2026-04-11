@@ -86,6 +86,19 @@ class RWGA_Platform_Client {
 	}
 
 	/**
+	 * Cached access token string for admin introspection (decoded payload only in UI; not for transport).
+	 *
+	 * @return string|null
+	 */
+	public static function get_cached_access_token_string() {
+		$cached = get_transient( self::TOKEN_TRANSIENT );
+		if ( ! is_array( $cached ) || empty( $cached['token'] ) ) {
+			return null;
+		}
+		return (string) $cached['token'];
+	}
+
+	/**
 	 * @return string|null
 	 */
 	public static function get_bearer_for_updates() {
@@ -245,6 +258,9 @@ class RWGA_Platform_Client {
 	}
 
 	/**
+	 * GET /api/v5/ai/assistant/usage — success JSON shape:
+	 * `{ status: 'success', data: { usage, planLimits, licenseTier } }` (reactwoo-api `assistant.ts`).
+	 *
 	 * @return array<string, mixed>|\WP_Error
 	 */
 	public static function get_usage() {

@@ -25,16 +25,29 @@ class RWGA_Usage {
 			return false;
 		}
 		$payload = array(
-			'refreshed_at_gmt' => gmdate( 'c' ),
-			'http_code'        => (int) $http_code,
-			'license_tier'     => $norm['license_tier'],
-			'period'           => $norm['period'],
-			'used'             => $norm['used'],
-			'limit'            => $norm['limit'],
-			'remaining'        => $norm['remaining'],
-			'over_limit'       => $norm['over_limit'],
-			'plan_limits'      => $norm['plan_limits'],
+			'refreshed_at_gmt'     => gmdate( 'c' ),
+			'http_code'            => (int) $http_code,
+			'license_tier'         => $norm['license_tier'],
+			'api_license_tier_raw' => isset( $norm['api_license_tier_raw'] ) ? (string) $norm['api_license_tier_raw'] : '',
+			'period'               => $norm['period'],
+			'used'                 => $norm['used'],
+			'limit'                => $norm['limit'],
+			'remaining'            => $norm['remaining'],
+			'over_limit'           => $norm['over_limit'],
+			'plan_limits'          => $norm['plan_limits'],
 		);
+		if ( class_exists( 'RWGA_License_Introspection', false ) ) {
+			$claims = RWGA_License_Introspection::get_bearer_claims();
+			if ( is_array( $claims ) ) {
+				$payload['jwt_domain']         = isset( $claims['domain'] ) ? sanitize_text_field( (string) $claims['domain'] ) : '';
+				$payload['jwt_product_slug']  = isset( $claims['product_slug'] ) ? sanitize_key( (string) $claims['product_slug'] ) : '';
+				$payload['jwt_catalog_slug']  = isset( $claims['catalog_slug'] ) ? sanitize_key( (string) $claims['catalog_slug'] ) : '';
+				$payload['jwt_package_type']  = isset( $claims['packageType'] ) ? sanitize_text_field( (string) $claims['packageType'] ) : '';
+				$payload['jwt_plan_code']     = isset( $claims['plan_code'] ) ? sanitize_text_field( (string) $claims['plan_code'] ) : '';
+				$payload['jwt_tier']          = RWGA_License_Introspection::tier_from_claims( $claims );
+				$payload['jwt_package_label'] = RWGA_License_Introspection::format_package_summary( $claims );
+			}
+		}
 		update_option( self::OPTION_KEY, $payload, false );
 		return true;
 	}
@@ -103,16 +116,18 @@ class RWGA_Usage {
 		}
 		$over = ! empty( $usage['overLimit'] ) || ! empty( $usage['over_limit'] );
 
-		$tier = self::normalize_tier_with_limit( $tier, $limit );
+		$api_license_tier_raw = is_string( $tier ) ? sanitize_key( $tier ) : '';
+		$tier                 = self::normalize_tier_with_limit( $tier, $limit );
 
 		return array(
-			'license_tier' => $tier,
-			'period'       => $period,
-			'used'         => $used,
-			'limit'        => $limit,
-			'remaining'    => $remaining,
-			'over_limit'   => $over,
-			'plan_limits'  => $plan_limits,
+			'license_tier'         => $tier,
+			'api_license_tier_raw' => $api_license_tier_raw,
+			'period'               => $period,
+			'used'                 => $used,
+			'limit'                => $limit,
+			'remaining'            => $remaining,
+			'over_limit'           => $over,
+			'plan_limits'          => $plan_limits,
 		);
 	}
 
