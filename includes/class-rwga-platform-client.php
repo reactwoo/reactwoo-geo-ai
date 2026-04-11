@@ -53,11 +53,7 @@ class RWGA_Platform_Client {
 		if ( ! class_exists( 'RWGA_Settings', false ) ) {
 			return '';
 		}
-		$settings = RWGA_Settings::get_settings();
-		if ( ! is_array( $settings ) || empty( $settings['reactwoo_license_key'] ) ) {
-			return '';
-		}
-		return trim( (string) $settings['reactwoo_license_key'] );
+		return RWGA_Settings::get_saved_license_key();
 	}
 
 	/**

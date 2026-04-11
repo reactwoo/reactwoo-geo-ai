@@ -22,14 +22,111 @@ class RWGA_Settings {
 	const OPTION_BLOCK_CORE_LICENSE_BRIDGE = 'rwga_block_core_license_bridge';
 
 	/**
+	 * In-memory snapshot of `rwga_settings` read directly from the DB (bypasses object cache).
+	 *
+	 * @var array<string, mixed>|null
+	 */
+	private static $db_snapshot_rwga_settings = null;
+
+	/**
+	 * Whether {@see self::$db_snapshot_rwga_settings} has been loaded this request.
+	 *
+	 * @var bool
+	 */
+	private static $db_snapshot_rwga_settings_ready = false;
+
+	/**
+	 * Memo for bridge option read from DB (bypasses object cache).
+	 *
+	 * @var int|null
+	 */
+	private static $db_snapshot_bridge = null;
+
+	/**
+	 * Whether {@see self::$db_snapshot_bridge} has been resolved this request.
+	 *
+	 * @var bool
+	 */
+	private static $db_snapshot_bridge_ready = false;
+
+	/**
 	 * @return void
 	 */
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_clear_jwt_on_change' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_refresh_usage_after_license_change' ), 20, 2 );
+		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'reset_db_option_snapshots' ), 0 );
+		add_action( 'update_option_' . self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, array( __CLASS__, 'reset_db_option_snapshots' ), 0 );
+		add_action( 'delete_option_' . self::OPTION_KEY, array( __CLASS__, 'reset_db_option_snapshots' ), 0 );
+		add_action( 'delete_option_' . self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, array( __CLASS__, 'reset_db_option_snapshots' ), 0 );
 		add_filter( 'wp_redirect', array( __CLASS__, 'filter_options_save_redirect' ), 5, 2 );
 		add_filter( 'rwgc_auth_login_body', array( __CLASS__, 'filter_auth_login_body' ), 10, 3 );
+	}
+
+	/**
+	 * Clear memoized DB reads so the next lookup reflects a just-updated option row.
+	 *
+	 * @return void
+	 */
+	public static function reset_db_option_snapshots() {
+		self::$db_snapshot_rwga_settings       = null;
+		self::$db_snapshot_rwga_settings_ready = false;
+		self::$db_snapshot_bridge              = null;
+		self::$db_snapshot_bridge_ready        = false;
+	}
+
+	/**
+	 * Read `rwga_settings` from the database (avoids stale wp_options object cache after disconnect).
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function get_stored_settings_from_db() {
+		if ( self::$db_snapshot_rwga_settings_ready ) {
+			return is_array( self::$db_snapshot_rwga_settings ) ? self::$db_snapshot_rwga_settings : array();
+		}
+		self::$db_snapshot_rwga_settings_ready = true;
+		global $wpdb;
+		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", self::OPTION_KEY ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( null === $raw || '' === $raw ) {
+			self::$db_snapshot_rwga_settings = array();
+			return array();
+		}
+		$data = maybe_unserialize( $raw );
+		self::$db_snapshot_rwga_settings = is_array( $data ) ? $data : array();
+		return self::$db_snapshot_rwga_settings;
+	}
+
+	/**
+	 * License key as stored in the DB (authoritative for UI + platform client when object cache lags).
+	 *
+	 * @return string
+	 */
+	public static function get_saved_license_key() {
+		$stored = self::get_stored_settings_from_db();
+		$k      = isset( $stored['reactwoo_license_key'] ) ? trim( (string) $stored['reactwoo_license_key'] ) : '';
+		return $k;
+	}
+
+	/**
+	 * Bridge flag from DB (authoritative when object cache lags).
+	 *
+	 * @return int 0 or 1
+	 */
+	private static function get_bridge_flag_from_db() {
+		if ( self::$db_snapshot_bridge_ready ) {
+			return (int) self::$db_snapshot_bridge;
+		}
+		self::$db_snapshot_bridge_ready = true;
+		global $wpdb;
+		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", self::OPTION_BLOCK_CORE_LICENSE_BRIDGE ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( null === $raw || '' === $raw ) {
+			self::$db_snapshot_bridge = 0;
+			return 0;
+		}
+		$v                        = maybe_unserialize( $raw );
+		self::$db_snapshot_bridge = (int) $v;
+		return (int) self::$db_snapshot_bridge;
 	}
 
 	/**
@@ -51,8 +148,7 @@ class RWGA_Settings {
 	 */
 	public static function filter_auth_login_body( $body, $license, $domain ) {
 		unset( $domain );
-		$s = self::get_settings();
-		$our = is_array( $s ) && isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
+		$our = self::get_saved_license_key();
 		if ( '' === $our || trim( (string) $license ) !== $our ) {
 			return $body;
 		}
@@ -95,8 +191,7 @@ class RWGA_Settings {
 	 * @return string
 	 */
 	public static function filter_license_key_final( $key ) {
-		$s      = self::get_settings();
-		$rwga_k = isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
+		$rwga_k = self::get_saved_license_key();
 		if ( '' !== $rwga_k ) {
 			return $rwga_k;
 		}
@@ -115,9 +210,7 @@ class RWGA_Settings {
 	 * @return bool
 	 */
 	public static function is_license_configured_for_geo_ai_ui() {
-		$s      = self::get_settings();
-		$rwga_k = isset( $s['reactwoo_license_key'] ) ? trim( (string) $s['reactwoo_license_key'] ) : '';
-		return '' !== $rwga_k;
+		return '' !== self::get_saved_license_key();
 	}
 
 	/**
@@ -126,10 +219,10 @@ class RWGA_Settings {
 	 * @return bool
 	 */
 	private static function is_geo_ai_license_disconnected() {
-		if ( 1 === (int) get_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 0 ) ) {
+		if ( 1 === self::get_bridge_flag_from_db() ) {
 			return true;
 		}
-		$raw = get_option( self::OPTION_KEY, array() );
+		$raw = self::get_stored_settings_from_db();
 		if ( is_array( $raw ) && array_key_exists( 'reactwoo_license_use_core_fallback', $raw ) ) {
 			$v = $raw['reactwoo_license_use_core_fallback'];
 			return false === $v || 0 === $v || '0' === $v;
@@ -198,7 +291,8 @@ class RWGA_Settings {
 	 * @return void
 	 */
 	public static function clear_license_key() {
-		$raw = get_option( self::OPTION_KEY, array() );
+		self::reset_db_option_snapshots();
+		$raw = self::get_stored_settings_from_db();
 		$raw = is_array( $raw ) ? $raw : array();
 		// Write empty key directly so merge/sanitize paths cannot leave a stale key in object cache.
 		$raw['reactwoo_license_key']               = '';
@@ -212,6 +306,10 @@ class RWGA_Settings {
 		// Autoloaded options are often served from the `alloptions` cache; clear it so the next read sees the empty key immediately.
 		wp_cache_delete( 'alloptions', 'options' );
 		wp_cache_delete( 'notoptions', 'options' );
+		if ( function_exists( 'wp_cache_flush_group' ) && function_exists( 'wp_cache_supports' ) && wp_cache_supports( 'flush_group' ) ) {
+			wp_cache_flush_group( 'options' );
+		}
+		self::reset_db_option_snapshots();
 		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 			RWGA_Platform_Client::clear_token_cache();
 		}
@@ -375,7 +473,7 @@ class RWGA_Settings {
 	public static function sanitize_settings( $input ) {
 		$defaults     = self::get_defaults();
 		$settings     = is_array( $input ) ? $input : array();
-		$prev         = get_option( self::OPTION_KEY, array() );
+		$prev         = self::get_stored_settings_from_db();
 		$prev         = is_array( $prev ) ? $prev : array();
 		$out          = array_merge( $defaults, $prev );
 		$scope        = isset( $settings['rwga_form_scope'] ) ? sanitize_key( (string) $settings['rwga_form_scope'] ) : 'license';
@@ -406,7 +504,7 @@ class RWGA_Settings {
 		}
 
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
-		$bridge_on   = ( 1 === (int) get_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 0 ) );
+		$bridge_on   = ( 1 === self::get_bridge_flag_from_db() );
 		if ( 'license' === $scope || 'advanced' === $scope ) {
 			// After Disconnect, do not restore the previous key when the field is empty or omitted (password inputs may be absent from POST).
 			if ( $bridge_on && '' === trim( (string) $new_license ) ) {
