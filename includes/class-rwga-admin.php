@@ -108,6 +108,41 @@ class RWGA_Admin {
 	}
 
 	/**
+	 * Notices after redirect from “Refresh usage” (`?rwga_usage=…`).
+	 *
+	 * @return void
+	 */
+	public static function render_usage_refresh_notices() {
+		if ( empty( $_GET['rwga_usage'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$flag = sanitize_key( wp_unslash( $_GET['rwga_usage'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$uid  = get_current_user_id();
+		$tkey = 'rwga_usage_flash_' . $uid;
+
+		if ( 'ok' === $flag ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Usage and plan information were refreshed.', 'reactwoo-geo-ai' ) . '</p></div>';
+			return;
+		}
+		if ( 'no_license' === $flag ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Save a Geo AI license key before refreshing usage.', 'reactwoo-geo-ai' ) . '</p></div>';
+			return;
+		}
+		if ( 'parse' === $flag ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Usage response could not be read. Your plan may still be active — try again or check your ReactWoo account.', 'reactwoo-geo-ai' ) . '</p></div>';
+			return;
+		}
+		if ( 'api_err' === $flag ) {
+			$msg = get_transient( $tkey );
+			delete_transient( $tkey );
+			if ( ! is_string( $msg ) || '' === $msg ) {
+				$msg = __( 'Could not refresh usage from the API.', 'reactwoo-geo-ai' );
+			}
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+		}
+	}
+
+	/**
 	 * Cross-satellite links on Overview: Geo Core, Elementor, Commerce, Optimise when active (not Geo AI).
 	 *
 	 * @return void
@@ -286,13 +321,17 @@ class RWGA_Admin {
 			return;
 		}
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( ! in_array( $page, array( 'rwga-dashboard', 'rwga-advanced' ), true ) ) {
-			return;
-		}
 		if ( empty( $_GET['rwga_action'] ) || empty( $_GET['_wpnonce'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
 		$action = isset( $_GET['rwga_action'] ) ? sanitize_key( wp_unslash( $_GET['rwga_action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$allowed_pages = array( 'rwga-dashboard', 'rwga-advanced' );
+		if ( 'ai_usage' === $action ) {
+			$allowed_pages[] = 'rwga-license';
+		}
+		if ( ! in_array( $page, $allowed_pages, true ) ) {
+			return;
+		}
 		if ( ! in_array( $action, array( 'ai_health', 'ai_usage', 'rest_post_smoke' ), true ) ) {
 			return;
 		}
@@ -336,65 +375,36 @@ class RWGA_Admin {
 			return;
 		}
 		if ( 'ai_usage' === $action ) {
+			$flag = 'err';
 			if ( ! class_exists( 'RWGA_Settings', false ) || ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
 				delete_option( 'rwga_assistant_usage_cache' );
-				add_settings_error(
-					'rwga_geo_ai',
-					'rwga_ai_usage_no_saved_license',
-					__( 'Save a Geo AI license key before refreshing usage. Disconnect removes Geo AI access even if other satellites still have copied keys.', 'reactwoo-geo-ai' ),
-					'error'
-				);
-				return;
-			}
-			if ( class_exists( 'RWGA_Platform_Client', false ) ) {
-				RWGA_Platform_Client::clear_token_cache();
-			}
-			$result = RWGA_Platform_Client::get_usage();
-			if ( is_wp_error( $result ) ) {
-				add_settings_error( 'rwga_geo_ai', 'rwga_ai_usage_err', $result->get_error_message(), 'error' );
+				$flag = 'no_license';
 			} else {
-				$http  = isset( $result['http_code'] ) ? (int) $result['http_code'] : 0;
-				$body  = isset( $result['body'] ) ? $result['body'] : null;
-				$saved = false;
-				if ( class_exists( 'RWGA_Usage', false ) ) {
-					if ( is_array( $body ) ) {
-						$saved = RWGA_Usage::save_from_api_body( $body, $http );
-						if ( ! $saved ) {
-							add_settings_error(
-								'rwga_geo_ai',
-								'rwga_ai_usage_parse',
-								__( 'Usage response could not be read (unexpected JSON). Your plan may still be active — check the ReactWoo account or try refreshing again.', 'reactwoo-geo-ai' ),
-								'error'
-							);
-						}
-					} else {
-						add_settings_error(
-							'rwga_geo_ai',
-							'rwga_ai_usage_parse',
-							__( 'Usage response was empty or not JSON. Cached usage was not updated.', 'reactwoo-geo-ai' ),
-							'error'
-						);
-					}
+				if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+					RWGA_Platform_Client::clear_token_cache();
 				}
-				if ( $saved ) {
-					$snippet = is_array( $body ) ? wp_json_encode( $body ) : '';
-					if ( is_string( $snippet ) && strlen( $snippet ) > 280 ) {
-						$snippet = substr( $snippet, 0, 280 ) . '…';
+				$result = RWGA_Platform_Client::get_usage();
+				if ( is_wp_error( $result ) ) {
+					set_transient( 'rwga_usage_flash_' . get_current_user_id(), $result->get_error_message(), 120 );
+					$flag = 'api_err';
+				} else {
+					$http  = isset( $result['http_code'] ) ? (int) $result['http_code'] : 0;
+					$body  = isset( $result['body'] ) ? $result['body'] : null;
+					$saved = false;
+					if ( class_exists( 'RWGA_Usage', false ) && is_array( $body ) ) {
+						$saved = RWGA_Usage::save_from_api_body( $body, $http );
 					}
-					add_settings_error(
-						'rwga_geo_ai',
-						'rwga_ai_usage_ok',
-						sprintf(
-							/* translators: 1: HTTP status code, 2: API JSON or note */
-							__( 'Usage refreshed: HTTP %1$s. %2$s', 'reactwoo-geo-ai' ),
-							(string) $http,
-							$snippet ? $snippet : __( '(empty body)', 'reactwoo-geo-ai' )
-						),
-						'updated'
-					);
+					if ( $saved ) {
+						$flag = 'ok';
+					} elseif ( is_array( $body ) ) {
+						$flag = 'parse';
+					} else {
+						$flag = 'parse';
+					}
 				}
 			}
-			return;
+			wp_safe_redirect( add_query_arg( 'rwga_usage', $flag, admin_url( 'admin.php?page=' . $page ) ) );
+			exit;
 		}
 		if ( 'rest_post_smoke' === $action ) {
 			$summary = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();

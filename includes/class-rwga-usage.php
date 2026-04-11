@@ -73,6 +73,20 @@ class RWGA_Usage {
 		} elseif ( isset( $inner['license_tier'] ) ) {
 			$tier = sanitize_key( (string) $inner['license_tier'] );
 		}
+		if ( '' === $tier && is_array( $usage ) ) {
+			if ( isset( $usage['licenseTier'] ) ) {
+				$tier = sanitize_key( (string) $usage['licenseTier'] );
+			} elseif ( isset( $usage['license_tier'] ) ) {
+				$tier = sanitize_key( (string) $usage['license_tier'] );
+			}
+		}
+		if ( '' === $tier && is_array( $body ) ) {
+			if ( isset( $body['licenseTier'] ) ) {
+				$tier = sanitize_key( (string) $body['licenseTier'] );
+			} elseif ( isset( $body['license_tier'] ) ) {
+				$tier = sanitize_key( (string) $body['license_tier'] );
+			}
+		}
 
 		$used      = isset( $usage['used'] ) ? (int) $usage['used'] : ( isset( $usage['used_tokens'] ) ? (int) $usage['used_tokens'] : 0 );
 		$limit     = isset( $usage['limit'] ) ? (int) $usage['limit'] : 0;
@@ -84,6 +98,20 @@ class RWGA_Usage {
 			$period = sanitize_text_field( (string) $usage['billing_period'] );
 		}
 		$over = ! empty( $usage['overLimit'] ) || ! empty( $usage['over_limit'] );
+
+		// If the API omits licenseTier but returns token limits, infer tier from plan caps (tokenTracker: free 50k, pro 2M, enterprise 10M).
+		if ( '' === $tier ) {
+			$lim = isset( $usage['limit'] ) ? (int) $usage['limit'] : 0;
+			if ( $lim > 0 ) {
+				if ( $lim >= 9_000_000 ) {
+					$tier = 'enterprise';
+				} elseif ( $lim >= 1_000_000 ) {
+					$tier = 'pro';
+				} elseif ( $lim <= 100_000 ) {
+					$tier = 'free';
+				}
+			}
+		}
 
 		return array(
 			'license_tier' => $tier,

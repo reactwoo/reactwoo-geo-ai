@@ -71,6 +71,7 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
+	<?php RWGA_Admin::render_usage_refresh_notices(); ?>
 
 	<?php
 	$rwga_sample = isset( $_GET['rwga_sample'] ) ? sanitize_key( wp_unslash( $_GET['rwga_sample'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended

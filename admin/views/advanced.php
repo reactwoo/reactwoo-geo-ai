@@ -40,6 +40,7 @@ if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
+	<?php RWGA_Admin::render_usage_refresh_notices(); ?>
 
 	<?php
 	$workflow_engine = isset( $settings['workflow_engine'] ) ? sanitize_key( (string) $settings['workflow_engine'] ) : 'local';

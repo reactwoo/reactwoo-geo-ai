@@ -13,7 +13,7 @@ $import_sources = class_exists( 'RWGA_Settings', false ) ? RWGA_Settings::get_ma
 $lic_ok = ! empty( $summary['license_configured'] );
 $last_refresh = ( null !== $cache && ! empty( $cache['refreshed_at_gmt'] ) ) ? (string) $cache['refreshed_at_gmt'] : __( 'Never', 'reactwoo-geo-ai' );
 
-$refresh_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
+$refresh_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
 $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied to this key on this site.', 'reactwoo-geo-ai' );
 
 ?>
@@ -32,6 +32,7 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
+	<?php RWGA_Admin::render_usage_refresh_notices(); ?>
 
 	<?php if ( ! empty( $_GET['rwga_disconnected'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'License key removed from this site.', 'reactwoo-geo-ai' ); ?></p></div>
