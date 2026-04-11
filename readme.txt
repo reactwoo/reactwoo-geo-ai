@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.10
+Stable tag: 0.4.11
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.11 =
+* **Admin UI:** Clearer vertical rhythm on the dashboard and other suite screens (card stack spacing via Geo Core `rwgc-suite.css`, section `h2` styling, roomier tables, hero/dev-details spacing in `rwga-admin.css`).
 
 = 0.4.10 =
 * **CI:** Publish workflow builds `/api/v5/updates/publish` JSON with Python (proper escaping; `Content-Type: application/json; charset=utf-8`) so OpenResty no longer returns 415.

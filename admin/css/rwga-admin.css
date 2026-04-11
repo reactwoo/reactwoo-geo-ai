@@ -11,12 +11,21 @@
   --rwga-severity-low: #166534;
 }
 
+/* Section titles inside cards (e.g. Setup checklist, Recent analyses) */
+.rwga-wrap.rwgc-suite .rwgc-card > h2 {
+  margin: 0 0 var(--rw-suite-space-4, 16px);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--rw-suite-text, #111827);
+  letter-spacing: -0.01em;
+}
+
 .rwga-wrap .rwga-hero {
   background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 50%, #f8fafc 100%);
   border: 1px solid #bfdbfe;
   border-radius: 12px;
   padding: 20px 22px;
-  margin-bottom: 20px;
+  margin-bottom: var(--rw-suite-space-5, 24px);
 }
 
 .rwga-wrap .rwga-hero h2 {
@@ -34,7 +43,7 @@
 }
 
 .rwga-wrap .rwga-dev-details {
-  margin-top: 16px;
+  margin-top: var(--rw-suite-space-5, 24px);
   border: 1px dashed #cbd5e1;
   border-radius: 10px;
   padding: 0 16px 12px;
@@ -82,7 +91,12 @@
 
 .rwga-table-comfortable th,
 .rwga-table-comfortable td {
-  padding: 12px 14px;
+  padding: 14px 16px;
+  vertical-align: top;
+}
+
+.rwga-wrap.rwgc-suite .rwga-table-comfortable thead th {
+  padding-bottom: var(--rw-suite-space-3, 12px);
 }
 
 .rwga-code-block {
