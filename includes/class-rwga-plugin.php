@@ -52,6 +52,7 @@ class RWGA_Plugin {
 		RWGA_Cron::init();
 
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
+		require_once RWGA_PATH . 'includes/partials-rwga-automation-rule-fields.php';
 		RWGA_Settings::init();
 
 		require_once RWGA_PATH . 'includes/class-rwga-connection.php';

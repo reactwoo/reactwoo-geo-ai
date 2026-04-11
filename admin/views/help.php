@@ -45,7 +45,7 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-help'
 			<li><?php esc_html_e( 'Open recommendations, then generate implementation drafts.', 'reactwoo-geo-ai' ); ?></li>
 			<li><?php esc_html_e( 'Apply changes in the block editor; use the queue if integrations record jobs.', 'reactwoo-geo-ai' ); ?></li>
 		</ol>
-		<div class="rwgc-actions" style="margin-top: 16px;">
+		<div class="rwgc-actions rwgc-actions--stack-mobile rwga-help-workflow-actions">
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-dashboard' ) ); ?>" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Dashboard', 'reactwoo-geo-ai' ); ?></a>
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Settings', 'reactwoo-geo-ai' ); ?></a>
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-advanced' ) ); ?>" class="rwgc-btn rwgc-btn--tertiary"><?php esc_html_e( 'Advanced', 'reactwoo-geo-ai' ); ?></a>

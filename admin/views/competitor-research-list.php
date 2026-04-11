@@ -109,10 +109,14 @@ $list_url             = admin_url( 'admin.php?page=rwga-competitors' );
 	<?php endif; ?>
 
 	<div class="rwgc-card">
+		<h2 class="screen-reader-text"><?php esc_html_e( 'Filter saved research', 'reactwoo-geo-ai' ); ?></h2>
 		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="rwga-rec-filter rwgc-form-grid">
 			<input type="hidden" name="page" value="rwga-competitors" />
-			<p>
+			<div class="rwgc-field">
 				<label class="rwgc-field__label" for="rwga-cr-filter-page"><?php esc_html_e( 'Filter by your page', 'reactwoo-geo-ai' ); ?></label>
+				<p class="description rwga-filter-hint">
+					<?php esc_html_e( 'Only show competitor snapshots that were run with that page selected under “Your page” in the form above. “All pages” lists every run.', 'reactwoo-geo-ai' ); ?>
+				</p>
 				<?php
 				wp_dropdown_pages(
 					array(
@@ -125,11 +129,13 @@ $list_url             = admin_url( 'admin.php?page=rwga-competitors' );
 					)
 				);
 				?>
+			</div>
+			<p class="rwgc-actions">
+				<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Filter', 'reactwoo-geo-ai' ); ?></button>
+				<?php if ( $rwga_filter_page > 0 ) : ?>
+					<a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
+				<?php endif; ?>
 			</p>
-			<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Filter', 'reactwoo-geo-ai' ); ?></button>
-			<?php if ( $rwga_filter_page > 0 ) : ?>
-				<a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
-			<?php endif; ?>
 		</form>
 	</div>
 

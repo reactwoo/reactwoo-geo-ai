@@ -100,26 +100,32 @@ $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied 
 						</td>
 					</tr>
 				</table>
-				<?php submit_button( __( 'Save license', 'reactwoo-geo-ai' ) ); ?>
+				<p class="rwgc-actions">
+					<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Save license', 'reactwoo-geo-ai' ); ?></button>
+				</p>
 			</form>
+		</div>
 
+		<div class="rwgc-card" style="max-width: 560px;">
+			<?php
+			if ( class_exists( 'RWGC_Admin_UI', false ) ) {
+				RWGC_Admin_UI::render_section_header(
+					__( 'Import & usage', 'reactwoo-geo-ai' ),
+					__( 'Optionally copy a key from another ReactWoo plugin on this site, refresh plan limits from the API, or disconnect.', 'reactwoo-geo-ai' )
+				);
+			} else {
+				echo '<h2>' . esc_html__( 'Import & usage', 'reactwoo-geo-ai' ) . '</h2>';
+			}
+			?>
 			<?php if ( ! empty( $import_sources ) ) : ?>
-				<?php
-				if ( class_exists( 'RWGC_Admin_UI', false ) ) {
-					RWGC_Admin_UI::render_section_header(
-						__( 'Import key once', 'reactwoo-geo-ai' ),
-						__( 'Copy a key from another ReactWoo plugin on this site. This does not sync ongoing changes between plugins.', 'reactwoo-geo-ai' )
-					);
-				}
-				?>
-				<p class="rwga-license-actions">
+				<p class="rwgc-actions rwga-license-actions">
 					<?php foreach ( $import_sources as $source => $label ) : ?>
 						<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=import_license&source=' . rawurlencode( $source ) ), 'rwga_import_license' ) ); ?>"><?php echo esc_html( sprintf( __( 'Import from %s', 'reactwoo-geo-ai' ), $label ) ); ?></a>
 					<?php endforeach; ?>
 				</p>
 			<?php endif; ?>
 
-			<p class="rwga-license-actions">
+			<p class="rwgc-actions rwga-license-actions">
 				<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>
 				<?php if ( $lic_ok ) : ?>
 					<a class="rwgc-btn rwgc-btn--danger" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=clear_license' ), 'rwga_clear_license' ) ); ?>" onclick="return window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>);"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></a>

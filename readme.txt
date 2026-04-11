@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.11
+Stable tag: 0.4.12
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,11 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.12 =
+* **License:** Saving the license form redirects back to **Settings** (not Advanced) using `rwga_form_scope`; plan/tier cache refreshes from the API when the saved key changes.
+* **Admin UI:** Stacked suite cards use adjacent margin so sections do not touch; license screen split into two cards; competitor filter explains “your page”; Implement SEO drafts use primary suite button; Help workflow actions use consistent spacing.
+* **Automation:** Rule field partial loaded on boot so “Add rule” no longer fatals (PHP 8 `foreach` on null).
 
 = 0.4.11 =
 * **Admin UI:** Clearer vertical rhythm on the dashboard and other suite screens (card stack spacing via Geo Core `rwgc-suite.css`, section `h2` styling, roomier tables, hero/dev-details spacing in `rwga-admin.css`).

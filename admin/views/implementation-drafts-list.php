@@ -223,7 +223,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 				?>
 			</div>
 			<p class="rwgc-actions">
-				<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Generate SEO drafts', 'reactwoo-geo-ai' ); ?></button>
+				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate SEO drafts', 'reactwoo-geo-ai' ); ?></button>
 			</p>
 		</form>
 	</div>

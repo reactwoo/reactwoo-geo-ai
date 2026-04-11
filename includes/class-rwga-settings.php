@@ -27,6 +27,8 @@ class RWGA_Settings {
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_clear_jwt_on_change' ), 10, 2 );
+		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_refresh_usage_after_license_change' ), 20, 2 );
+		add_filter( 'wp_redirect', array( __CLASS__, 'filter_options_save_redirect' ), 5, 2 );
 		add_filter( 'rwgc_auth_login_body', array( __CLASS__, 'filter_auth_login_body' ), 10, 3 );
 	}
 
@@ -224,6 +226,59 @@ class RWGA_Settings {
 				RWGA_Platform_Client::clear_token_cache();
 			}
 		}
+	}
+
+	/**
+	 * After the license key value changes, refresh cached plan/tier from the API so Settings shows the right tier.
+	 *
+	 * @param mixed $old_value Previous option.
+	 * @param mixed $value     New option.
+	 * @return void
+	 */
+	public static function maybe_refresh_usage_after_license_change( $old_value, $value ) {
+		$old = is_array( $old_value ) ? $old_value : array();
+		$val = is_array( $value ) ? $value : array();
+		$o_k = isset( $old['reactwoo_license_key'] ) ? trim( (string) $old['reactwoo_license_key'] ) : '';
+		$n_k = isset( $val['reactwoo_license_key'] ) ? trim( (string) $val['reactwoo_license_key'] ) : '';
+		if ( $o_k === $n_k || '' === $n_k ) {
+			return;
+		}
+		if ( ! class_exists( 'RWGA_Platform_Client', false ) || ! class_exists( 'RWGA_Usage', false ) ) {
+			return;
+		}
+		RWGA_Platform_Client::clear_token_cache();
+		$result = RWGA_Platform_Client::get_usage();
+		if ( is_wp_error( $result ) ) {
+			return;
+		}
+		$http = isset( $result['http_code'] ) ? (int) $result['http_code'] : 0;
+		$body = isset( $result['body'] ) ? $result['body'] : null;
+		if ( is_array( $body ) ) {
+			RWGA_Usage::save_from_api_body( $body, $http );
+		}
+	}
+
+	/**
+	 * options.php redirects to wp_get_referer(), which can be wrong when multiple admin tabs share one option group.
+	 * Send the user back to License vs Advanced based on the submitted form scope.
+	 *
+	 * @param string $location Redirect URL.
+	 * @param int    $status   HTTP status.
+	 * @return string
+	 */
+	public static function filter_options_save_redirect( $location, $status ) {
+		unset( $status );
+		if ( empty( $_POST['option_page'] ) || 'rwga_license_group' !== $_POST['option_page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return $location;
+		}
+		$key   = self::OPTION_KEY;
+		$scope = 'license';
+		if ( isset( $_POST[ $key ]['rwga_form_scope'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$scope = sanitize_key( (string) wp_unslash( $_POST[ $key ]['rwga_form_scope'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		}
+		$page = 'advanced' === $scope ? 'rwga-advanced' : 'rwga-license';
+		$url  = admin_url( 'admin.php?page=' . $page );
+		return add_query_arg( 'settings-updated', 'true', $url );
 	}
 
 	/**
