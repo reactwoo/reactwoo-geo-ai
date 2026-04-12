@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.21
+Stable tag: 0.4.22
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.22 =
+* **Updates:** Clear WordPress’s `update_plugins` site transient when the Geo AI license key or ReactWoo API base URL changes (and on disconnect) so `RWGC_Satellite_Updater` can see new releases without waiting hours for the default cache TTL.
 
 = 0.4.21 =
 * **CI:** Publish workflow POSTs `/api/v5/updates/publish` with Python `urllib` and `Content-Type: application/json` (no `charset=`) so OpenResty accepts the request; curl + `charset=utf-8` was returning HTML **415 Unsupported Media Type** at the edge.

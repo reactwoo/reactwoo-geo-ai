@@ -313,6 +313,18 @@ class RWGA_Settings {
 		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 			RWGA_Platform_Client::clear_token_cache();
 		}
+		self::bust_plugin_update_check_cache();
+	}
+
+	/**
+	 * Clear WordPress’s cached plugin update metadata so the next load re-calls the ReactWoo updates API.
+	 *
+	 * Without this, {@see RWGC_Satellite_Updater} may keep a stale “no update” result for many hours after CI publishes.
+	 *
+	 * @return void
+	 */
+	public static function bust_plugin_update_check_cache() {
+		delete_site_transient( 'update_plugins' );
 	}
 
 	/**
@@ -331,6 +343,7 @@ class RWGA_Settings {
 			if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 				RWGA_Platform_Client::clear_token_cache();
 			}
+			self::bust_plugin_update_check_cache();
 		}
 	}
 
