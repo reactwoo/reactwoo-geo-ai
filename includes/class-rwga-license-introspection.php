@@ -64,11 +64,11 @@ class RWGA_License_Introspection {
 		if ( ! is_array( $claims ) ) {
 			return '';
 		}
-		$t = $claims['tier'] ?? $claims['license_tier'] ?? null;
+		$t = $claims['tier'] ?? $claims['license_tier'] ?? $claims['assistant_tier'] ?? null;
 		if ( null === $t ) {
 			return '';
 		}
-		$t = sanitize_key( (string) $t );
+		$t = sanitize_key( strtolower( trim( (string) $t ) ) );
 		return in_array( $t, array( 'free', 'pro', 'enterprise' ), true ) ? $t : '';
 	}
 
