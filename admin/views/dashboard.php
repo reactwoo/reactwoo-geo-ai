@@ -148,6 +148,66 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 		?>
 	<?php endif; ?>
 
+	<?php
+	$rwga_usage_summary = null;
+	if ( class_exists( 'RWGA_Usage_Presenter', false ) && null !== $rwga_cache && is_array( $rwga_cache ) ) {
+		$rwga_usage_summary = RWGA_Usage_Presenter::build_package_summary( $rwga_cache );
+	}
+	?>
+	<?php if ( is_array( $rwga_usage_summary ) && $lic_ok ) : ?>
+	<div class="rwgc-card rwga-usage-package">
+		<h2><?php esc_html_e( 'AI token allowance', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php echo esc_html( $rwga_usage_summary['messaging']['headline'] ); ?> <?php echo esc_html( $rwga_usage_summary['messaging']['note'] ); ?></p>
+		<?php if ( (int) $rwga_usage_summary['tokens_limit'] <= 0 ) : ?>
+			<p class="description"><?php esc_html_e( 'Refresh usage on the Settings screen to load your token cap from the API.', 'reactwoo-geo-ai' ); ?></p>
+		<?php else : ?>
+		<p>
+			<strong><?php esc_html_e( 'Assistant tier', 'reactwoo-geo-ai' ); ?>:</strong>
+			<?php echo esc_html( strtoupper( (string) $rwga_usage_summary['assistant_tier'] ) ); ?>
+			&mdash;
+			<?php
+			printf(
+				/* translators: 1: used tokens, 2: limit */
+				esc_html__( '%1$s / %2$s tokens used this period', 'reactwoo-geo-ai' ),
+				number_format_i18n( (int) $rwga_usage_summary['tokens_used'] ),
+				number_format_i18n( (int) $rwga_usage_summary['tokens_limit'] )
+			);
+			?>
+		</p>
+		<div class="rwga-progress" style="background:#e0e0e0;border-radius:4px;height:10px;max-width:420px;margin:8px 0;">
+			<div style="width:<?php echo (int) min( 100, $rwga_usage_summary['usage_percent'] ); ?>%;height:10px;border-radius:4px;background:#2271b1;"></div>
+		</div>
+		<?php endif; ?>
+		<?php if ( (int) $rwga_usage_summary['tokens_limit'] > 0 && ! empty( $rwga_usage_summary['soft_quotas'] ) && is_array( $rwga_usage_summary['soft_quotas'] ) ) : ?>
+			<h3 class="screen-reader-text"><?php esc_html_e( 'Estimated workflow capacity (guidance)', 'reactwoo-geo-ai' ); ?></h3>
+			<ul class="rwga-soft-quotas" style="list-style:disc;margin-left:1.25em;">
+				<?php foreach ( $rwga_usage_summary['soft_quotas'] as $row ) : ?>
+					<?php
+					if ( ! is_array( $row ) ) {
+						continue;
+					}
+					$lab = isset( $row['label'] ) ? (string) $row['label'] : '';
+					$tot = isset( $row['estimated_total'] ) ? (int) $row['estimated_total'] : 0;
+					if ( '' === $lab ) {
+						continue;
+					}
+					?>
+					<li>
+						<?php
+						printf(
+							/* translators: 1: approximate count, 2: workflow label */
+							esc_html__( 'About %1$s × %2$s', 'reactwoo-geo-ai' ),
+							number_format_i18n( max( 0, $tot ) ),
+							esc_html( $lab )
+						);
+						?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
+	</div>
+	<?php endif; ?>
+
 	<div class="rwgc-card">
 		<?php
 		if ( class_exists( 'RWGC_Admin_UI', false ) ) {

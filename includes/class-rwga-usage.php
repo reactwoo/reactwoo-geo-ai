@@ -35,6 +35,7 @@ class RWGA_Usage {
 			'remaining'            => $norm['remaining'],
 			'over_limit'           => $norm['over_limit'],
 			'plan_limits'          => $norm['plan_limits'],
+			'product_context'      => isset( $norm['product_context'] ) && is_array( $norm['product_context'] ) ? $norm['product_context'] : array(),
 		);
 		if ( class_exists( 'RWGA_License_Introspection', false ) ) {
 			$claims = RWGA_License_Introspection::get_bearer_claims();
@@ -119,6 +120,11 @@ class RWGA_Usage {
 		$api_license_tier_raw = is_string( $tier ) ? sanitize_key( $tier ) : '';
 		$tier                 = self::normalize_tier_with_limit( $tier, $limit );
 
+		$product_context = array();
+		if ( isset( $inner['product_context'] ) && is_array( $inner['product_context'] ) ) {
+			$product_context = $inner['product_context'];
+		}
+
 		return array(
 			'license_tier'         => $tier,
 			'api_license_tier_raw' => $api_license_tier_raw,
@@ -128,6 +134,7 @@ class RWGA_Usage {
 			'remaining'            => $remaining,
 			'over_limit'           => $over,
 			'plan_limits'          => $plan_limits,
+			'product_context'      => $product_context,
 		);
 	}
 
