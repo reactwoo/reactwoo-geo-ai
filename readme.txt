@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.18
+Stable tag: 0.4.21
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.21 =
+* **CI:** Publish workflow POSTs `/api/v5/updates/publish` with Python `urllib` and `Content-Type: application/json` (no `charset=`) so OpenResty accepts the request; curl + `charset=utf-8` was returning HTML **415 Unsupported Media Type** at the edge.
 
 = 0.4.18 =
 * **License diagnostics:** Decode the cached plugin JWT (read-only) and show domain, product/catalog slugs, package/plan fields, token tier vs usage API tier; compare site host to token domain and Geo AI slug (`reactwoo-geo-ai`) so you can verify the license server response matches this product and domain.
