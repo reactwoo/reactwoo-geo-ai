@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.22
+Stable tag: 0.4.23
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,10 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.23 =
+* **Updates:** Register `RWGC_Satellite_Updater` before the workflow engine loads so a DB/workflow failure cannot block `/api/v5/updates/check`.
+* **Settings:** “Plugin updates” section shows the last `/updates/check` HTTP status and a short explanation (401 = JWT/domain/product mismatch; 200 + no update = already current, rollout, or catalog). Hooks require Geo Core **1.3.21+**.
 
 = 0.4.22 =
 * **Updates:** Clear WordPress’s `update_plugins` site transient when the Geo AI license key or ReactWoo API base URL changes (and on disconnect) so `RWGC_Satellite_Updater` can see new releases without waiting hours for the default cache TTL.

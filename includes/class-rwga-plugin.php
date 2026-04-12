@@ -46,26 +46,14 @@ class RWGA_Plugin {
 		}
 
 		require_once RWGA_PATH . 'includes/class-rwga-platform-client.php';
-		$this->load_workflow_engine();
-
-		require_once RWGA_PATH . 'includes/class-rwga-cron.php';
-		RWGA_Cron::init();
-
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
 		require_once RWGA_PATH . 'includes/partials-rwga-automation-rule-fields.php';
 		RWGA_Settings::init();
 
-		require_once RWGA_PATH . 'includes/class-rwga-connection.php';
-		require_once RWGA_PATH . 'includes/class-rwga-stats.php';
-		require_once RWGA_PATH . 'includes/class-rwga-license-introspection.php';
-		require_once RWGA_PATH . 'includes/class-rwga-usage.php';
-		require_once RWGA_PATH . 'includes/services/class-rwga-usage-presenter.php';
-		require_once RWGA_PATH . 'includes/class-rwga-drafts.php';
-		require_once RWGA_PATH . 'includes/class-rwga-admin.php';
-		require_once RWGA_PATH . 'includes/class-rwga-block-editor.php';
-		RWGA_Admin::init();
-		RWGA_Block_Editor::init();
+		require_once RWGA_PATH . 'includes/class-rwga-updates-diagnostics.php';
+		RWGA_Updates_Diagnostics::init();
 
+		// Register before workflow engine so DB/workflow failures cannot block satellite updates.
 		if ( class_exists( 'RWGC_Satellite_Updater', false ) ) {
 			RWGC_Satellite_Updater::register(
 				array(
@@ -79,6 +67,22 @@ class RWGA_Plugin {
 				)
 			);
 		}
+
+		$this->load_workflow_engine();
+
+		require_once RWGA_PATH . 'includes/class-rwga-cron.php';
+		RWGA_Cron::init();
+
+		require_once RWGA_PATH . 'includes/class-rwga-connection.php';
+		require_once RWGA_PATH . 'includes/class-rwga-stats.php';
+		require_once RWGA_PATH . 'includes/class-rwga-license-introspection.php';
+		require_once RWGA_PATH . 'includes/class-rwga-usage.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-usage-presenter.php';
+		require_once RWGA_PATH . 'includes/class-rwga-drafts.php';
+		require_once RWGA_PATH . 'includes/class-rwga-admin.php';
+		require_once RWGA_PATH . 'includes/class-rwga-block-editor.php';
+		RWGA_Admin::init();
+		RWGA_Block_Editor::init();
 
 		/**
 		 * Fires when Geo AI satellite is ready (Geo Core is active).

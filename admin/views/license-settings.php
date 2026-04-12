@@ -62,6 +62,10 @@ if ( '' !== $jwt_tier_c && is_array( $cache ) && isset( $cache['license_tier'] )
 	$tier_mismatch = ( sanitize_key( (string) $cache['license_tier'] ) !== $jwt_tier_c );
 }
 
+$upd_last = class_exists( 'RWGA_Updates_Diagnostics', false ) ? RWGA_Updates_Diagnostics::get_last() : array();
+$upd_ts   = ! empty( $upd_last['ts'] ) ? (int) $upd_last['ts'] : 0;
+$force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) : '';
+
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--license">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
@@ -194,6 +198,39 @@ if ( '' !== $jwt_tier_c && is_array( $cache ) && isset( $cache['license_tier'] )
 						<?php endif; ?>
 					</dl>
 					<p class="description" style="margin-bottom: 0;"><?php esc_html_e( 'Refresh usage after saving your key to capture API + token details. If package text is wrong, verify the license in ReactWoo is for Geo AI and this domain.', 'reactwoo-geo-ai' ); ?></p>
+				</div>
+			<?php endif; ?>
+			<?php if ( $lic_ok ) : ?>
+				<div class="rwga-license-introspection" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+					<p class="description" style="margin-bottom: 8px;"><strong><?php esc_html_e( 'Plugin updates (ZIP via api.reactwoo.com)', 'reactwoo-geo-ai' ); ?></strong></p>
+					<p class="description" style="margin-top: 0;">
+						<?php esc_html_e( 'WordPress checks for updates when you open Plugins or Dashboard → Updates. If a new build does not appear, use Check for updates there, or open the link below to force a refresh.', 'reactwoo-geo-ai' ); ?>
+					</p>
+					<?php if ( $force_updates_url ) : ?>
+						<p style="margin: 8px 0 0;">
+							<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $force_updates_url ); ?>"><?php esc_html_e( 'Force check for updates (WordPress)', 'reactwoo-geo-ai' ); ?></a>
+						</p>
+					<?php endif; ?>
+					<?php if ( $upd_ts > 0 && ! empty( $upd_last['summary'] ) ) : ?>
+						<dl class="rwga-license-dl" style="margin-top: 12px;">
+							<dt><?php esc_html_e( 'Last /api/v5/updates/check (this site)', 'reactwoo-geo-ai' ); ?></dt>
+							<dd><code><?php echo esc_html( gmdate( 'c', $upd_ts ) ); ?></code></dd>
+							<dt><?php esc_html_e( 'HTTP', 'reactwoo-geo-ai' ); ?></dt>
+							<dd><code><?php echo isset( $upd_last['http'] ) ? (int) $upd_last['http'] : 0; ?></code></dd>
+							<?php if ( ! empty( $upd_last['api_version'] ) ) : ?>
+								<dt><?php esc_html_e( 'Catalog version offered', 'reactwoo-geo-ai' ); ?></dt>
+								<dd><code><?php echo esc_html( (string) $upd_last['api_version'] ); ?></code></dd>
+							<?php endif; ?>
+							<dt><?php esc_html_e( 'Result', 'reactwoo-geo-ai' ); ?></dt>
+							<dd><?php echo esc_html( (string) $upd_last['summary'] ); ?></dd>
+							<?php if ( ! empty( $upd_last['body_snip'] ) ) : ?>
+								<dt><?php esc_html_e( 'Response (truncated)', 'reactwoo-geo-ai' ); ?></dt>
+								<dd><pre style="white-space:pre-wrap;max-height:120px;overflow:auto;font-size:11px;"><?php echo esc_html( (string) $upd_last['body_snip'] ); ?></pre></dd>
+							<?php endif; ?>
+						</dl>
+					<?php else : ?>
+						<p class="description" style="margin-top: 10px; margin-bottom: 0;"><?php esc_html_e( 'No update check has been recorded yet — visit Plugins or Dashboard → Updates once, then reload this page.', 'reactwoo-geo-ai' ); ?></p>
+					<?php endif; ?>
 				</div>
 			<?php endif; ?>
 			<p class="description"><?php esc_html_e( 'After upgrading your ReactWoo plan, save the license here and refresh usage so limits stay accurate.', 'reactwoo-geo-ai' ); ?></p>
