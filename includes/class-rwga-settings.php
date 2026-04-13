@@ -551,7 +551,13 @@ class RWGA_Settings {
 		if ( 'license' === $scope || 'advanced' === $scope ) {
 			$new_trim = trim( (string) $new_license );
 			$prev_trim = trim( (string) $prev_license );
-			// Empty submission: keep previous key only when there was a key to keep and we are not in explicit disconnect state.
+			/*
+			 * Empty license field on options.php (License or Advanced) is “leave blank to keep”, NOT disconnect.
+			 * Removing the key always goes through {@see clear_license_key()} (admin-post.php Disconnect), never this sanitizer.
+			 *
+			 * Empty submission: keep previous key only when there was a key to keep and we are not in explicit disconnect state
+			 * (bridge flag set after Disconnect, or already disconnected).
+			 */
 			if ( '' === $new_trim ) {
 				if ( $bridge_on || '' === $prev_trim ) {
 					$out['reactwoo_license_key'] = '';

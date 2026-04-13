@@ -522,7 +522,11 @@ class RWGA_Admin {
 		if ( ! headers_sent() ) {
 			nocache_headers();
 		}
-		wp_safe_redirect( admin_url( 'admin.php?page=rwga-license&rwga_disconnected=1' ) );
+		$redirect = isset( $_POST['rwga_disconnect_redirect'] ) ? sanitize_key( wp_unslash( $_POST['rwga_disconnect_redirect'] ) ) : 'license'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$target   = 'advanced' === $redirect
+			? 'admin.php?page=rwga-advanced&rwga_disconnected=1'
+			: 'admin.php?page=rwga-license&rwga_disconnected=1';
+		wp_safe_redirect( admin_url( $target ) );
 		exit;
 	}
 

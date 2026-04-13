@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.28
+Stable tag: 0.4.29
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.29 =
+* **License / disconnect (UX):** Clarified on License and Advanced that saving with an **empty** license field **keeps** the current key; only **Disconnect** (admin-post) clears it. Documented this in {@see RWGA_Settings::sanitize_settings()} so it is obvious the behavior is intentional, not a bug. Advanced → API section now includes **Disconnect** when a key is configured, with redirect back to Advanced; handler accepts optional `rwga_disconnect_redirect` (`license` default, `advanced`).
 
 = 0.4.28 =
 * **License / refresh:** `is_license_configured_for_geo_ai_ui()` now uses {@see RWGA_Platform_Client::is_configured()} (DB-backed key) instead of only the Settings memo. A stale memo previously made “Refresh usage” think there was no key and run `RWGA_License_State::clear_all( 'ai_usage_no_license' )`, which wiped the snapshot and felt like a failed disconnect or “back to free” after refresh.

@@ -234,6 +234,10 @@ $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) :
 				</div>
 			<?php endif; ?>
 			<p class="description"><?php esc_html_e( 'After upgrading your ReactWoo plan, save the license here and refresh usage so limits stay accurate.', 'reactwoo-geo-ai' ); ?></p>
+			<p class="description" style="margin-top:8px;">
+				<strong><?php esc_html_e( 'Disconnect vs Save:', 'reactwoo-geo-ai' ); ?></strong>
+				<?php esc_html_e( 'Use Disconnect to remove the key from this site. Saving the form with an empty license field keeps your current key — it does not disconnect.', 'reactwoo-geo-ai' ); ?>
+			</p>
 
 			<form id="rwga-license-save-form" method="post" action="options.php" class="rwga-license-form">
 				<?php settings_fields( 'rwga_license_group' ); ?>
@@ -251,7 +255,7 @@ $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) :
 			<div class="rwgc-actions rwga-license-primary-actions">
 				<button type="submit" form="rwga-license-save-form" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Save license', 'reactwoo-geo-ai' ); ?></button>
 				<?php if ( $lic_ok ) : ?>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-license-disconnect-form" onsubmit="if(!window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>)){return false;}var b=this.querySelector('button[type=submit]');if(b){b.disabled=true;}return true;">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-license-disconnect-form" id="rwga-disconnect-form" onsubmit="if(!window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>)){return false;}var b=this.querySelector('button[type=submit]');if(b){b.disabled=true;}return true;">
 						<?php wp_nonce_field( 'rwga_clear_license' ); ?>
 						<input type="hidden" name="action" value="rwga_clear_geo_ai_license" />
 						<button type="submit" class="rwgc-btn rwgc-btn--danger"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></button>

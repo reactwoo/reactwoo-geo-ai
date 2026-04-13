@@ -12,6 +12,7 @@ $rwga_summary          = isset( $rwga_summary ) && is_array( $rwga_summary ) ? $
 
 $settings = RWGA_Settings::get_settings();
 $can_api  = class_exists( 'RWGA_Settings', false ) && RWGA_Settings::can_edit_api_base_field();
+$lic_ok   = class_exists( 'RWGA_Settings', false ) && RWGA_Settings::is_license_configured_for_geo_ai_ui();
 
 $ai_health_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=ai_health' ), 'rwga_dash_ai_health' );
 $ai_usage_url  = wp_nonce_url( admin_url( 'admin.php?page=rwga-advanced&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
@@ -41,6 +42,10 @@ if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
 	<?php RWGA_Admin::render_usage_refresh_notices(); ?>
+
+	<?php if ( ! empty( $_GET['rwga_disconnected'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'License key removed from this site.', 'reactwoo-geo-ai' ); ?></p></div>
+	<?php endif; ?>
 
 	<?php
 	$workflow_engine = isset( $settings['workflow_engine'] ) ? sanitize_key( (string) $settings['workflow_engine'] ) : 'local';
@@ -122,11 +127,26 @@ if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 						<td>
 							<input type="password" id="rwga_reactwoo_license_key_adv" name="<?php echo esc_attr( RWGA_Settings::OPTION_KEY ); ?>[reactwoo_license_key]" value="" class="regular-text" autocomplete="off" />
 							<p class="description"><?php esc_html_e( 'Leave blank to keep the current key.', 'reactwoo-geo-ai' ); ?></p>
+							<p class="description" style="margin-top:6px;">
+								<strong><?php esc_html_e( 'To remove the key from this site:', 'reactwoo-geo-ai' ); ?></strong>
+								<?php esc_html_e( 'use Disconnect below. Saving with an empty field keeps the saved key — it does not disconnect.', 'reactwoo-geo-ai' ); ?>
+							</p>
 						</td>
 					</tr>
 				</table>
 				<?php submit_button( __( 'Save advanced settings', 'reactwoo-geo-ai' ) ); ?>
 			</form>
+			<?php if ( $lic_ok ) : ?>
+				<p class="description" style="margin-top:12px;"><?php esc_html_e( 'Disconnect clears the license, bridge state, and usage snapshot in one step (same as License tab).', 'reactwoo-geo-ai' ); ?></p>
+				<p class="rwgc-actions" style="margin-top:8px;">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwga-license-disconnect-form" onsubmit="if(!window.confirm(<?php echo esc_js( __( 'Remove the license key from this site?', 'reactwoo-geo-ai' ) ); ?>)){return false;}var b=this.querySelector('button[type=submit]');if(b){b.disabled=true;}return true;">
+						<?php wp_nonce_field( 'rwga_clear_license' ); ?>
+						<input type="hidden" name="action" value="rwga_clear_geo_ai_license" />
+						<input type="hidden" name="rwga_disconnect_redirect" value="advanced" />
+						<button type="submit" class="rwgc-btn rwgc-btn--danger"><?php esc_html_e( 'Disconnect', 'reactwoo-geo-ai' ); ?></button>
+					</form>
+				</p>
+			<?php endif; ?>
 		</div>
 	<?php else : ?>
 		<div class="rwgc-card">
