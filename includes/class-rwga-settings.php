@@ -54,6 +54,8 @@ class RWGA_Settings {
 	 */
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'load-rwga-dashboard_page_rwga-license', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
+		add_action( 'load-rwga-dashboard_page_rwga-advanced', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_clear_jwt_on_change' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_refresh_usage_after_license_change' ), 20, 2 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'reset_db_option_snapshots' ), 0 );
@@ -540,11 +542,17 @@ class RWGA_Settings {
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
 		$bridge_on   = ( 1 === self::get_bridge_flag_from_db() );
 		if ( 'license' === $scope || 'advanced' === $scope ) {
-			// After Disconnect, do not restore the previous key when the field is empty or omitted (password inputs may be absent from POST).
-			if ( $bridge_on && '' === trim( (string) $new_license ) ) {
-				$out['reactwoo_license_key'] = '';
+			$new_trim = trim( (string) $new_license );
+			$prev_trim = trim( (string) $prev_license );
+			// Empty submission: keep previous key only when there was a key to keep and we are not in explicit disconnect state.
+			if ( '' === $new_trim ) {
+				if ( $bridge_on || '' === $prev_trim ) {
+					$out['reactwoo_license_key'] = '';
+				} else {
+					$out['reactwoo_license_key'] = $prev_license;
+				}
 			} else {
-				$out['reactwoo_license_key'] = ( '' !== $new_license ) ? $new_license : $prev_license;
+				$out['reactwoo_license_key'] = $new_license;
 			}
 			if ( '' !== trim( (string) $out['reactwoo_license_key'] ) ) {
 				$out['reactwoo_license_use_core_fallback'] = true;

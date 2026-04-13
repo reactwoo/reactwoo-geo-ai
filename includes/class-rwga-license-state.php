@@ -108,16 +108,22 @@ class RWGA_License_State {
 			return false;
 		}
 
-		$tier_info = self::resolve_assistant_tier( $norm['api_license_tier_raw'], (int) $norm['limit'] );
+		$claims   = null;
+		$jwt_hint = '';
+		if ( class_exists( 'RWGA_License_Introspection', false ) ) {
+			$claims = RWGA_License_Introspection::get_bearer_claims();
+			if ( is_array( $claims ) ) {
+				$jwt_hint = self::jwt_tier_hint_from_claims( $claims );
+			}
+		}
+
+		$tier_info = self::resolve_assistant_tier( $norm['api_license_tier_raw'], (int) $norm['limit'], $jwt_hint );
 
 		$key_present = class_exists( 'RWGA_Settings', false ) && '' !== trim( (string) RWGA_Settings::get_saved_license_key() );
 
 		$pkg = '';
-		if ( class_exists( 'RWGA_License_Introspection', false ) ) {
-			$claims = RWGA_License_Introspection::get_bearer_claims();
-			if ( is_array( $claims ) ) {
-				$pkg = RWGA_License_Introspection::format_package_summary( $claims );
-			}
+		if ( is_array( $claims ) && class_exists( 'RWGA_License_Introspection', false ) ) {
+			$pkg = RWGA_License_Introspection::format_package_summary( $claims );
 		}
 
 		$snapshot = array_merge(
@@ -153,17 +159,14 @@ class RWGA_License_State {
 		$snapshot['remaining']         = $snapshot['tokens_remaining'];
 		$snapshot['period']            = $snapshot['usage_period'];
 
-		if ( class_exists( 'RWGA_License_Introspection', false ) ) {
-			$claims = RWGA_License_Introspection::get_bearer_claims();
-			if ( is_array( $claims ) ) {
-				$snapshot['jwt_domain']         = isset( $claims['domain'] ) ? sanitize_text_field( (string) $claims['domain'] ) : '';
-				$snapshot['jwt_product_slug']  = isset( $claims['product_slug'] ) ? sanitize_key( (string) $claims['product_slug'] ) : '';
-				$snapshot['jwt_catalog_slug']  = isset( $claims['catalog_slug'] ) ? sanitize_key( (string) $claims['catalog_slug'] ) : '';
-				$snapshot['jwt_package_type']  = isset( $claims['packageType'] ) ? sanitize_text_field( (string) $claims['packageType'] ) : '';
-				$snapshot['jwt_plan_code']     = isset( $claims['plan_code'] ) ? sanitize_text_field( (string) $claims['plan_code'] ) : '';
-				$snapshot['jwt_tier']          = RWGA_License_Introspection::tier_from_claims( $claims );
-				$snapshot['jwt_package_label'] = RWGA_License_Introspection::format_package_summary( $claims );
-			}
+		if ( is_array( $claims ) && class_exists( 'RWGA_License_Introspection', false ) ) {
+			$snapshot['jwt_domain']         = isset( $claims['domain'] ) ? sanitize_text_field( (string) $claims['domain'] ) : '';
+			$snapshot['jwt_product_slug']  = isset( $claims['product_slug'] ) ? sanitize_key( (string) $claims['product_slug'] ) : '';
+			$snapshot['jwt_catalog_slug']  = isset( $claims['catalog_slug'] ) ? sanitize_key( (string) $claims['catalog_slug'] ) : '';
+			$snapshot['jwt_package_type']  = isset( $claims['packageType'] ) ? sanitize_text_field( (string) $claims['packageType'] ) : '';
+			$snapshot['jwt_plan_code']     = isset( $claims['plan_code'] ) ? sanitize_text_field( (string) $claims['plan_code'] ) : '';
+			$snapshot['jwt_tier']          = RWGA_License_Introspection::tier_from_claims( $claims );
+			$snapshot['jwt_package_label'] = RWGA_License_Introspection::format_package_summary( $claims );
 		}
 
 		update_option( self::OPTION_KEY, $snapshot, false );
@@ -281,14 +284,37 @@ class RWGA_License_State {
 	}
 
 	/**
-	 * Never default to "free" when the API omits tier. Only use `free` when the API explicitly sends it.
+	 * Tier for UI: JWT and token limits can override a stale usage API `free` label.
 	 *
-	 * @param string $api_raw Sanitized tier from API (may be empty).
-	 * @param int    $limit   Token cap for the period.
+	 * @param string $api_raw   Sanitized tier from usage API.
+	 * @param int    $limit     Token cap for the period.
+	 * @param string $jwt_hint  free|pro|enterprise from JWT tier fields or monthly_ai_tokens heuristic.
 	 * @return array{tier: string, source: string}
 	 */
-	private static function resolve_assistant_tier( $api_raw, $limit ) {
-		$api_raw = is_string( $api_raw ) ? sanitize_key( $api_raw ) : '';
+	private static function resolve_assistant_tier( $api_raw, $limit, $jwt_hint = '' ) {
+		$api_raw   = is_string( $api_raw ) ? sanitize_key( $api_raw ) : '';
+		$jwt_hint  = is_string( $jwt_hint ) ? sanitize_key( $jwt_hint ) : '';
+		$lim       = (int) $limit;
+
+		// 1) License JWT says paid — prefer over usage API when it still reports free/empty (billing lag).
+		if ( '' !== $jwt_hint && in_array( $jwt_hint, array( 'pro', 'enterprise' ), true ) ) {
+			if ( 'free' === $api_raw || '' === $api_raw ) {
+				return array(
+					'tier'   => $jwt_hint,
+					'source' => 'jwt_overrides_usage_api',
+				);
+			}
+		}
+
+		// 2) Usage API says free but allowance is clearly paid-scale (stale tier label).
+		if ( 'free' === $api_raw && $lim > 100_000 ) {
+			if ( $lim >= 9_000_000 ) {
+				return array( 'tier' => 'enterprise', 'source' => 'limit_overrides_stale_free' );
+			}
+			return array( 'tier' => 'pro', 'source' => 'limit_overrides_stale_free' );
+		}
+
+		// 3) Explicit usage API tier.
 		if ( '' !== $api_raw && in_array( $api_raw, array( 'free', 'pro', 'enterprise' ), true ) ) {
 			return array(
 				'tier'   => $api_raw,
@@ -296,7 +322,6 @@ class RWGA_License_State {
 			);
 		}
 
-		$lim = (int) $limit;
 		if ( $lim <= 0 ) {
 			return array(
 				'tier'   => self::TIER_UNKNOWN,
@@ -313,11 +338,40 @@ class RWGA_License_State {
 			return array( 'tier' => 'pro', 'source' => 'limit_inferred' );
 		}
 
-		// Typical free-tier cap range — still unlabeled unless API said "free".
 		return array(
 			'tier'   => self::TIER_UNKNOWN,
 			'source' => 'unlabeled',
 		);
+	}
+
+	/**
+	 * Pro/enterprise hint from JWT tier claims or monthly_ai_tokens when tier strings are empty.
+	 *
+	 * @param array<string, mixed> $claims JWT payload.
+	 * @return string free|pro|enterprise or ''
+	 */
+	private static function jwt_tier_hint_from_claims( $claims ) {
+		if ( ! is_array( $claims ) || ! class_exists( 'RWGA_License_Introspection', false ) ) {
+			return '';
+		}
+		$t = RWGA_License_Introspection::tier_from_claims( $claims );
+		if ( '' !== $t ) {
+			return $t;
+		}
+		$mt = 0;
+		if ( isset( $claims['monthly_ai_tokens'] ) ) {
+			$mt = (int) $claims['monthly_ai_tokens'];
+		}
+		if ( $mt <= 0 ) {
+			return '';
+		}
+		if ( $mt >= 9_000_000 ) {
+			return 'enterprise';
+		}
+		if ( $mt >= 1_000_000 || $mt > 100_000 ) {
+			return 'pro';
+		}
+		return '';
 	}
 
 	/**

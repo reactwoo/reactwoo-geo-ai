@@ -81,6 +81,8 @@ class RWGA_Usage {
 		}
 		$limit = isset( $cache['limit'] ) ? (int) $cache['limit'] : ( isset( $cache['token_limit'] ) ? (int) $cache['token_limit'] : 0 );
 
+		$tier_source = isset( $cache['tier_source'] ) ? sanitize_key( (string) $cache['tier_source'] ) : '';
+
 		if ( 'unknown' === $tier || '' === $tier ) {
 			if ( $limit > 0 ) {
 				return sprintf(
@@ -90,6 +92,15 @@ class RWGA_Usage {
 				);
 			}
 			return __( 'Package information unavailable — save your license and use Refresh usage.', 'reactwoo-geo-ai' );
+		}
+
+		// Do not present “Free — …” as a product name when the only signal is a stale usage API label.
+		if ( 'free' === $tier && 'api' === $tier_source && $limit > 0 ) {
+			return sprintf(
+				/* translators: %s: formatted token limit */
+				__( '%s assistant tokens this billing period (usage API reports free — confirm your ReactWoo plan if this should be higher)', 'reactwoo-geo-ai' ),
+				number_format_i18n( $limit )
+			);
 		}
 
 		$names = array(
