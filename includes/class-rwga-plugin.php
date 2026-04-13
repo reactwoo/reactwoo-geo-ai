@@ -45,6 +45,7 @@ class RWGA_Plugin {
 			return;
 		}
 
+		require_once RWGA_PATH . 'includes/class-rwga-license-state.php';
 		require_once RWGA_PATH . 'includes/class-rwga-platform-client.php';
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
 		require_once RWGA_PATH . 'includes/partials-rwga-automation-rule-fields.php';

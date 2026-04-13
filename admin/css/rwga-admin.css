@@ -2,6 +2,16 @@
  * Geo AI admin — complements Geo Core .rwgc-* styles.
  */
 
+/* Stacked suite cards: reliable vertical rhythm (grid gap + sibling fallback). */
+.rwga-wrap.rwgc-suite .rwgc-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.rwga-wrap.rwgc-suite .rwgc-card + .rwgc-card {
+  margin-top: 16px;
+}
+
 .rwga-wrap.rwgc-suite {
   --rwga-accent: var(--rw-suite-accent, #1d4ed8);
   --rwga-accent-soft: var(--rw-suite-accent-soft, #eff6ff);

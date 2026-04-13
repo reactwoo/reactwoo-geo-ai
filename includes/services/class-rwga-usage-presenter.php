@@ -45,9 +45,12 @@ class RWGA_Usage_Presenter {
 	public static function build_package_summary( $cache ) {
 		require_once RWGA_PATH . 'includes/helpers/rwga-usage-estimates.php';
 
-		$tier = isset( $cache['license_tier'] ) ? sanitize_key( (string) $cache['license_tier'] ) : 'free';
-		if ( '' === $tier ) {
-			$tier = 'free';
+		$tier = isset( $cache['assistant_tier'] ) ? sanitize_key( (string) $cache['assistant_tier'] ) : '';
+		if ( '' === $tier && isset( $cache['license_tier'] ) ) {
+			$tier = sanitize_key( (string) $cache['license_tier'] );
+		}
+		if ( '' === $tier || 'unknown' === $tier ) {
+			$tier = 'unknown';
 		}
 
 		$used      = isset( $cache['used'] ) ? (int) $cache['used'] : 0;
@@ -62,7 +65,11 @@ class RWGA_Usage_Presenter {
 				$from_api = $pc['display_usage_estimates'];
 			}
 		}
-		$estimates = ! empty( $from_api ) ? $from_api : self::default_display_estimates_for_tier( $tier );
+		if ( 'unknown' === $tier ) {
+			$estimates = ! empty( $from_api ) ? $from_api : array();
+		} else {
+			$estimates = ! empty( $from_api ) ? $from_api : self::default_display_estimates_for_tier( $tier );
+		}
 
 		$hints = rwga_get_workflow_usage_hints();
 		$soft  = array();

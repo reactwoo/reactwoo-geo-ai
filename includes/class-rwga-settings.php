@@ -291,6 +291,9 @@ class RWGA_Settings {
 	 * @return void
 	 */
 	public static function clear_license_key() {
+		if ( class_exists( 'RWGA_License_State', false ) ) {
+			RWGA_License_State::log_debug( 'disconnect_before', RWGA_License_State::get_snapshot() );
+		}
 		self::reset_db_option_snapshots();
 		$raw = self::get_stored_settings_from_db();
 		$raw = is_array( $raw ) ? $raw : array();
@@ -299,10 +302,15 @@ class RWGA_Settings {
 		$raw['reactwoo_license_use_core_fallback'] = false;
 		update_option( self::OPTION_KEY, $raw, true );
 		update_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 1, true );
-		delete_option( 'rwga_assistant_usage_cache' );
+		if ( class_exists( 'RWGA_License_State', false ) ) {
+			RWGA_License_State::clear_all( 'disconnect' );
+		} else {
+			delete_option( 'rwga_assistant_usage_cache' );
+		}
 		wp_cache_delete( self::OPTION_KEY, 'options' );
 		wp_cache_delete( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, 'options' );
 		wp_cache_delete( 'rwga_assistant_usage_cache', 'options' );
+		wp_cache_delete( 'rwga_license_state', 'options' );
 		// Autoloaded options are often served from the `alloptions` cache; clear it so the next read sees the empty key immediately.
 		wp_cache_delete( 'alloptions', 'options' );
 		wp_cache_delete( 'notoptions', 'options' );
@@ -365,15 +373,24 @@ class RWGA_Settings {
 		if ( ! class_exists( 'RWGA_Platform_Client', false ) || ! class_exists( 'RWGA_Usage', false ) ) {
 			return;
 		}
+		if ( class_exists( 'RWGA_License_State', false ) ) {
+			RWGA_License_State::log_debug( 'license_key_change_refresh_before', RWGA_License_State::get_snapshot() );
+		}
 		RWGA_Platform_Client::clear_token_cache();
 		$result = RWGA_Platform_Client::get_usage();
 		if ( is_wp_error( $result ) ) {
+			if ( class_exists( 'RWGA_License_State', false ) ) {
+				RWGA_License_State::log_debug( 'license_key_change_refresh_error', array( 'message' => $result->get_error_message() ) );
+			}
 			return;
 		}
 		$http = isset( $result['http_code'] ) ? (int) $result['http_code'] : 0;
 		$body = isset( $result['body'] ) ? $result['body'] : null;
 		if ( is_array( $body ) ) {
 			RWGA_Usage::save_from_api_body( $body, $http );
+		}
+		if ( class_exists( 'RWGA_License_State', false ) ) {
+			RWGA_License_State::log_debug( 'license_key_change_refresh_after', RWGA_License_State::get_snapshot() );
 		}
 	}
 
@@ -439,7 +456,11 @@ class RWGA_Settings {
 		}
 
 		update_option( self::OPTION_KEY, self::sanitize_settings( $settings ) );
-		delete_option( 'rwga_assistant_usage_cache' );
+		if ( class_exists( 'RWGA_License_State', false ) ) {
+			RWGA_License_State::clear_all( 'import_license' );
+		} else {
+			delete_option( 'rwga_assistant_usage_cache' );
+		}
 		delete_option( self::OPTION_BLOCK_CORE_LICENSE_BRIDGE );
 		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 			RWGA_Platform_Client::clear_token_cache();

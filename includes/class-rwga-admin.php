@@ -378,22 +378,44 @@ class RWGA_Admin {
 		if ( 'ai_usage' === $action ) {
 			$flag = 'err';
 			if ( ! class_exists( 'RWGA_Settings', false ) || ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
-				delete_option( 'rwga_assistant_usage_cache' );
+				if ( class_exists( 'RWGA_License_State', false ) ) {
+					RWGA_License_State::clear_all( 'ai_usage_no_license' );
+				} else {
+					delete_option( 'rwga_assistant_usage_cache' );
+				}
 				$flag = 'no_license';
 			} else {
+				if ( class_exists( 'RWGA_License_State', false ) ) {
+					RWGA_License_State::log_debug( 'ai_usage_refresh_before', RWGA_License_State::get_snapshot() );
+				}
 				if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 					RWGA_Platform_Client::clear_token_cache();
 				}
 				$result = RWGA_Platform_Client::get_usage();
 				if ( is_wp_error( $result ) ) {
+					if ( class_exists( 'RWGA_License_State', false ) ) {
+						RWGA_License_State::log_debug( 'ai_usage_api_error', array( 'message' => $result->get_error_message() ) );
+					}
 					set_transient( 'rwga_usage_flash_' . get_current_user_id(), $result->get_error_message(), 120 );
 					$flag = 'api_err';
 				} else {
 					$http  = isset( $result['http_code'] ) ? (int) $result['http_code'] : 0;
 					$body  = isset( $result['body'] ) ? $result['body'] : null;
+					if ( class_exists( 'RWGA_License_State', false ) ) {
+						RWGA_License_State::log_debug(
+							'ai_usage_remote_body_summary',
+							array(
+								'http' => $http,
+								'keys' => is_array( $body ) ? array_slice( array_keys( $body ), 0, 12 ) : array(),
+							)
+						);
+					}
 					$saved = false;
 					if ( class_exists( 'RWGA_Usage', false ) && is_array( $body ) ) {
 						$saved = RWGA_Usage::save_from_api_body( $body, $http );
+					}
+					if ( class_exists( 'RWGA_License_State', false ) ) {
+						RWGA_License_State::log_debug( 'ai_usage_refresh_after', RWGA_License_State::get_snapshot() );
 					}
 					if ( $saved ) {
 						$flag = 'ok';

@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.23
+Stable tag: 0.4.24
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,11 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.24 =
+* **License state:** Single canonical option `rwga_license_state` (`RWGA_License_State`) for usage/tier/package snapshot; disconnect/import clear it atomically with legacy usage cache and JWT cache.
+* **Plans:** Removed incorrect “Free” fallbacks when the API omits tier — unknown/unlabeled tiers show token allowance or “package unavailable” copy instead of inventing a free plan.
+* **Admin:** Debug logging for license transitions when `WP_DEBUG` + `WP_DEBUG_LOG` are on; stacked `.rwgc-card` sections get grid gap + adjacent margin in `rwga-admin.css`.
 
 = 0.4.23 =
 * **Updates:** Register `RWGC_Satellite_Updater` before the workflow engine loads so a DB/workflow failure cannot block `/api/v5/updates/check`.
