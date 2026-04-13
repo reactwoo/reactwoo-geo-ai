@@ -19,6 +19,13 @@ class RWGA_Platform_Client {
 	const PRODUCT_SLUG     = 'reactwoo-geo-ai';
 
 	/**
+	 * Per-request memo for {@see get_license_key()} (cleared in {@see clear_token_cache()}).
+	 *
+	 * @var string|null
+	 */
+	private static $license_key_request_memo = null;
+
+	/**
 	 * @return string
 	 */
 	public static function get_api_base() {
@@ -51,20 +58,45 @@ class RWGA_Platform_Client {
 	}
 
 	/**
+	 * Read `reactwoo_license_key` from the `rwga_settings` option row (direct SQL; bypasses Settings memo + object-cache quirks).
+	 *
+	 * @return string
+	 */
+	private static function read_license_key_from_db() {
+		global $wpdb;
+		if ( ! isset( $wpdb->options ) ) {
+			return '';
+		}
+		$name = class_exists( 'RWGA_Settings', false ) ? RWGA_Settings::OPTION_KEY : 'rwga_settings';
+		$raw  = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( null === $raw || '' === $raw ) {
+			return '';
+		}
+		$data = maybe_unserialize( $raw );
+		if ( ! is_array( $data ) ) {
+			return '';
+		}
+		return isset( $data['reactwoo_license_key'] ) ? trim( (string) $data['reactwoo_license_key'] ) : '';
+	}
+
+	/**
 	 * @return string
 	 */
 	public static function get_license_key() {
-		if ( class_exists( 'RWGA_Settings', false ) ) {
+		if ( null !== self::$license_key_request_memo ) {
+			return self::$license_key_request_memo;
+		}
+		$k = self::read_license_key_from_db();
+		if ( '' === $k && class_exists( 'RWGA_Settings', false ) ) {
 			$k = RWGA_Settings::get_saved_license_key();
-			if ( '' !== $k ) {
-				return $k;
+		}
+		if ( '' === $k ) {
+			$opt = get_option( 'rwga_settings', array() );
+			if ( is_array( $opt ) && ! empty( $opt['reactwoo_license_key'] ) ) {
+				$k = trim( (string) $opt['reactwoo_license_key'] );
 			}
 		}
-		$raw = get_option( 'rwga_settings', null );
-		if ( ! is_array( $raw ) ) {
-			return '';
-		}
-		$k = isset( $raw['reactwoo_license_key'] ) ? trim( (string) $raw['reactwoo_license_key'] ) : '';
+		self::$license_key_request_memo = $k;
 		return $k;
 	}
 
@@ -96,6 +128,7 @@ class RWGA_Platform_Client {
 	public static function clear_token_cache() {
 		delete_transient( self::TOKEN_TRANSIENT );
 		delete_transient( self::BEARER_ERROR_TRANSIENT );
+		self::$license_key_request_memo = null;
 	}
 
 	/**

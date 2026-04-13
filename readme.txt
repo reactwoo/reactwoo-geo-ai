@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.26
+Stable tag: 0.4.27
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.27 =
+* **License key for API / updates:** `RWGA_Platform_Client::get_license_key()` now reads `rwga_settings` with a **direct database query first**, then falls back to `RWGA_Settings` / `get_option`. This avoids a stale static memo or object-cache miss yielding an empty key while the row still holds the license — which produced **`rwga_no_license`** on `/api/v5/updates/check` even though usage refresh worked. Per-request memo is cleared with the JWT cache.
 
 = 0.4.26 =
 * **Plugin updates (JWT):** Warm the license login cache on `load-plugins.php` / `load-update*.php` / `admin_init` / `wp_update_plugins` **before** WordPress builds `update_plugins`, so `/api/v5/updates/check` usually has a bearer (fixes “HTTP 0 / No license JWT” when the transient was still cold on the Plugins screen).
