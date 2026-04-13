@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.27
+Stable tag: 0.4.28
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,10 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.28 =
+* **License / refresh:** `is_license_configured_for_geo_ai_ui()` now uses {@see RWGA_Platform_Client::is_configured()} (DB-backed key) instead of only the Settings memo. A stale memo previously made “Refresh usage” think there was no key and run `RWGA_License_State::clear_all( 'ai_usage_no_license' )`, which wiped the snapshot and felt like a failed disconnect or “back to free” after refresh.
+* **Diagnostics:** Optional API trace lines to `debug.log` when `WP_DEBUG` + `WP_DEBUG_LOG` are on, or when `RWGA_LICENSE_API_TRACE` is true / filter `rwga_license_api_trace`. Logs login URL/domain/product slug, HTTP result, JWT claim summary (tier, packageType, product_slug, monthly_ai_tokens — no secrets), and usage `licenseTier` + token limit from the API response.
 
 = 0.4.27 =
 * **License key for API / updates:** `RWGA_Platform_Client::get_license_key()` now reads `rwga_settings` with a **direct database query first**, then falls back to `RWGA_Settings` / `get_option`. This avoids a stale static memo or object-cache miss yielding an empty key while the row still holds the license — which produced **`rwga_no_license`** on `/api/v5/updates/check` even though usage refresh worked. Per-request memo is cleared with the JWT cache.

@@ -58,6 +58,87 @@ class RWGA_Platform_Client {
 	}
 
 	/**
+	 * Whether to log login/usage API traces (no secrets — tier/HTTP/tier from API only).
+	 * Enable: `define( 'RWGA_LICENSE_API_TRACE', true );` in wp-config.php, or filter `rwga_license_api_trace`.
+	 *
+	 * @return bool
+	 */
+	public static function should_log_license_api_trace() {
+		if ( defined( 'RWGA_LICENSE_API_TRACE' ) && RWGA_LICENSE_API_TRACE ) {
+			return true;
+		}
+		return (bool) apply_filters( 'rwga_license_api_trace', ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) );
+	}
+
+	/**
+	 * @param string               $event   Short event name.
+	 * @param array<string, mixed> $context Context (no raw license keys or JWTs).
+	 * @return void
+	 */
+	public static function log_license_api_trace( $event, array $context = array() ) {
+		if ( ! self::should_log_license_api_trace() ) {
+			return;
+		}
+		$line = '[RWGA License API] ' . (string) $event;
+		if ( array() !== $context ) {
+			$line .= ' ' . wp_json_encode( $context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		}
+		error_log( $line ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+	}
+
+	/**
+	 * @param string $jwt Full JWT.
+	 * @return array<string, mixed>|null
+	 */
+	private static function decode_jwt_payload_for_trace( $jwt ) {
+		if ( ! is_string( $jwt ) || '' === $jwt ) {
+			return null;
+		}
+		$parts = explode( '.', $jwt );
+		if ( count( $parts ) !== 3 ) {
+			return null;
+		}
+		$payload = $parts[1];
+		$payload .= str_repeat( '=', ( 4 - strlen( $payload ) % 4 ) % 4 );
+		$decoded = base64_decode( strtr( $payload, '-_', '+/' ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
+		if ( false === $decoded ) {
+			return null;
+		}
+		$data = json_decode( $decoded, true );
+		return is_array( $data ) ? $data : null;
+	}
+
+	/**
+	 * @param array<string, mixed>|null $claims JWT payload.
+	 * @return array<string, mixed>
+	 */
+	private static function summarize_jwt_claims_for_trace( $claims ) {
+		if ( ! is_array( $claims ) ) {
+			return array();
+		}
+		$keys = array(
+			'tier',
+			'license_tier',
+			'assistant_tier',
+			'packageType',
+			'package_type',
+			'package_slug',
+			'product_slug',
+			'catalog_slug',
+			'plan_code',
+			'monthly_ai_tokens',
+			'domain',
+		);
+		$out = array();
+		foreach ( $keys as $k ) {
+			if ( isset( $claims[ $k ] ) && '' !== (string) $claims[ $k ] ) {
+				$out[ $k ] = $claims[ $k ];
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * Read `reactwoo_license_key` from the `rwga_settings` option row (direct SQL; bypasses Settings memo + object-cache quirks).
 	 *
 	 * @return string
@@ -252,8 +333,18 @@ class RWGA_Platform_Client {
 		$filtered = apply_filters( 'rwgc_auth_login_body', $body, $license, $domain );
 		$body     = is_array( $filtered ) ? $filtered : $body;
 
+		$login_url = self::get_api_base() . self::LOGIN_PATH;
+		self::log_license_api_trace(
+			'login_request',
+			array(
+				'url'          => $login_url,
+				'domain'       => $domain,
+				'product_slug' => isset( $body['product_slug'] ) ? (string) $body['product_slug'] : '',
+			)
+		);
+
 		$response = wp_remote_post(
-			self::get_api_base() . self::LOGIN_PATH,
+			$login_url,
 			array(
 				'timeout' => 30,
 				'headers' => self::base_headers(),
@@ -261,6 +352,10 @@ class RWGA_Platform_Client {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
+			self::log_license_api_trace(
+				'login_transport_error',
+				array( 'message' => $response->get_error_message() )
+			);
 			return $response;
 		}
 
@@ -269,11 +364,20 @@ class RWGA_Platform_Client {
 		$data = json_decode( $raw, true );
 		if ( $code < 200 || $code >= 300 || ! is_array( $data ) ) {
 			$msg = isset( $data['message'] ) ? (string) $data['message'] : __( 'License login failed.', 'reactwoo-geo-ai' );
+			self::log_license_api_trace(
+				'login_http_error',
+				array(
+					'http'    => $code,
+					'message' => $msg,
+					'body_snip' => is_string( $raw ) ? substr( $raw, 0, 240 ) : '',
+				)
+			);
 			return new WP_Error( 'rwga_login_failed', $msg, array( 'status' => $code ) );
 		}
 
 		$token = isset( $data['access_token'] ) ? (string) $data['access_token'] : '';
 		if ( '' === $token ) {
+			self::log_license_api_trace( 'login_no_access_token', array( 'http' => $code ) );
 			return new WP_Error( 'rwga_login_no_token', __( 'License login response did not include a token.', 'reactwoo-geo-ai' ) );
 		}
 
@@ -285,6 +389,15 @@ class RWGA_Platform_Client {
 				'expires' => time() + $ttl,
 			),
 			$ttl
+		);
+
+		$claims = self::decode_jwt_payload_for_trace( $token );
+		self::log_license_api_trace(
+			'login_ok',
+			array(
+				'http' => $code,
+				'jwt'  => self::summarize_jwt_claims_for_trace( $claims ),
+			)
 		);
 
 		return $token;
@@ -380,8 +493,36 @@ class RWGA_Platform_Client {
 		$data = isset( $result['data'] ) && is_array( $result['data'] ) ? $result['data'] : null;
 		if ( $code < 200 || $code >= 300 || null === $data ) {
 			$msg = is_array( $data ) && isset( $data['message'] ) ? (string) $data['message'] : __( 'ReactWoo API request failed.', 'reactwoo-geo-ai' );
+			self::log_license_api_trace(
+				'usage_http_error',
+				array(
+					'http'    => $code,
+					'message' => $msg,
+				)
+			);
 			return new WP_Error( 'rwga_api_error', $msg, array( 'status' => $code, 'data' => $data ) );
 		}
+
+		$inner = isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : $data;
+		$lt    = null;
+		if ( is_array( $inner ) ) {
+			if ( isset( $inner['licenseTier'] ) ) {
+				$lt = $inner['licenseTier'];
+			} elseif ( isset( $inner['license_tier'] ) ) {
+				$lt = $inner['license_tier'];
+			}
+		}
+		self::log_license_api_trace(
+			'usage_ok',
+			array(
+				'http'         => $code,
+				'api_status'   => isset( $data['status'] ) ? $data['status'] : null,
+				'licenseTier'  => $lt,
+				'tokens_limit' => is_array( $inner ) && isset( $inner['usage'] ) && is_array( $inner['usage'] ) && isset( $inner['usage']['limit'] )
+					? $inner['usage']['limit']
+					: null,
+			)
+		);
 
 		return array(
 			'success'   => true,

@@ -209,9 +209,16 @@ class RWGA_Settings {
 	 * Whether Geo AI itself has a saved license key.
 	 * The License screen should reflect Geo AI's own saved product key, not a shared fallback key.
 	 *
+	 * Uses {@see RWGA_Platform_Client::is_configured()} when available so this matches the DB-backed
+	 * key used for login — the static memo in {@see get_saved_license_key()} can lag and wrongly
+	 * return empty, which previously made “Refresh usage” clear license state as if disconnected.
+	 *
 	 * @return bool
 	 */
 	public static function is_license_configured_for_geo_ai_ui() {
+		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+			return RWGA_Platform_Client::is_configured();
+		}
 		return '' !== self::get_saved_license_key();
 	}
 
