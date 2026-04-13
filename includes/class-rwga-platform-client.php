@@ -10,6 +10,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_Platform_Client {
 
 	const TOKEN_TRANSIENT  = 'rwga_rw_jwt_cache';
+
+	/** Last {@see get_bearer_for_updates()} failure for Settings → Plugin updates diagnostics. */
+	const BEARER_ERROR_TRANSIENT = 'rwga_updates_bearer_last_error';
+
 	const LOGIN_PATH       = '/api/v5/auth/login';
 	const DEFAULT_API_BASE = 'https://api.reactwoo.com';
 	const PRODUCT_SLUG     = 'reactwoo-geo-ai';
@@ -50,10 +54,18 @@ class RWGA_Platform_Client {
 	 * @return string
 	 */
 	public static function get_license_key() {
-		if ( ! class_exists( 'RWGA_Settings', false ) ) {
+		if ( class_exists( 'RWGA_Settings', false ) ) {
+			$k = RWGA_Settings::get_saved_license_key();
+			if ( '' !== $k ) {
+				return $k;
+			}
+		}
+		$raw = get_option( 'rwga_settings', null );
+		if ( ! is_array( $raw ) ) {
 			return '';
 		}
-		return RWGA_Settings::get_saved_license_key();
+		$k = isset( $raw['reactwoo_license_key'] ) ? trim( (string) $raw['reactwoo_license_key'] ) : '';
+		return $k;
 	}
 
 	/**
@@ -83,6 +95,48 @@ class RWGA_Platform_Client {
 	 */
 	public static function clear_token_cache() {
 		delete_transient( self::TOKEN_TRANSIENT );
+		delete_transient( self::BEARER_ERROR_TRANSIENT );
+	}
+
+	/**
+	 * Whether we already attempted a proactive JWT fetch this request (avoid duplicate logins).
+	 *
+	 * @var bool
+	 */
+	private static $jwt_warm_for_updates_done = false;
+
+	/**
+	 * Register hooks that run before WordPress builds `update_plugins` so a bearer exists for /updates/check.
+	 *
+	 * @return void
+	 */
+	public static function register_update_check_warm_hooks() {
+		static $registered = false;
+		if ( $registered ) {
+			return;
+		}
+		$registered = true;
+		add_action( 'load-plugins.php', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
+		add_action( 'load-update.php', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
+		add_action( 'load-update-core.php', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
+		add_action( 'wp_update_plugins', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
+	}
+
+	/**
+	 * Prime the license JWT cache before {@see pre_set_site_transient_update_plugins} (same login as usage API).
+	 *
+	 * @return void
+	 */
+	public static function maybe_warm_access_token_for_updates() {
+		if ( self::$jwt_warm_for_updates_done ) {
+			return;
+		}
+		if ( ! self::is_configured() ) {
+			return;
+		}
+		self::$jwt_warm_for_updates_done = true;
+		self::get_access_token();
 	}
 
 	/**
@@ -103,9 +157,29 @@ class RWGA_Platform_Client {
 	 */
 	public static function get_bearer_for_updates() {
 		$token = self::get_access_token();
-		if ( is_wp_error( $token ) || ! is_string( $token ) || '' === $token ) {
+		if ( is_wp_error( $token ) ) {
+			set_transient(
+				self::BEARER_ERROR_TRANSIENT,
+				array(
+					'code'    => $token->get_error_code(),
+					'message' => $token->get_error_message(),
+				),
+				15 * MINUTE_IN_SECONDS
+			);
 			return null;
 		}
+		if ( ! is_string( $token ) || '' === $token ) {
+			set_transient(
+				self::BEARER_ERROR_TRANSIENT,
+				array(
+					'code'    => 'rwga_empty_token',
+					'message' => __( 'License login returned an empty token.', 'reactwoo-geo-ai' ),
+				),
+				15 * MINUTE_IN_SECONDS
+			);
+			return null;
+		}
+		delete_transient( self::BEARER_ERROR_TRANSIENT );
 		return $token;
 	}
 

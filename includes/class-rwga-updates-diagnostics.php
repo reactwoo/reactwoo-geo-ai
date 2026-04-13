@@ -42,11 +42,24 @@ class RWGA_Updates_Diagnostics {
 		if ( self::SLUG !== (string) $catalog_slug ) {
 			return;
 		}
+		$summary = __( 'No license JWT for update checks — save a license key and ensure login succeeds (Plugins → updates use the same token as the API).', 'reactwoo-geo-ai' );
+		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+			$err = get_transient( RWGA_Platform_Client::BEARER_ERROR_TRANSIENT );
+			if ( is_array( $err ) && ! empty( $err['message'] ) ) {
+				$code = isset( $err['code'] ) ? (string) $err['code'] : '';
+				$summary .= ' ' . sprintf(
+					/* translators: 1: error code, 2: error message */
+					__( '(Last attempt: %1$s — %2$s)', 'reactwoo-geo-ai' ),
+					$code ? $code : 'error',
+					wp_strip_all_tags( (string) $err['message'] )
+				);
+			}
+		}
 		self::save(
 			array(
 				'ts'       => time(),
 				'http'     => 0,
-				'summary'  => __( 'No license JWT for update checks — save a license key and ensure login succeeds (Plugins → updates use the same token as the API).', 'reactwoo-geo-ai' ),
+				'summary'  => $summary,
 				'body_snip' => '',
 			)
 		);

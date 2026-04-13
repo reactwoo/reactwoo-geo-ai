@@ -50,6 +50,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
 		require_once RWGA_PATH . 'includes/partials-rwga-automation-rule-fields.php';
 		RWGA_Settings::init();
+		RWGA_Platform_Client::register_update_check_warm_hooks();
 
 		require_once RWGA_PATH . 'includes/class-rwga-updates-diagnostics.php';
 		RWGA_Updates_Diagnostics::init();
