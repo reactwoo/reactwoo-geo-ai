@@ -424,6 +424,12 @@ class RWGA_Admin {
 					} else {
 						$flag = 'parse';
 					}
+					if ( in_array( $flag, array( 'ok', 'parse' ), true ) && class_exists( 'RWGA_Settings', false ) ) {
+						RWGA_Settings::bust_plugin_update_check_cache();
+					}
+					if ( in_array( $flag, array( 'ok', 'parse' ), true ) && class_exists( 'RWGA_Updates_Diagnostics', false ) ) {
+						RWGA_Updates_Diagnostics::maybe_clear_stale_no_bearer_record();
+					}
 				}
 			}
 			wp_safe_redirect( add_query_arg( 'rwga_usage', $flag, admin_url( 'admin.php?page=' . $page ) ) );

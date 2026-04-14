@@ -62,6 +62,9 @@ if ( '' !== $jwt_tier_c && is_array( $cache ) && isset( $cache['license_tier'] )
 	$tier_mismatch = ( sanitize_key( (string) $cache['license_tier'] ) !== $jwt_tier_c );
 }
 
+if ( class_exists( 'RWGA_Updates_Diagnostics', false ) ) {
+	RWGA_Updates_Diagnostics::maybe_clear_stale_no_bearer_record();
+}
 $upd_last = class_exists( 'RWGA_Updates_Diagnostics', false ) ? RWGA_Updates_Diagnostics::get_last() : array();
 $upd_ts   = ! empty( $upd_last['ts'] ) ? (int) $upd_last['ts'] : 0;
 $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) : '';
@@ -198,6 +201,9 @@ $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) :
 						<?php endif; ?>
 					</dl>
 					<p class="description" style="margin-bottom: 0;"><?php esc_html_e( 'Refresh usage after saving your key to capture API + token details. If package text is wrong, verify the license in ReactWoo is for Geo AI and this domain.', 'reactwoo-geo-ai' ); ?></p>
+					<?php if ( $lic_ok && 'free' === sanitize_key( (string) $jwt_tier_c ) && '' === trim( (string) ( $jwt_label . $jwt_pkg . $jwt_plan ) ) ) : ?>
+						<p class="description" style="margin-top: 8px;"><?php esc_html_e( 'If you have a paid Geo AI plan but the token still shows tier “free” and no package line, the license server or API is not attaching paid package claims to this JWT — check the Geo AI package in ReactWoo License (assistant tier / monthly_ai_tokens) and that api.reactwoo.com is using the live license JWT path, not a stub.', 'reactwoo-geo-ai' ); ?></p>
+					<?php endif; ?>
 				</div>
 			<?php endif; ?>
 			<?php if ( $lic_ok ) : ?>
@@ -216,7 +222,14 @@ $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) :
 							<dt><?php esc_html_e( 'Last /api/v5/updates/check (this site)', 'reactwoo-geo-ai' ); ?></dt>
 							<dd><code><?php echo esc_html( gmdate( 'c', $upd_ts ) ); ?></code></dd>
 							<dt><?php esc_html_e( 'HTTP', 'reactwoo-geo-ai' ); ?></dt>
-							<dd><code><?php echo isset( $upd_last['http'] ) ? (int) $upd_last['http'] : 0; ?></code></dd>
+							<dd><code><?php
+								$upd_http_num = isset( $upd_last['http'] ) ? (int) $upd_last['http'] : 0;
+								if ( 0 === $upd_http_num && ! empty( $upd_last['summary'] ) && false !== strpos( (string) $upd_last['summary'], 'No license JWT' ) ) {
+									esc_html_e( '0 — request not sent (no bearer)', 'reactwoo-geo-ai' );
+								} else {
+									echo (string) $upd_http_num;
+								}
+								?></code></dd>
 							<?php if ( ! empty( $upd_last['api_version'] ) ) : ?>
 								<dt><?php esc_html_e( 'Catalog version offered', 'reactwoo-geo-ai' ); ?></dt>
 								<dd><code><?php echo esc_html( (string) $upd_last['api_version'] ); ?></code></dd>

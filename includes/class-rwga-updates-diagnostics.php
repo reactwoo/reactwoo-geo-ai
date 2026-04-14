@@ -26,6 +26,37 @@ class RWGA_Updates_Diagnostics {
 	}
 
 	/**
+	 * Drop a stale “HTTP 0 / rwga_no_license” row when a bearer is available now (e.g. cron ran before the key existed).
+	 *
+	 * @return void
+	 */
+	public static function maybe_clear_stale_no_bearer_record() {
+		if ( ! class_exists( 'RWGA_Platform_Client', false ) || ! RWGA_Platform_Client::is_configured() ) {
+			return;
+		}
+		$last = self::get_last();
+		if ( empty( $last['summary'] ) ) {
+			return;
+		}
+		if ( ! empty( $last['http'] ) && 0 !== (int) $last['http'] ) {
+			return;
+		}
+		$summary = (string) $last['summary'];
+		if ( false === strpos( $summary, 'No license JWT' ) && false === strpos( $summary, 'rwga_no_license' ) ) {
+			return;
+		}
+		$cached = RWGA_Platform_Client::get_cached_access_token_string();
+		if ( is_string( $cached ) && '' !== $cached ) {
+			delete_option( self::OPTION_LAST );
+			return;
+		}
+		$bearer = RWGA_Platform_Client::get_bearer_for_updates();
+		if ( null !== $bearer && '' !== $bearer ) {
+			delete_option( self::OPTION_LAST );
+		}
+	}
+
+	/**
 	 * @return array<string, mixed>
 	 */
 	public static function get_last() {

@@ -235,6 +235,28 @@ class RWGA_Platform_Client {
 		add_action( 'load-update-core.php', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
 		add_action( 'wp_update_plugins', array( __CLASS__, 'maybe_warm_access_token_for_updates' ), 1 );
+		/*
+		 * Runs immediately before {@see RWGC_Satellite_Updater} (priority 10) mutates the transient.
+		 * Catches code paths where admin_init / load-plugins hooks did not run (e.g. some cron timings)
+		 * so {@see get_access_token()} still runs once before /api/v5/updates/check.
+		 */
+		add_filter( 'pre_set_site_transient_update_plugins', array( __CLASS__, 'prime_jwt_before_plugins_transient' ), 5, 3 );
+	}
+
+	/**
+	 * Prime JWT cache right before WordPress persists `update_plugins` (same request as satellite updater).
+	 *
+	 * @param mixed $value      Transient value about to be saved.
+	 * @param int   $expiration TTL (unused).
+	 * @param string $transient Name (unused).
+	 * @return mixed
+	 */
+	public static function prime_jwt_before_plugins_transient( $value, $expiration = 0, $transient = '' ) {
+		unset( $expiration, $transient );
+		if ( self::is_configured() ) {
+			self::get_access_token();
+		}
+		return $value;
 	}
 
 	/**
