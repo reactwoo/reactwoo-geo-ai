@@ -414,13 +414,17 @@ class RWGA_Platform_Client {
 		);
 
 		$claims = self::decode_jwt_payload_for_trace( $token );
-		self::log_license_api_trace(
-			'login_ok',
-			array(
-				'http' => $code,
-				'jwt'  => self::summarize_jwt_claims_for_trace( $claims ),
-			)
+		$trace  = array(
+			'http' => $code,
+			'jwt'  => self::summarize_jwt_claims_for_trace( $claims ),
 		);
+		if ( isset( $data['token_source'] ) ) {
+			$trace['token_source'] = (string) $data['token_source'];
+		}
+		if ( isset( $data['message'] ) && is_string( $data['message'] ) ) {
+			$trace['login_message'] = $data['message'];
+		}
+		self::log_license_api_trace( 'login_ok', $trace );
 
 		return $token;
 	}
