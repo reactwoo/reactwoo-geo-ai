@@ -421,6 +421,9 @@ class RWGA_Platform_Client {
 		if ( isset( $data['token_source'] ) ) {
 			$trace['token_source'] = (string) $data['token_source'];
 		}
+		if ( isset( $data['token_source_detail'] ) ) {
+			$trace['token_source_detail'] = (string) $data['token_source_detail'];
+		}
 		if ( isset( $data['message'] ) && is_string( $data['message'] ) ) {
 			$trace['login_message'] = $data['message'];
 		}
