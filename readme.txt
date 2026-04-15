@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.31
+Stable tag: 0.4.32
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.32 =
+* **Disconnect UI:** On `rwga_disconnected` / import redirects, reset DB option memos and JWT cache on `admin_init` (priority 0) so “Connected” updates in one load without a second click.
 
 = 0.4.31 =
 * **License API trace:** Successful login logs `token_source` and `login_message` from `/api/v5/auth/login` when present. **`token_source: api_stub`** means api.reactwoo.com minted a local HS256 token (tiers default to **free**) because `POST …/v1/plugin/access-token` did not return a token — fix `RW_API_TO_LICENSE_SECRET`, `LICENSE_DOMAIN`, and license server. **`license_server`** means the JWT came from react-license (tier follows package / inferAssistantTier there).

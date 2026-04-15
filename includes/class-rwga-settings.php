@@ -54,6 +54,7 @@ class RWGA_Settings {
 	 */
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_reset_snapshots_after_license_redirect' ), 0 );
 		add_action( 'load-rwga-dashboard_page_rwga-license', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
 		add_action( 'load-rwga-dashboard_page_rwga-advanced', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_clear_jwt_on_change' ), 10, 2 );
@@ -64,6 +65,29 @@ class RWGA_Settings {
 		add_action( 'delete_option_' . self::OPTION_BLOCK_CORE_LICENSE_BRIDGE, array( __CLASS__, 'reset_db_option_snapshots' ), 0 );
 		add_filter( 'wp_redirect', array( __CLASS__, 'filter_options_save_redirect' ), 5, 2 );
 		add_filter( 'rwgc_auth_login_body', array( __CLASS__, 'filter_auth_login_body' ), 10, 3 );
+	}
+
+	/**
+	 * After Disconnect redirect (`rwga_disconnected`) or import redirect, bust memos before the Settings screen reads options
+	 * (avoids “Connected” until second click when object cache / load hook order left a stale memo).
+	 *
+	 * @return void
+	 */
+	public static function maybe_reset_snapshots_after_license_redirect() {
+		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( 'rwga-license' !== $page && 'rwga-advanced' !== $page ) {
+			return;
+		}
+		if ( empty( $_GET['rwga_disconnected'] ) && empty( $_GET['rwga_imported'] ) && empty( $_GET['rwga_import_err'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		self::reset_db_option_snapshots();
+		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
+			RWGA_Platform_Client::clear_token_cache();
+		}
 	}
 
 	/**
