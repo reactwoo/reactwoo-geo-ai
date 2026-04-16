@@ -54,6 +54,9 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 	<?php if ( isset( $_GET['rwga_sample'] ) && 'ok' === sanitize_key( wp_unslash( $_GET['rwga_sample'] ) ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Analysis run completed.', 'reactwoo-geo-ai' ); ?></p></div>
 	<?php endif; ?>
+	<?php if ( isset( $_GET['rwga_analysis'] ) && 'deleted' === sanitize_key( wp_unslash( $_GET['rwga_analysis'] ) ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Analysis and linked recommendations/drafts were deleted.', 'reactwoo-geo-ai' ); ?></p></div>
+	<?php endif; ?>
 
 	<div class="rwgc-card">
 		<?php if ( empty( $rwga_rows ) ) : ?>
@@ -118,7 +121,15 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 							<td><code><?php echo isset( $row['workflow_key'] ) ? esc_html( (string) $row['workflow_key'] ) : '—'; ?></code></td>
 							<td><?php echo isset( $row['geo_target'] ) && $row['geo_target'] ? esc_html( (string) $row['geo_target'] ) : '—'; ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
-							<td><a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'View', 'reactwoo-geo-ai' ); ?></a></td>
+							<td>
+								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'View', 'reactwoo-geo-ai' ); ?></a>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-left:6px;">
+									<input type="hidden" name="action" value="rwga_analysis_delete" />
+									<input type="hidden" name="run_id" value="<?php echo (int) $rid; ?>" />
+									<?php wp_nonce_field( 'rwga_analysis_delete' ); ?>
+									<button type="submit" class="rwgc-btn rwgc-btn--sm rwgc-btn--tertiary" onclick="return confirm('<?php echo esc_js( __( 'Delete this analysis and all linked recommendations/drafts?', 'reactwoo-geo-ai' ) ); ?>');"><?php esc_html_e( 'Delete', 'reactwoo-geo-ai' ); ?></button>
+								</form>
+							</td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>

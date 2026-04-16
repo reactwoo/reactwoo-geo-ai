@@ -11,6 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $rwga_run     = isset( $rwga_run ) && is_array( $rwga_run ) ? $rwga_run : array();
 $rwga_findings = isset( $rwga_findings ) && is_array( $rwga_findings ) ? $rwga_findings : array();
+$rwga_recommendations = isset( $rwga_recommendations ) && is_array( $rwga_recommendations ) ? $rwga_recommendations : array();
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-analyses';
 
 $run_id = isset( $rwga_run['id'] ) ? (int) $rwga_run['id'] : 0;
@@ -63,6 +64,7 @@ $severity_class = array(
 
 	<div class="rwgc-actions rwgc-actions--stack-mobile" style="margin-bottom: 16px;">
 		<a href="<?php echo esc_url( $list_url ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( '← All analyses', 'reactwoo-geo-ai' ); ?></a>
+		<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'rwga-recommendations', 'analysis_run' => $run_id ), admin_url( 'admin.php' ) ) ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'View recommendations for this run', 'reactwoo-geo-ai' ); ?></a>
 		<?php
 		$pid = isset( $rwga_run['page_id'] ) ? (int) $rwga_run['page_id'] : 0;
 		if ( $pid > 0 && current_user_can( 'edit_post', $pid ) ) {
@@ -72,6 +74,12 @@ $severity_class = array(
 			}
 		}
 		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
+			<input type="hidden" name="action" value="rwga_analysis_delete" />
+			<input type="hidden" name="run_id" value="<?php echo (int) $run_id; ?>" />
+			<?php wp_nonce_field( 'rwga_analysis_delete' ); ?>
+			<button type="submit" class="rwgc-btn rwgc-btn--tertiary" onclick="return confirm('<?php echo esc_js( __( 'Delete this analysis and all linked recommendations/drafts?', 'reactwoo-geo-ai' ) ); ?>');"><?php esc_html_e( 'Delete analysis', 'reactwoo-geo-ai' ); ?></button>
+		</form>
 	</div>
 
 	<div class="rwgc-card rwga-analysis-meta">
@@ -159,6 +167,58 @@ $severity_class = array(
 					</li>
 				<?php endforeach; ?>
 			</ul>
+		<?php endif; ?>
+	</div>
+
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Recommendations for this run', 'reactwoo-geo-ai' ); ?></h2>
+		<?php if ( empty( $rwga_recommendations ) ) : ?>
+			<p class="description"><?php esc_html_e( 'No recommendations generated yet for this analysis.', 'reactwoo-geo-ai' ); ?></p>
+		<?php else : ?>
+			<table class="widefat striped rwga-table-comfortable">
+				<thead>
+					<tr>
+						<th scope="col"><?php esc_html_e( 'Title', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Priority', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Actions', 'reactwoo-geo-ai' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $rwga_recommendations as $rec ) : ?>
+						<?php
+						$rec_id  = isset( $rec['id'] ) ? (int) $rec['id'] : 0;
+						$rec_geo = isset( $rec['geo_target'] ) ? (string) $rec['geo_target'] : '';
+						$rec_pid = isset( $rec['page_id'] ) ? (int) $rec['page_id'] : 0;
+						$rec_url = add_query_arg(
+							array(
+								'page'   => 'rwga-recommendations',
+								'rec_id' => $rec_id,
+							),
+							admin_url( 'admin.php' )
+						);
+						?>
+						<tr>
+							<td><a href="<?php echo esc_url( $rec_url ); ?>"><strong><?php echo isset( $rec['title'] ) ? esc_html( (string) $rec['title'] ) : ''; ?></strong></a></td>
+							<td><?php echo isset( $rec['priority_level'] ) ? esc_html( (string) $rec['priority_level'] ) : '—'; ?></td>
+							<td><?php echo isset( $rec['status'] ) ? esc_html( (string) $rec['status'] ) : '—'; ?></td>
+							<td>
+								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $rec_url ); ?>"><?php esc_html_e( 'View recommendation', 'reactwoo-geo-ai' ); ?></a>
+								<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-left:6px;">
+										<input type="hidden" name="action" value="rwga_copy_implement" />
+										<input type="hidden" name="recommendation_id" value="<?php echo (int) $rec_id; ?>" />
+										<?php if ( $rec_pid > 0 ) : ?><input type="hidden" name="page_id" value="<?php echo (int) $rec_pid; ?>" /><?php endif; ?>
+										<?php if ( '' !== $rec_geo ) : ?><input type="hidden" name="geo_target" value="<?php echo esc_attr( $rec_geo ); ?>" /><?php endif; ?>
+										<?php wp_nonce_field( 'rwga_copy_implement' ); ?>
+										<button type="submit" class="rwgc-btn rwgc-btn--sm rwgc-btn--primary"><?php esc_html_e( 'Generate copy', 'reactwoo-geo-ai' ); ?></button>
+									</form>
+								<?php endif; ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
 		<?php endif; ?>
 	</div>
 

@@ -50,6 +50,10 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 	} elseif ( 'unlicensed' === $rwga_rec ) {
 		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to generate recommendations.', 'reactwoo-geo-ai' ) . '</p></div>';
 	}
+	$rwga_impl = isset( $_GET['rwga_impl'] ) ? sanitize_key( wp_unslash( $_GET['rwga_impl'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'unlicensed' === $rwga_impl ) {
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to generate implementation drafts.', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
 	?>
 
 	<div class="rwgc-card">
@@ -62,6 +66,14 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 				<a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
 			<?php endif; ?>
 		</form>
+		<?php if ( $rwga_filter_analysis > 0 && current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:12px;">
+				<input type="hidden" name="action" value="rwga_bulk_implement_analysis" />
+				<input type="hidden" name="analysis_run_id" value="<?php echo (int) $rwga_filter_analysis; ?>" />
+				<?php wp_nonce_field( 'rwga_bulk_implement_analysis' ); ?>
+				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate copy + SEO drafts for this analysis run', 'reactwoo-geo-ai' ); ?></button>
+			</form>
+		<?php endif; ?>
 	</div>
 
 	<div class="rwgc-card">
@@ -99,6 +111,7 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 						<th scope="col"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Date (UTC)', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Actions', 'reactwoo-geo-ai' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -108,6 +121,7 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 						$aid = isset( $row['analysis_run_id'] ) ? (int) $row['analysis_run_id'] : 0;
 						$pid = isset( $row['page_id'] ) ? (int) $row['page_id'] : 0;
 						$pt  = $pid > 0 ? get_the_title( $pid ) : '';
+						$geo = isset( $row['geo_target'] ) ? (string) $row['geo_target'] : '';
 						?>
 						<?php
 						$rec_url = add_query_arg(
@@ -132,6 +146,19 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 							<td><?php echo $pid > 0 && '' !== $pt ? esc_html( $pt ) : '—'; ?></td>
 							<td><?php echo isset( $row['status'] ) ? esc_html( (string) $row['status'] ) : '—'; ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
+							<td>
+								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $rec_url ); ?>"><?php esc_html_e( 'View recommendation', 'reactwoo-geo-ai' ); ?></a>
+								<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-left:6px;">
+										<input type="hidden" name="action" value="rwga_copy_implement" />
+										<input type="hidden" name="recommendation_id" value="<?php echo (int) $rid; ?>" />
+										<?php if ( $pid > 0 ) : ?><input type="hidden" name="page_id" value="<?php echo (int) $pid; ?>" /><?php endif; ?>
+										<?php if ( '' !== $geo ) : ?><input type="hidden" name="geo_target" value="<?php echo esc_attr( $geo ); ?>" /><?php endif; ?>
+										<?php wp_nonce_field( 'rwga_copy_implement' ); ?>
+										<button type="submit" class="rwgc-btn rwgc-btn--sm rwgc-btn--primary"><?php esc_html_e( 'Generate copy', 'reactwoo-geo-ai' ); ?></button>
+									</form>
+								<?php endif; ?>
+							</td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>

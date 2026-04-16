@@ -216,6 +216,8 @@ class RWGA_Workflow_Copy_Implement extends RWGA_Workflow_Base {
 		$blurb  = '';
 		$geo    = isset( $in['geo_target'] ) ? trim( (string) $in['geo_target'] ) : '';
 		$ctx    = '';
+		$problem_text = '';
+		$action_text  = '';
 
 		if ( $rid > 0 ) {
 			$rec = RWGA_DB_Recommendations::get( $rid );
@@ -223,6 +225,8 @@ class RWGA_Workflow_Copy_Implement extends RWGA_Workflow_Base {
 				$title = isset( $rec['title'] ) ? (string) $rec['title'] : '';
 				$prob  = isset( $rec['problem'] ) ? wp_strip_all_tags( (string) $rec['problem'] ) : '';
 				$recmd = isset( $rec['recommendation'] ) ? wp_strip_all_tags( (string) $rec['recommendation'] ) : '';
+				$problem_text = trim( $prob );
+				$action_text  = trim( $recmd );
 				$ctx   = trim( $prob . "\n\n" . $recmd );
 				if ( empty( $pid ) && ! empty( $rec['page_id'] ) ) {
 					$pid = (int) $rec['page_id'];
@@ -256,6 +260,31 @@ class RWGA_Workflow_Copy_Implement extends RWGA_Workflow_Base {
 				$title
 			);
 		}
+		if ( '' !== $action_text ) {
+			$h = sanitize_text_field( substr( $action_text, 0, 90 ) );
+		}
+		$subheadline = __( 'Explain the outcome in one sentence, then how you deliver it.', 'reactwoo-geo-ai' );
+		if ( '' !== $problem_text ) {
+			$subheadline = sprintf(
+				/* translators: %s: short problem summary */
+				__( 'Address this friction first: %s', 'reactwoo-geo-ai' ),
+				sanitize_text_field( substr( $problem_text, 0, 110 ) )
+			);
+		}
+		$primary_cta = __( 'Get started', 'reactwoo-geo-ai' );
+		if ( false !== stripos( $action_text, 'book' ) || false !== stripos( $problem_text, 'demo' ) ) {
+			$primary_cta = __( 'Book a demo', 'reactwoo-geo-ai' );
+		} elseif ( false !== stripos( $action_text, 'pricing' ) ) {
+			$primary_cta = __( 'See pricing', 'reactwoo-geo-ai' );
+		}
+		$trust_line = __( 'Trusted by teams in 12 countries — measurable results in 30 days.', 'reactwoo-geo-ai' );
+		if ( '' !== $action_text ) {
+			$trust_line = sprintf(
+				/* translators: %s: short action summary */
+				__( 'Make the promise specific and credible: %s', 'reactwoo-geo-ai' ),
+				sanitize_text_field( substr( $action_text, 0, 120 ) )
+			);
+		}
 
 		$drafts = array(
 			array(
@@ -264,8 +293,8 @@ class RWGA_Workflow_Copy_Implement extends RWGA_Workflow_Base {
 				'input_context' => $ctx,
 				'draft_payload' => array(
 					'headline'    => $h,
-					'subheadline' => __( 'Explain the outcome in one sentence, then how you deliver it.', 'reactwoo-geo-ai' ),
-					'cta_text'    => __( 'Get started', 'reactwoo-geo-ai' ),
+					'subheadline' => $subheadline,
+					'cta_text'    => $primary_cta,
 				),
 			),
 			array(
@@ -273,7 +302,7 @@ class RWGA_Workflow_Copy_Implement extends RWGA_Workflow_Base {
 				'title'         => __( 'CTA — alternatives', 'reactwoo-geo-ai' ),
 				'input_context' => $ctx,
 				'draft_payload' => array(
-					'primary_cta'   => __( 'Book a demo', 'reactwoo-geo-ai' ),
+					'primary_cta'   => $primary_cta,
 					'secondary_cta' => __( 'See pricing', 'reactwoo-geo-ai' ),
 				),
 			),
@@ -282,7 +311,7 @@ class RWGA_Workflow_Copy_Implement extends RWGA_Workflow_Base {
 				'title'         => __( 'Trust — proof line', 'reactwoo-geo-ai' ),
 				'input_context' => $ctx,
 				'draft_payload' => array(
-					'text' => __( 'Trusted by teams in 12 countries — measurable results in 30 days.', 'reactwoo-geo-ai' ),
+					'text' => $trust_line,
 				),
 			),
 		);

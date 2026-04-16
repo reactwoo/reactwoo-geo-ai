@@ -175,4 +175,20 @@ class RWGA_DB_Recommendations {
 		}
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Delete recommendations for one analysis run.
+	 *
+	 * @param int $analysis_run_id Run ID.
+	 * @return bool
+	 */
+	public static function delete_for_analysis( $analysis_run_id ) {
+		global $wpdb;
+		$analysis_run_id = (int) $analysis_run_id;
+		if ( $analysis_run_id <= 0 ) {
+			return false;
+		}
+		$table = RWGA_DB::recommendations_table();
+		return false !== $wpdb->delete( $table, array( 'analysis_run_id' => $analysis_run_id ), array( '%d' ) );
+	}
 }

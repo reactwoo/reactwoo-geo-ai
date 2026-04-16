@@ -161,4 +161,20 @@ class RWGA_DB_Analysis_Runs {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ), ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Delete one analysis run.
+	 *
+	 * @param int $id Run ID.
+	 * @return bool
+	 */
+	public static function delete( $id ) {
+		global $wpdb;
+		$id = (int) $id;
+		if ( $id <= 0 ) {
+			return false;
+		}
+		$table = RWGA_DB::analysis_runs_table();
+		return false !== $wpdb->delete( $table, array( 'id' => $id ), array( '%d' ) );
+	}
 }

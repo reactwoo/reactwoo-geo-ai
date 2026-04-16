@@ -220,4 +220,34 @@ class RWGA_DB_Implementation_Drafts {
 		}
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Delete drafts for a set of recommendation IDs.
+	 *
+	 * @param array<int, int> $recommendation_ids Recommendation IDs.
+	 * @return bool
+	 */
+	public static function delete_for_recommendations( array $recommendation_ids ) {
+		global $wpdb;
+		$ids = array_values(
+			array_filter(
+				array_map( 'intval', $recommendation_ids ),
+				static function ( $v ) {
+					return $v > 0;
+				}
+			)
+		);
+		if ( empty( $ids ) ) {
+			return false;
+		}
+		$table        = RWGA_DB::implementation_drafts_table();
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql          = "DELETE FROM {$table} WHERE recommendation_id IN ({$placeholders})"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$prepared     = $wpdb->prepare( $sql, $ids );
+		if ( ! is_string( $prepared ) || '' === $prepared ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
+		return false !== $wpdb->query( $prepared );
+	}
 }
