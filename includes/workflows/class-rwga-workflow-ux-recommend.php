@@ -88,9 +88,29 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 
 		$findings = RWGA_DB_Analysis_Findings::list_for_run( $analysis_run_id );
 		$goal     = isset( $input['business_goal'] ) ? sanitize_text_field( (string) $input['business_goal'] ) : '';
+		$mode     = class_exists( 'RWGA_Engine', false ) ? RWGA_Engine::get_mode() : 'local';
 
-		$raw = $this->produce_stub_recommendations( $run, $findings, $goal );
-		$norm = $this->normalise_response( $raw );
+		$remote_payload = array(
+			'analysis_run_id'  => $analysis_run_id,
+			'business_goal'    => $goal,
+			'geo_target'       => isset( $input['geo_target'] ) ? sanitize_text_field( (string) $input['geo_target'] ) : ( isset( $run['geo_target'] ) ? (string) $run['geo_target'] : '' ),
+			'analysis_summary' => isset( $run['summary'] ) ? (string) $run['summary'] : '',
+			'findings'         => is_array( $findings ) ? $findings : array(),
+		);
+		$remote = class_exists( 'RWGA_Engine', false ) && RWGA_Engine::should_try_remote()
+			? RWGA_Remote_Client::dispatch( $this->get_key(), $remote_payload )
+			: null;
+		$use_api = ! is_wp_error( $remote ) && is_array( $remote ) && ! empty( $remote['engine_response'] );
+
+		if ( $use_api ) {
+			$norm = $this->normalise_response( $remote['engine_response'] );
+		} else {
+			if ( is_wp_error( $remote ) && 'remote' === $mode ) {
+				return $remote;
+			}
+			$raw  = $this->produce_stub_recommendations( $run, $findings, $goal );
+			$norm = $this->normalise_response( $raw );
+		}
 
 		$in = array(
 			'analysis_run_id' => $analysis_run_id,
