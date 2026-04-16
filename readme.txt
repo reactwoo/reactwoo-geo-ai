@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.33
+Stable tag: 0.4.34
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.34 =
+* **Disconnect state guard:** while Geo AI bridge-block (`rwga_block_core_license_bridge`) is active, UI/config checks now force disconnected and ignore any stale in-request license key memo. This prevents the Settings badge from staying Connected after a Disconnect click due to fallback/cache timing.
 
 = 0.4.33 =
 * **Login diagnostics:** records `token_source_detail` from `/api/v5/auth/login` (for `api_stub` responses) so WP logs show why upstream token mint failed, e.g. `missing_secret`, `missing_license_domain`, `upstream_http_401`, `upstream_http_503`, or `upstream_network_error`.

@@ -167,6 +167,14 @@ class RWGA_Platform_Client {
 		if ( null !== self::$license_key_request_memo ) {
 			return self::$license_key_request_memo;
 		}
+		if (
+			class_exists( 'RWGA_Settings', false ) &&
+			method_exists( 'RWGA_Settings', 'is_explicitly_disconnected' ) &&
+			RWGA_Settings::is_explicitly_disconnected()
+		) {
+			self::$license_key_request_memo = '';
+			return '';
+		}
 		$k = self::read_license_key_from_db();
 		if ( '' === $k && class_exists( 'RWGA_Settings', false ) ) {
 			$k = RWGA_Settings::get_saved_license_key();
@@ -185,6 +193,13 @@ class RWGA_Platform_Client {
 	 * @return bool
 	 */
 	public static function is_configured() {
+		if (
+			class_exists( 'RWGA_Settings', false ) &&
+			method_exists( 'RWGA_Settings', 'is_explicitly_disconnected' ) &&
+			RWGA_Settings::is_explicitly_disconnected()
+		) {
+			return false;
+		}
 		return '' !== self::get_license_key();
 	}
 

@@ -240,10 +240,22 @@ class RWGA_Settings {
 	 * @return bool
 	 */
 	public static function is_license_configured_for_geo_ai_ui() {
+		if ( self::is_geo_ai_license_disconnected() ) {
+			return false;
+		}
 		if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 			return RWGA_Platform_Client::is_configured();
 		}
 		return '' !== self::get_saved_license_key();
+	}
+
+	/**
+	 * Public guard used by the platform client / UI to force "disconnected" while bridge-block is active.
+	 *
+	 * @return bool
+	 */
+	public static function is_explicitly_disconnected() {
+		return self::is_geo_ai_license_disconnected();
 	}
 
 	/**
