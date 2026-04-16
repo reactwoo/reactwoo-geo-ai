@@ -225,9 +225,10 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 					);
 				}
 
-				$rec_text = isset( $f['recommendation_hint'] ) && '' !== trim( (string) $f['recommendation_hint'] )
+				$rec_text_raw = isset( $f['recommendation_hint'] ) && '' !== trim( (string) $f['recommendation_hint'] )
 					? (string) $f['recommendation_hint']
 					: __( 'Test a clearer headline, stronger CTA hierarchy, and specific proof near the decision point.', 'reactwoo-geo-ai' );
+				$rec_text = $this->format_structured_recommendation( $problem, $why, $rec_text_raw, $cat );
 
 				$impact = isset( $f['impact_estimate'] ) ? sanitize_text_field( (string) $f['impact_estimate'] ) : 'medium';
 				$conf   = isset( $f['confidence'] ) ? (float) $f['confidence'] : 0.7;
@@ -249,20 +250,62 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 			}
 		} else {
 			$summary = isset( $run['summary'] ) ? (string) $run['summary'] : '';
+			$problem = __( 'No granular findings were stored; the page still needs a sharper narrative and CTA.', 'reactwoo-geo-ai' );
+			$why     = __( 'Visitors decide quickly; ambiguity loses leads.', 'reactwoo-geo-ai' );
+			$base_recommendation = $summary
+				? __( 'Use the analysis summary as a starting point: tighten the hero, add proof, and single primary action.', 'reactwoo-geo-ai' ) . ' ' . $summary
+				: __( 'Tighten the hero, add proof, and use a single primary action.', 'reactwoo-geo-ai' );
 			$out[]   = array(
 				'priority_level'  => 'medium',
 				'category'        => 'general',
 				'title'           => __( 'Establish a clearer primary story', 'reactwoo-geo-ai' ),
-				'problem'         => __( 'No granular findings were stored; the page still needs a sharper narrative and CTA.', 'reactwoo-geo-ai' ),
-				'why_it_matters'  => __( 'Visitors decide quickly; ambiguity loses leads.', 'reactwoo-geo-ai' ),
-				'recommendation'  => $summary
-					? __( 'Use the analysis summary as a starting point: tighten the hero, add proof, and single primary action.', 'reactwoo-geo-ai' ) . ' ' . $summary
-					: __( 'Tighten the hero, add proof, and use a single primary action.', 'reactwoo-geo-ai' ),
+				'problem'         => $problem,
+				'why_it_matters'  => $why,
+				'recommendation'  => $this->format_structured_recommendation( $problem, $why, $base_recommendation, 'general' ),
 				'expected_impact' => 'medium',
 				'confidence'      => 0.65,
 			);
 		}
 
 		return array( 'recommendations' => $out );
+	}
+
+	/**
+	 * Keep recommendation text actionable and consistently structured.
+	 *
+	 * @param string $problem Problem statement.
+	 * @param string $why Why it matters statement.
+	 * @param string $raw Raw recommendation hint.
+	 * @param string $category Finding category.
+	 * @return string
+	 */
+	private function format_structured_recommendation( $problem, $why, $raw, $category ) {
+		$raw = trim( (string) $raw );
+		if ( '' === $raw ) {
+			$raw = __( 'Clarify the value proposition, reduce CTA conflict, and add specific proof near the conversion moment.', 'reactwoo-geo-ai' );
+		}
+		$primary_cta   = __( 'Get started', 'reactwoo-geo-ai' );
+		$secondary_cta = __( 'See pricing', 'reactwoo-geo-ai' );
+		if ( false !== stripos( $raw, 'demo' ) || false !== stripos( (string) $problem, 'demo' ) ) {
+			$primary_cta = __( 'Book a demo', 'reactwoo-geo-ai' );
+		}
+		$proof = __( 'Add one testimonial with role/company and one measurable result stat near the primary CTA.', 'reactwoo-geo-ai' );
+		$category = sanitize_key( (string) $category );
+		if ( 'trust' === $category ) {
+			$proof = __( 'Show logos, a short testimonial quote, and one numeric outcome claim with source context.', 'reactwoo-geo-ai' );
+		} elseif ( 'layout' === $category ) {
+			$proof = __( 'Place proof directly after the hero and again before pricing/checkout to reduce decision friction.', 'reactwoo-geo-ai' );
+		}
+
+		return sprintf(
+			/* translators: 1: problem, 2: why, 3: implementation, 4: CTA pair, 5: proof guidance */
+			__( 'Problem to fix: %1$s | Why it matters: %2$s | Implementation: %3$s | Copy example: "Get [specific outcome] in [timeframe] without [main objection]." | CTA options: Primary "%4$s", Secondary "%5$s" | Proof to add: %6$s', 'reactwoo-geo-ai' ),
+			sanitize_text_field( (string) $problem ),
+			sanitize_text_field( (string) $why ),
+			sanitize_text_field( $raw ),
+			$primary_cta,
+			$secondary_cta,
+			$proof
+		);
 	}
 }
