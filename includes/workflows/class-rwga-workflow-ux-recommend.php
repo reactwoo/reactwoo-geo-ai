@@ -63,10 +63,12 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 	 * @return array<string, mixed>
 	 */
 	public function build_request_payload( array $input ) {
+		$cats = isset( $input['selected_categories'] ) && is_array( $input['selected_categories'] ) ? array_values( array_filter( array_map( 'sanitize_key', $input['selected_categories'] ) ) ) : array();
 		return array(
 			'analysis_run_id' => isset( $input['analysis_run_id'] ) ? (int) $input['analysis_run_id'] : 0,
 			'business_goal'   => isset( $input['business_goal'] ) ? sanitize_text_field( (string) $input['business_goal'] ) : '',
 			'geo_target'      => isset( $input['geo_target'] ) ? strtoupper( substr( sanitize_text_field( (string) $input['geo_target'] ), 0, 2 ) ) : '',
+			'selected_categories' => $cats,
 		);
 	}
 
@@ -88,6 +90,7 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 
 		$findings = RWGA_DB_Analysis_Findings::list_for_run( $analysis_run_id );
 		$goal     = isset( $input['business_goal'] ) ? sanitize_text_field( (string) $input['business_goal'] ) : '';
+		$cats     = isset( $input['selected_categories'] ) && is_array( $input['selected_categories'] ) ? array_values( array_filter( array_map( 'sanitize_key', $input['selected_categories'] ) ) ) : array();
 		$mode     = class_exists( 'RWGA_Engine', false ) ? RWGA_Engine::get_mode() : 'local';
 
 		$remote_payload = array(
@@ -96,6 +99,7 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 			'geo_target'       => isset( $input['geo_target'] ) ? sanitize_text_field( (string) $input['geo_target'] ) : ( isset( $run['geo_target'] ) ? (string) $run['geo_target'] : '' ),
 			'analysis_summary' => isset( $run['summary'] ) ? (string) $run['summary'] : '',
 			'findings'         => is_array( $findings ) ? $findings : array(),
+			'selected_categories' => $cats,
 		);
 		$remote = class_exists( 'RWGA_Engine', false ) && RWGA_Engine::should_try_remote()
 			? RWGA_Remote_Client::dispatch( $this->get_key(), $remote_payload )
@@ -116,6 +120,7 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 			'analysis_run_id' => $analysis_run_id,
 			'page_id'         => isset( $run['page_id'] ) ? (int) $run['page_id'] : 0,
 			'geo_target'      => isset( $input['geo_target'] ) ? sanitize_text_field( (string) $input['geo_target'] ) : ( isset( $run['geo_target'] ) ? (string) $run['geo_target'] : '' ),
+			'selected_categories' => $cats,
 		);
 
 		$persisted = $this->persist( $in, $norm );
@@ -149,6 +154,7 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 		$analysis_run_id = isset( $input['analysis_run_id'] ) ? (int) $input['analysis_run_id'] : 0;
 		$page_id         = isset( $input['page_id'] ) ? (int) $input['page_id'] : 0;
 		$geo             = isset( $input['geo_target'] ) ? (string) $input['geo_target'] : '';
+		$selected_categories = isset( $input['selected_categories'] ) && is_array( $input['selected_categories'] ) ? $input['selected_categories'] : array();
 
 		$recs = isset( $result['recommendations'] ) && is_array( $result['recommendations'] ) ? $result['recommendations'] : array();
 		$ids  = array();
@@ -170,9 +176,12 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 					'problem'         => isset( $rec['problem'] ) ? wp_kses_post( (string) $rec['problem'] ) : '',
 					'why_it_matters'  => isset( $rec['why_it_matters'] ) ? wp_kses_post( (string) $rec['why_it_matters'] ) : '',
 					'recommendation'  => isset( $rec['recommendation'] ) ? wp_kses_post( (string) $rec['recommendation'] ) : '',
+					'selected_categories' => $selected_categories,
+					'report_html'     => class_exists( 'RWGA_Report_Formatter', false ) ? RWGA_Report_Formatter::format_recommendation_report( $rec ) : '',
 					'expected_impact' => isset( $rec['expected_impact'] ) ? sanitize_text_field( (string) $rec['expected_impact'] ) : null,
 					'confidence'      => isset( $rec['confidence'] ) ? (float) $rec['confidence'] : null,
 					'status'          => 'open',
+					'lifecycle_status'=> 'recommendations_generated',
 					'created_by'      => $uid > 0 ? $uid : null,
 				)
 			);

@@ -83,7 +83,11 @@ $severity_class = array(
 	</div>
 
 	<div class="rwgc-card rwga-analysis-meta">
-		<h2><?php esc_html_e( 'At a glance', 'reactwoo-geo-ai' ); ?></h2>
+		<h2><?php esc_html_e( 'Analysis report', 'reactwoo-geo-ai' ); ?></h2>
+		<?php if ( ! empty( $rwga_run['report_html'] ) ) : ?>
+			<div class="rwga-report-html"><?php echo wp_kses_post( (string) $rwga_run['report_html'] ); ?></div>
+		<?php endif; ?>
+		<h3><?php esc_html_e( 'At a glance', 'reactwoo-geo-ai' ); ?></h3>
 		<dl class="rwga-license-dl">
 			<dt><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></dt>
 			<dd>
@@ -112,7 +116,7 @@ $severity_class = array(
 			<dt><?php esc_html_e( 'Created (UTC)', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_run['created_at'] ) ? esc_html( (string) $rwga_run['created_at'] ) : '—'; ?></dd>
 		</dl>
-		<?php if ( ! empty( $rwga_run['summary'] ) ) : ?>
+		<?php if ( empty( $rwga_run['report_html'] ) && ! empty( $rwga_run['summary'] ) ) : ?>
 			<h3><?php esc_html_e( 'Overview', 'reactwoo-geo-ai' ); ?></h3>
 			<p><?php echo nl2br( esc_html( (string) $rwga_run['summary'] ) ); ?></p>
 		<?php endif; ?>
@@ -242,6 +246,16 @@ $severity_class = array(
 				<label class="rwgc-field__label" for="rwga_business_goal"><?php esc_html_e( 'Business goal (optional)', 'reactwoo-geo-ai' ); ?></label>
 				<input type="text" class="rwgc-input regular-text" name="business_goal" id="rwga_business_goal" placeholder="<?php esc_attr_e( 'e.g. More demo bookings from this page', 'reactwoo-geo-ai' ); ?>" />
 			</div>
+			<fieldset class="rwgc-field">
+				<legend class="rwgc-field__label"><?php esc_html_e( 'Recommendation categories', 'reactwoo-geo-ai' ); ?></legend>
+				<label><input type="checkbox" name="categories[]" value="messaging" checked /> <?php esc_html_e( 'Messaging / Copy', 'reactwoo-geo-ai' ); ?></label><br />
+				<label><input type="checkbox" name="categories[]" value="cta" checked /> <?php esc_html_e( 'Calls to action', 'reactwoo-geo-ai' ); ?></label><br />
+				<label><input type="checkbox" name="categories[]" value="trust" checked /> <?php esc_html_e( 'Trust signals', 'reactwoo-geo-ai' ); ?></label><br />
+				<label><input type="checkbox" name="categories[]" value="layout" checked /> <?php esc_html_e( 'Layout & hierarchy', 'reactwoo-geo-ai' ); ?></label><br />
+				<label><input type="checkbox" name="categories[]" value="seo" /> <?php esc_html_e( 'SEO improvements', 'reactwoo-geo-ai' ); ?></label><br />
+				<label><input type="checkbox" name="categories[]" value="geo" /> <?php esc_html_e( 'Geo-specific optimisation', 'reactwoo-geo-ai' ); ?></label><br />
+				<label><input type="checkbox" name="categories[]" value="quick_wins" /> <?php esc_html_e( 'Quick wins only', 'reactwoo-geo-ai' ); ?></label>
+			</fieldset>
 			<p class="rwgc-actions">
 				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate recommendations', 'reactwoo-geo-ai' ); ?></button>
 			</p>
@@ -253,4 +267,8 @@ $severity_class = array(
 		<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>"><?php esc_html_e( 'Open Settings', 'reactwoo-geo-ai' ); ?></a></p>
 	</div>
 	<?php endif; ?>
+	<div class="rwgc-card rwgc-card--highlight">
+		<h3><?php esc_html_e( 'Continue journey', 'reactwoo-geo-ai' ); ?></h3>
+		<p><?php esc_html_e( 'Next step: generate recommendations for the categories you selected.', 'reactwoo-geo-ai' ); ?></p>
+	</div>
 </div>

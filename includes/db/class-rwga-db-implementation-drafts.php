@@ -54,6 +54,10 @@ class RWGA_DB_Implementation_Drafts {
 			'title'             => isset( $row['title'] ) ? sanitize_text_field( (string) $row['title'] ) : '',
 			'input_context'     => $input_ctx !== '' ? $input_ctx : null,
 			'draft_payload'     => $payload,
+			'report_html'       => isset( $row['report_html'] ) ? wp_kses_post( (string) $row['report_html'] ) : null,
+			'implementation_route' => isset( $row['implementation_route'] ) ? sanitize_key( (string) $row['implementation_route'] ) : null,
+			'variant_page_id'   => isset( $row['variant_page_id'] ) ? ( (int) $row['variant_page_id'] > 0 ? (int) $row['variant_page_id'] : null ) : null,
+			'geo_optimise_id'   => isset( $row['geo_optimise_id'] ) ? ( (int) $row['geo_optimise_id'] > 0 ? (int) $row['geo_optimise_id'] : null ) : null,
 			'diff_payload'      => is_string( $diff ) && '' !== $diff ? $diff : null,
 			'status'            => isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'draft',
 			'applied_at'        => null,
@@ -74,6 +78,10 @@ class RWGA_DB_Implementation_Drafts {
 			'%s',
 			'%s',
 			'%s',
+			'%s',
+			'%s',
+			'%s',
+			'%s',
 			null === $data['created_by'] ? '%s' : '%d',
 			'%s',
 			'%s',
@@ -86,10 +94,10 @@ class RWGA_DB_Implementation_Drafts {
 			$formats[6] = '%s';
 		}
 		if ( null === $data['diff_payload'] ) {
-			$formats[8] = '%s';
+			$formats[12] = '%s';
 		}
 		if ( null === $data['applied_at'] ) {
-			$formats[10] = '%s';
+			$formats[14] = '%s';
 		}
 
 		$ok = $wpdb->insert( $table, $data, $formats );
@@ -265,5 +273,33 @@ class RWGA_DB_Implementation_Drafts {
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
 		return false !== $wpdb->query( $prepared );
+	}
+
+	/**
+	 * Set implementation route for recommendation drafts.
+	 *
+	 * @param int    $recommendation_id Recommendation ID.
+	 * @param string $route Route key.
+	 * @return bool
+	 */
+	public static function set_route_for_recommendation( $recommendation_id, $route ) {
+		global $wpdb;
+		$recommendation_id = (int) $recommendation_id;
+		$route             = sanitize_key( (string) $route );
+		if ( $recommendation_id <= 0 || '' === $route ) {
+			return false;
+		}
+		$table = RWGA_DB::implementation_drafts_table();
+		$ok    = $wpdb->update(
+			$table,
+			array(
+				'implementation_route' => $route,
+				'updated_at'           => current_time( 'mysql', true ),
+			),
+			array( 'recommendation_id' => $recommendation_id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		return false !== $ok;
 	}
 }

@@ -33,13 +33,16 @@ class RWGA_DB_Analysis_Runs {
 			'workflow_key'          => isset( $row['workflow_key'] ) ? sanitize_key( (string) $row['workflow_key'] ) : '',
 			'agent_key'             => isset( $row['agent_key'] ) ? sanitize_key( (string) $row['agent_key'] ) : '',
 			'page_type'             => isset( $row['page_type'] ) ? sanitize_text_field( (string) $row['page_type'] ) : '',
+			'asset_type'            => isset( $row['asset_type'] ) ? sanitize_key( (string) $row['asset_type'] ) : 'page',
+			'analysis_focus'        => isset( $row['analysis_focus'] ) ? sanitize_key( (string) $row['analysis_focus'] ) : 'messaging',
 			'status'                => isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'complete',
+			'lifecycle_status'      => isset( $row['lifecycle_status'] ) ? sanitize_key( (string) $row['lifecycle_status'] ) : 'analysed',
 			'result_schema_version' => isset( $row['result_schema_version'] ) ? sanitize_text_field( (string) $row['result_schema_version'] ) : '1.0.0',
 			'created_at'            => isset( $row['created_at'] ) ? (string) $row['created_at'] : $now,
 			'updated_at'            => $now,
 		);
 
-		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
 
 		if ( $page_id > 0 ) {
 			$data['page_id'] = $page_id;
@@ -51,6 +54,15 @@ class RWGA_DB_Analysis_Runs {
 
 		$data['page_url'] = isset( $row['page_url'] ) ? esc_url_raw( (string) $row['page_url'] ) : null;
 		$formats[]        = '%s';
+
+		$asset_id = isset( $row['asset_id'] ) ? (int) $row['asset_id'] : 0;
+		if ( $asset_id > 0 ) {
+			$data['asset_id'] = $asset_id;
+			$formats[]        = '%d';
+		} else {
+			$data['asset_id'] = null;
+			$formats[]        = '%s';
+		}
 
 		$geo = isset( $row['geo_target'] ) ? strtoupper( substr( sanitize_text_field( (string) $row['geo_target'] ), 0, 2 ) ) : '';
 		$data['geo_target'] = '' !== $geo ? $geo : null;
@@ -78,6 +90,9 @@ class RWGA_DB_Analysis_Runs {
 
 		$data['summary'] = isset( $row['summary'] ) ? wp_kses_post( (string) $row['summary'] ) : null;
 		$formats[]       = '%s';
+
+		$data['report_html'] = isset( $row['report_html'] ) ? wp_kses_post( (string) $row['report_html'] ) : null;
+		$formats[]           = '%s';
 
 		$data['input_hash'] = isset( $row['input_hash'] ) ? sanitize_text_field( (string) $row['input_hash'] ) : null;
 		$formats[]          = '%s';

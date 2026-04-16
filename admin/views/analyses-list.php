@@ -40,7 +40,7 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 			RWGC_Admin_UI::render_button_row(
 				array(
 					array(
-						'url'     => admin_url( 'admin.php?page=rwga-dashboard' ),
+						'url'     => admin_url( 'admin.php?page=' . RWGA_Admin::MENU_PARENT ),
 						'label'   => __( 'Analyse a page', 'reactwoo-geo-ai' ),
 						'variant' => 'primary',
 					),
@@ -67,8 +67,8 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 					__( 'Start from the dashboard: pick a page and run an analysis.', 'reactwoo-geo-ai' ),
 					array(
 						array(
-							'url'     => admin_url( 'admin.php?page=rwga-dashboard' ),
-							'label'   => __( 'Go to dashboard', 'reactwoo-geo-ai' ),
+							'url'     => admin_url( 'admin.php?page=' . RWGA_Admin::MENU_PARENT ),
+							'label'   => __( 'Start workflow', 'reactwoo-geo-ai' ),
 							'primary' => true,
 						),
 					),
@@ -86,6 +86,7 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 						<th scope="col"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Score', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Workflow', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Lifecycle', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Country', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Date (UTC)', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Actions', 'reactwoo-geo-ai' ); ?></th>
@@ -119,6 +120,7 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 							</td>
 							<td><?php echo isset( $row['score'] ) && null !== $row['score'] ? esc_html( (string) $row['score'] ) : '—'; ?></td>
 							<td><code><?php echo isset( $row['workflow_key'] ) ? esc_html( (string) $row['workflow_key'] ) : '—'; ?></code></td>
+							<td><?php echo ! empty( $row['lifecycle_status'] ) ? esc_html( (string) $row['lifecycle_status'] ) : esc_html__( 'analysed', 'reactwoo-geo-ai' ); ?></td>
 							<td><?php echo isset( $row['geo_target'] ) && $row['geo_target'] ? esc_html( (string) $row['geo_target'] ) : '—'; ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
 							<td>

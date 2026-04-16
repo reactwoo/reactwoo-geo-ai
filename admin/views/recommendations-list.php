@@ -92,8 +92,8 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 							'primary' => true,
 						),
 						array(
-							'url'   => admin_url( 'admin.php?page=rwga-dashboard' ),
-							'label' => __( 'Analyse a page', 'reactwoo-geo-ai' ),
+							'url'   => admin_url( 'admin.php?page=' . RWGA_Admin::MENU_PARENT ),
+							'label' => __( 'Start workflow', 'reactwoo-geo-ai' ),
 						),
 					),
 					array( 'dashicon' => 'dashicons-lightbulb' )
@@ -111,7 +111,7 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 						<th scope="col"><?php esc_html_e( 'Priority', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Analysis', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Lifecycle', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Date (UTC)', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Actions', 'reactwoo-geo-ai' ); ?></th>
 					</tr>
@@ -146,7 +146,7 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 								<?php endif; ?>
 							</td>
 							<td><?php echo $pid > 0 && '' !== $pt ? esc_html( $pt ) : '—'; ?></td>
-							<td><?php echo isset( $row['status'] ) ? esc_html( (string) $row['status'] ) : '—'; ?></td>
+							<td><?php echo ! empty( $row['lifecycle_status'] ) ? esc_html( (string) $row['lifecycle_status'] ) : esc_html__( 'recommendations_generated', 'reactwoo-geo-ai' ); ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
 							<td>
 								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $rec_url ); ?>"><?php esc_html_e( 'View recommendation', 'reactwoo-geo-ai' ); ?></a>

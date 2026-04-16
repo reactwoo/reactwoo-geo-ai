@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_DB {
 
 	const VERSION_OPTION = 'rwga_db_version';
-	const SCHEMA_VERSION = '1.0.0';
+	const SCHEMA_VERSION = '1.1.0';
 
 	/**
 	 * @return string
@@ -101,12 +101,17 @@ class RWGA_DB {
 			page_id bigint(20) unsigned NULL,
 			page_url text NULL,
 			page_type varchar(50) NOT NULL DEFAULT '',
+			asset_type varchar(50) NOT NULL DEFAULT 'page',
+			asset_id bigint(20) unsigned NULL,
+			analysis_focus varchar(20) NOT NULL DEFAULT 'messaging',
 			geo_target varchar(20) NULL,
 			device_type varchar(20) NULL,
 			status varchar(20) NOT NULL DEFAULT 'complete',
+			lifecycle_status varchar(40) NOT NULL DEFAULT 'analysed',
 			score decimal(5,2) NULL,
 			confidence decimal(5,2) NULL,
 			summary longtext NULL,
+			report_html longtext NULL,
 			input_hash varchar(64) NULL,
 			result_schema_version varchar(20) NOT NULL DEFAULT '',
 			remote_run_id varchar(128) NULL,
@@ -153,9 +158,12 @@ class RWGA_DB {
 			problem longtext NOT NULL,
 			why_it_matters longtext NOT NULL,
 			recommendation longtext NOT NULL,
+			selected_categories longtext NULL,
+			report_html longtext NULL,
 			expected_impact varchar(100) NULL,
 			confidence decimal(5,2) NULL,
 			status varchar(20) NOT NULL DEFAULT 'open',
+			lifecycle_status varchar(40) NOT NULL DEFAULT 'recommendations_generated',
 			dismiss_reason text NULL,
 			accepted_at datetime NULL,
 			dismissed_at datetime NULL,
@@ -179,6 +187,10 @@ class RWGA_DB {
 			title varchar(255) NOT NULL DEFAULT '',
 			input_context longtext NULL,
 			draft_payload longtext NOT NULL,
+			report_html longtext NULL,
+			implementation_route varchar(40) NULL,
+			variant_page_id bigint(20) unsigned NULL,
+			geo_optimise_id bigint(20) unsigned NULL,
 			diff_payload longtext NULL,
 			status varchar(20) NOT NULL DEFAULT 'draft',
 			applied_at datetime NULL,

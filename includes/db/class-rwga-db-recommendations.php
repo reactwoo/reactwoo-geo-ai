@@ -53,15 +53,18 @@ class RWGA_DB_Recommendations {
 			'problem'            => isset( $row['problem'] ) ? wp_kses_post( (string) $row['problem'] ) : '',
 			'why_it_matters'     => isset( $row['why_it_matters'] ) ? wp_kses_post( (string) $row['why_it_matters'] ) : '',
 			'recommendation'     => isset( $row['recommendation'] ) ? wp_kses_post( (string) $row['recommendation'] ) : '',
+			'selected_categories'=> isset( $row['selected_categories'] ) ? wp_json_encode( (array) $row['selected_categories'] ) : null,
+			'report_html'        => isset( $row['report_html'] ) ? wp_kses_post( (string) $row['report_html'] ) : null,
 			'expected_impact'    => $exp,
 			'confidence'         => $conf,
 			'status'             => isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'open',
+			'lifecycle_status'   => isset( $row['lifecycle_status'] ) ? sanitize_key( (string) $row['lifecycle_status'] ) : 'recommendations_generated',
 			'created_by'         => $uid > 0 ? $uid : null,
 			'created_at'         => $now,
 			'updated_at'         => $now,
 		);
 
-		// 17 columns — nulls use %s for wpdb compatibility.
+		// 20 columns — nulls use %s for wpdb compatibility.
 		$formats = array(
 			null === $data['analysis_run_id'] ? '%s' : '%d',
 			'%s',
@@ -75,7 +78,10 @@ class RWGA_DB_Recommendations {
 			'%s',
 			'%s',
 			'%s',
+			'%s',
+			'%s',
 			null === $data['confidence'] ? '%s' : '%f',
+			'%s',
 			'%s',
 			null === $data['created_by'] ? '%s' : '%d',
 			'%s',

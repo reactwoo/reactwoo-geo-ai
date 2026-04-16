@@ -56,7 +56,11 @@ $exp_impact      = isset( $rwga_rec['expected_impact'] ) ? (string) $rwga_rec['e
 	</div>
 
 	<div class="rwgc-card rwga-analysis-meta">
-		<h2><?php esc_html_e( 'Summary', 'reactwoo-geo-ai' ); ?></h2>
+		<h2><?php esc_html_e( 'Recommendation report', 'reactwoo-geo-ai' ); ?></h2>
+		<?php if ( ! empty( $rwga_rec['report_html'] ) ) : ?>
+			<div class="rwga-report-html"><?php echo wp_kses_post( (string) $rwga_rec['report_html'] ); ?></div>
+		<?php endif; ?>
+		<h3><?php esc_html_e( 'Summary', 'reactwoo-geo-ai' ); ?></h3>
 		<dl class="rwga-license-dl">
 			<dt><?php esc_html_e( 'Priority', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_rec['priority_level'] ) ? esc_html( (string) $rwga_rec['priority_level'] ) : '—'; ?></dd>
@@ -78,6 +82,7 @@ $exp_impact      = isset( $rwga_rec['expected_impact'] ) ? (string) $rwga_rec['e
 			<dd><?php echo isset( $rwga_rec['created_at'] ) ? esc_html( (string) $rwga_rec['created_at'] ) : '—'; ?></dd>
 		</dl>
 
+		<?php if ( empty( $rwga_rec['report_html'] ) ) : ?>
 		<h3><?php esc_html_e( 'Problem', 'reactwoo-geo-ai' ); ?></h3>
 		<div class="rwga-pre-wrap"><?php echo isset( $rwga_rec['problem'] ) ? wp_kses_post( wpautop( (string) $rwga_rec['problem'] ) ) : ''; ?></div>
 
@@ -88,6 +93,7 @@ $exp_impact      = isset( $rwga_rec['expected_impact'] ) ? (string) $rwga_rec['e
 
 		<h3><?php esc_html_e( 'Suggested action', 'reactwoo-geo-ai' ); ?></h3>
 		<div class="rwga-pre-wrap"><?php echo isset( $rwga_rec['recommendation'] ) ? wp_kses_post( wpautop( (string) $rwga_rec['recommendation'] ) ) : ''; ?></div>
+		<?php endif; ?>
 	</div>
 
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
@@ -138,4 +144,16 @@ $exp_impact      = isset( $rwga_rec['expected_impact'] ) ? (string) $rwga_rec['e
 		<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>"><?php esc_html_e( 'Open Settings', 'reactwoo-geo-ai' ); ?></a></p>
 	</div>
 	<?php endif; ?>
+	<div class="rwgc-card rwgc-card--highlight">
+		<h2><?php esc_html_e( 'Choose how to apply these changes', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Select a route after drafts are generated. Nothing is published automatically.', 'reactwoo-geo-ai' ); ?></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwgc-actions rwgc-actions--stack-mobile">
+			<input type="hidden" name="action" value="rwga_set_implementation_route" />
+			<input type="hidden" name="recommendation_id" value="<?php echo (int) $rec_id; ?>" />
+			<?php wp_nonce_field( 'rwga_set_implementation_route' ); ?>
+			<button class="rwgc-btn rwgc-btn--secondary" type="submit" name="implementation_route" value="replace"><?php esc_html_e( 'Replace existing content', 'reactwoo-geo-ai' ); ?></button>
+			<button class="rwgc-btn rwgc-btn--secondary" type="submit" name="implementation_route" value="variant"><?php esc_html_e( 'Create a new variant', 'reactwoo-geo-ai' ); ?></button>
+			<button class="rwgc-btn rwgc-btn--primary" type="submit" name="implementation_route" value="geo_optimise"><?php esc_html_e( 'Send to Geo Optimise', 'reactwoo-geo-ai' ); ?></button>
+		</form>
+	</div>
 </div>

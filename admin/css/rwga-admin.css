@@ -1,3 +1,11 @@
+.rwga-wizard { margin-bottom: 16px; }
+.rwga-progress { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+.rwga-progress li { background: #f0f4f8; border: 1px solid #d4dbe3; border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+.rwga-progress li.is-active { background: #2271b1; color: #fff; border-color: #2271b1; }
+.rwga-report-html h2 { margin-top: 1.2em; margin-bottom: 0.4em; }
+.rwga-report-html h3 { margin-top: 1em; margin-bottom: 0.35em; }
+.rwga-report-html p { margin: 0 0 0.8em; line-height: 1.5; }
+.rwga-report-html ul { margin: 0 0 1em 1.2em; }
 /**
  * Geo AI admin — complements Geo Core .rwgc-* styles.
  */

@@ -80,7 +80,11 @@ if ( '' === $rec_label && $rec_id > 0 ) {
 	</div>
 
 	<div class="rwgc-card rwga-analysis-meta">
-		<h2><?php esc_html_e( 'Details', 'reactwoo-geo-ai' ); ?></h2>
+		<h2><?php esc_html_e( 'Draft report', 'reactwoo-geo-ai' ); ?></h2>
+		<?php if ( ! empty( $rwga_draft['report_html'] ) ) : ?>
+			<div class="rwga-report-html"><?php echo wp_kses_post( (string) $rwga_draft['report_html'] ); ?></div>
+		<?php endif; ?>
+		<h3><?php esc_html_e( 'Details', 'reactwoo-geo-ai' ); ?></h3>
 		<dl class="rwga-license-dl">
 			<dt><?php esc_html_e( 'Type', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_draft['draft_type'] ) ? esc_html( (string) $rwga_draft['draft_type'] ) : '—'; ?></dd>
@@ -90,6 +94,8 @@ if ( '' === $rec_label && $rec_id > 0 ) {
 			<dd><?php echo isset( $rwga_draft['geo_target'] ) && $rwga_draft['geo_target'] ? esc_html( (string) $rwga_draft['geo_target'] ) : '—'; ?></dd>
 			<dt><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_draft['status'] ) ? esc_html( (string) $rwga_draft['status'] ) : '—'; ?></dd>
+			<dt><?php esc_html_e( 'Route', 'reactwoo-geo-ai' ); ?></dt>
+			<dd><?php echo ! empty( $rwga_draft['implementation_route'] ) ? esc_html( (string) $rwga_draft['implementation_route'] ) : '—'; ?></dd>
 			<dt><?php esc_html_e( 'Created (UTC)', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_draft['created_at'] ) ? esc_html( (string) $rwga_draft['created_at'] ) : '—'; ?></dd>
 			<?php if ( $rec_id > 0 ) : ?>
@@ -108,12 +114,16 @@ if ( '' === $rec_label && $rec_id > 0 ) {
 	</div>
 	<?php endif; ?>
 
-	<div class="rwgc-card">
+	<?php if ( empty( $rwga_draft['report_html'] ) ) : ?><div class="rwgc-card">
 		<h2><?php esc_html_e( 'Generated content', 'reactwoo-geo-ai' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Copy sections you need into the block editor or SEO plugin.', 'reactwoo-geo-ai' ); ?></p>
 		<details class="rwga-dev-details" open>
 			<summary><?php esc_html_e( 'Structured output (JSON)', 'reactwoo-geo-ai' ); ?></summary>
 			<pre class="rwga-code-block"><?php echo esc_html( (string) $payload_text ); ?></pre>
 		</details>
+	</div><?php endif; ?>
+	<div class="rwgc-card rwgc-card--highlight">
+		<h3><?php esc_html_e( 'Continue journey', 'reactwoo-geo-ai' ); ?></h3>
+		<p><?php esc_html_e( 'Next step: apply this draft to live content or test it as a variant.', 'reactwoo-geo-ai' ); ?></p>
 	</div>
 </div>

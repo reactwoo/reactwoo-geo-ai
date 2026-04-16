@@ -161,6 +161,8 @@ class RWGA_Workflow_SEO_Implement extends RWGA_Workflow_Base {
 					'title'             => isset( $d['title'] ) ? sanitize_text_field( (string) $d['title'] ) : '',
 					'input_context'     => isset( $d['input_context'] ) ? wp_kses_post( (string) $d['input_context'] ) : '',
 					'draft_payload'     => $payload,
+					'report_html'       => class_exists( 'RWGA_Report_Formatter', false ) ? RWGA_Report_Formatter::format_draft_report( array_merge( $d, array( 'draft_payload' => $payload ) ) ) : '',
+					'implementation_route' => 'draft',
 					'status'            => 'draft',
 					'created_by'        => $uid > 0 ? $uid : null,
 				)

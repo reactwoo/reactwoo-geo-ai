@@ -286,7 +286,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 						),
 						array(
 							'url'   => admin_url( 'admin.php?page=rwga-analyses' ),
-							'label' => __( 'Analyse a page', 'reactwoo-geo-ai' ),
+							'label' => __( 'Start workflow', 'reactwoo-geo-ai' ),
 						),
 					),
 					array( 'dashicon' => 'dashicons-media-document' )
