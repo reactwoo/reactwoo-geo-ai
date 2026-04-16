@@ -49,6 +49,8 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 		echo '</p></div>';
 	} elseif ( 'unlicensed' === $rwga_rec ) {
 		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to generate recommendations.', 'reactwoo-geo-ai' ) . '</p></div>';
+	} elseif ( 'deleted' === $rwga_rec ) {
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Recommendation deleted (linked implementation drafts removed too).', 'reactwoo-geo-ai' ) . '</p></div>';
 	}
 	$rwga_impl = isset( $_GET['rwga_impl'] ) ? sanitize_key( wp_unslash( $_GET['rwga_impl'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( 'unlicensed' === $rwga_impl ) {
@@ -158,6 +160,15 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 										<button type="submit" class="rwgc-btn rwgc-btn--sm rwgc-btn--primary"><?php esc_html_e( 'Generate copy', 'reactwoo-geo-ai' ); ?></button>
 									</form>
 								<?php endif; ?>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-left:6px;">
+									<input type="hidden" name="action" value="rwga_recommendation_delete" />
+									<input type="hidden" name="recommendation_id" value="<?php echo (int) $rid; ?>" />
+									<?php if ( $rwga_filter_analysis > 0 ) : ?>
+										<input type="hidden" name="analysis_run" value="<?php echo (int) $rwga_filter_analysis; ?>" />
+									<?php endif; ?>
+									<?php wp_nonce_field( 'rwga_recommendation_delete' ); ?>
+									<button type="submit" class="rwgc-btn rwgc-btn--sm rwgc-btn--tertiary" onclick="return confirm('<?php echo esc_js( __( 'Delete this recommendation and its generated implementation drafts?', 'reactwoo-geo-ai' ) ); ?>');"><?php esc_html_e( 'Delete', 'reactwoo-geo-ai' ); ?></button>
+								</form>
 							</td>
 						</tr>
 					<?php endforeach; ?>

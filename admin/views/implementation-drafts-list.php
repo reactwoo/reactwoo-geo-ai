@@ -82,6 +82,10 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 		$msg = sanitize_text_field( wp_unslash( rawurldecode( (string) $_GET['rwga_err'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
 	}
+	$rwga_draft = isset( $_GET['rwga_draft'] ) ? sanitize_key( wp_unslash( $_GET['rwga_draft'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'deleted' === $rwga_draft ) {
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Implementation draft deleted.', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
 	?>
 
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
@@ -303,6 +307,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 						<th scope="col"><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></th>
 						<th scope="col"><?php esc_html_e( 'Date (UTC)', 'reactwoo-geo-ai' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Actions', 'reactwoo-geo-ai' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -337,6 +342,21 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 							<td><?php echo $pid > 0 && '' !== $pt ? esc_html( $pt ) : '—'; ?></td>
 							<td><?php echo isset( $row['status'] ) ? esc_html( (string) $row['status'] ) : '—'; ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
+							<td>
+								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'View', 'reactwoo-geo-ai' ); ?></a>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-left:6px;">
+									<input type="hidden" name="action" value="rwga_draft_delete" />
+									<input type="hidden" name="draft_id" value="<?php echo (int) $did; ?>" />
+									<?php if ( $rwga_filter_recommendation > 0 ) : ?>
+										<input type="hidden" name="recommendation_id" value="<?php echo (int) $rwga_filter_recommendation; ?>" />
+									<?php endif; ?>
+									<?php if ( '' !== $rwga_filter_workflow ) : ?>
+										<input type="hidden" name="workflow_key" value="<?php echo esc_attr( $rwga_filter_workflow ); ?>" />
+									<?php endif; ?>
+									<?php wp_nonce_field( 'rwga_draft_delete' ); ?>
+									<button type="submit" class="rwgc-btn rwgc-btn--sm rwgc-btn--tertiary" onclick="return confirm('<?php echo esc_js( __( 'Delete this implementation draft?', 'reactwoo-geo-ai' ) ); ?>');"><?php esc_html_e( 'Delete', 'reactwoo-geo-ai' ); ?></button>
+								</form>
+							</td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>

@@ -35,6 +35,8 @@ class RWGA_Admin {
 		add_action( 'admin_post_rwga_automation_rule_delete', array( __CLASS__, 'handle_automation_rule_delete' ) );
 		add_action( 'admin_post_rwga_analysis_delete', array( __CLASS__, 'handle_analysis_delete' ) );
 		add_action( 'admin_post_rwga_bulk_implement_analysis', array( __CLASS__, 'handle_bulk_implement_analysis' ) );
+		add_action( 'admin_post_rwga_recommendation_delete', array( __CLASS__, 'handle_recommendation_delete' ) );
+		add_action( 'admin_post_rwga_draft_delete', array( __CLASS__, 'handle_draft_delete' ) );
 		add_action( 'admin_post_rwga_clear_geo_ai_license', array( __CLASS__, 'handle_clear_license_post' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
@@ -831,6 +833,68 @@ class RWGA_Admin {
 		wp_safe_redirect(
 			admin_url( 'admin.php?page=rwga-implementation-drafts&rwga_impl=ok&rwga_draft_count=' . (int) $draft_count . '&analysis_run=' . (int) $analysis_run_id )
 		);
+		exit;
+	}
+
+	/**
+	 * Delete a single recommendation and linked implementation drafts.
+	 *
+	 * @return void
+	 */
+	public static function handle_recommendation_delete() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to delete recommendations.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_recommendation_delete' );
+
+		$rec_id      = isset( $_POST['recommendation_id'] ) ? (int) wp_unslash( $_POST['recommendation_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$analysis_id = isset( $_POST['analysis_run'] ) ? (int) wp_unslash( $_POST['analysis_run'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $rec_id <= 0 || ! class_exists( 'RWGA_DB_Recommendations', false ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=rwga-recommendations&rwga_rec=bad' ) );
+			exit;
+		}
+
+		if ( class_exists( 'RWGA_DB_Implementation_Drafts', false ) ) {
+			RWGA_DB_Implementation_Drafts::delete_for_recommendations( array( $rec_id ) );
+		}
+		RWGA_DB_Recommendations::delete( $rec_id );
+
+		$redir = admin_url( 'admin.php?page=rwga-recommendations&rwga_rec=deleted' );
+		if ( $analysis_id > 0 ) {
+			$redir = add_query_arg( 'analysis_run', $analysis_id, $redir );
+		}
+		wp_safe_redirect( $redir );
+		exit;
+	}
+
+	/**
+	 * Delete a single implementation draft row.
+	 *
+	 * @return void
+	 */
+	public static function handle_draft_delete() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to delete drafts.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_draft_delete' );
+
+		$draft_id          = isset( $_POST['draft_id'] ) ? (int) wp_unslash( $_POST['draft_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$recommendation_id = isset( $_POST['recommendation_id'] ) ? (int) wp_unslash( $_POST['recommendation_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$workflow_key      = isset( $_POST['workflow_key'] ) ? sanitize_key( wp_unslash( $_POST['workflow_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $draft_id <= 0 || ! class_exists( 'RWGA_DB_Implementation_Drafts', false ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=rwga-implementation-drafts&rwga_draft=bad' ) );
+			exit;
+		}
+
+		RWGA_DB_Implementation_Drafts::delete( $draft_id );
+		$redir = admin_url( 'admin.php?page=rwga-implementation-drafts&rwga_draft=deleted' );
+		if ( $recommendation_id > 0 ) {
+			$redir = add_query_arg( 'recommendation_id', $recommendation_id, $redir );
+		}
+		if ( '' !== $workflow_key ) {
+			$redir = add_query_arg( 'workflow_key', $workflow_key, $redir );
+		}
+		wp_safe_redirect( $redir );
 		exit;
 	}
 

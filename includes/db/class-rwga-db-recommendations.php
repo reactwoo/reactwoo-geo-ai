@@ -103,6 +103,22 @@ class RWGA_DB_Recommendations {
 	}
 
 	/**
+	 * Delete one recommendation row.
+	 *
+	 * @param int $id Recommendation ID.
+	 * @return bool
+	 */
+	public static function delete( $id ) {
+		global $wpdb;
+		$id = (int) $id;
+		if ( $id <= 0 ) {
+			return false;
+		}
+		$table = RWGA_DB::recommendations_table();
+		return false !== $wpdb->delete( $table, array( 'id' => $id ), array( '%d' ) );
+	}
+
+	/**
 	 * @param int $analysis_run_id Run ID.
 	 * @return array<int, array<string, mixed>>
 	 */

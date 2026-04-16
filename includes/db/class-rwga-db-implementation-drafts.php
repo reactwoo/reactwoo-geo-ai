@@ -113,6 +113,22 @@ class RWGA_DB_Implementation_Drafts {
 	}
 
 	/**
+	 * Delete a single draft row.
+	 *
+	 * @param int $id Draft ID.
+	 * @return bool
+	 */
+	public static function delete( $id ) {
+		global $wpdb;
+		$id = (int) $id;
+		if ( $id <= 0 ) {
+			return false;
+		}
+		$table = RWGA_DB::implementation_drafts_table();
+		return false !== $wpdb->delete( $table, array( 'id' => $id ), array( '%d' ) );
+	}
+
+	/**
 	 * @param int $recommendation_id Recommendation ID.
 	 * @return array<int, array<string, mixed>>
 	 */
