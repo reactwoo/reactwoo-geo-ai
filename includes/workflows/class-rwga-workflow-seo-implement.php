@@ -194,6 +194,10 @@ class RWGA_Workflow_SEO_Implement extends RWGA_Workflow_Base {
 				'count'        => count( $ids ),
 			)
 		);
+		$rec_for_status = isset( $input['recommendation_id'] ) ? (int) $input['recommendation_id'] : 0;
+		if ( $rec_for_status > 0 && class_exists( 'RWGA_DB_Recommendations', false ) ) {
+			RWGA_DB_Recommendations::set_lifecycle_status( $rec_for_status, 'implementation_generated' );
+		}
 
 		return array(
 			'success'   => true,

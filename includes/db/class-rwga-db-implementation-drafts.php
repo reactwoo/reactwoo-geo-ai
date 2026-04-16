@@ -160,32 +160,44 @@ class RWGA_DB_Implementation_Drafts {
 	 * @param string $workflow_key      Optional filter (e.g. copy_implement, seo_implement).
 	 * @return int
 	 */
-	public static function count_rows( $recommendation_id = 0, $workflow_key = '' ) {
+	public static function count_rows( $recommendation_id = 0, $workflow_key = '', array $filters = array() ) {
 		global $wpdb;
 		$table             = RWGA_DB::implementation_drafts_table();
 		$recommendation_id = (int) $recommendation_id;
 		$wk                = sanitize_key( (string) $workflow_key );
 
+		$where = array();
+		$args  = array();
 		if ( $recommendation_id > 0 && '' !== $wk ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			return (int) $wpdb->get_var(
-				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$table} WHERE recommendation_id = %d AND workflow_key = %s",
-					$recommendation_id,
-					$wk
-				)
-			);
+			$where[] = 'recommendation_id = %d';
+			$args[]  = $recommendation_id;
+			$where[] = 'workflow_key = %s';
+			$args[]  = $wk;
+		} elseif ( $recommendation_id > 0 ) {
+			$where[] = 'recommendation_id = %d';
+			$args[]  = $recommendation_id;
+		} elseif ( '' !== $wk ) {
+			$where[] = 'workflow_key = %s';
+			$args[]  = $wk;
 		}
-		if ( $recommendation_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE recommendation_id = %d", $recommendation_id ) );
+		if ( ! empty( $filters['status'] ) ) {
+			$where[] = 'status = %s';
+			$args[]  = sanitize_key( (string) $filters['status'] );
 		}
-		if ( '' !== $wk ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE workflow_key = %s", $wk ) );
+		if ( ! empty( $filters['from_date'] ) ) {
+			$where[] = 'DATE(created_at) >= %s';
+			$args[]  = sanitize_text_field( (string) $filters['from_date'] );
+		}
+		if ( ! empty( $filters['to_date'] ) ) {
+			$where[] = 'DATE(created_at) <= %s';
+			$args[]  = sanitize_text_field( (string) $filters['to_date'] );
+		}
+		$sql = "SELECT COUNT(*) FROM {$table}";
+		if ( ! empty( $where ) ) {
+			$sql .= ' WHERE ' . implode( ' AND ', $where );
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		return (int) ( empty( $args ) ? $wpdb->get_var( $sql ) : $wpdb->get_var( $wpdb->prepare( $sql, $args ) ) );
 	}
 
 	/**
@@ -195,7 +207,7 @@ class RWGA_DB_Implementation_Drafts {
 	 * @param string $workflow_key      Optional filter.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function list_paged( $per_page = 20, $paged = 1, $recommendation_id = 0, $workflow_key = '' ) {
+	public static function list_paged( $per_page = 20, $paged = 1, $recommendation_id = 0, $workflow_key = '', array $filters = array() ) {
 		global $wpdb;
 		$per_page = max( 1, min( 100, (int) $per_page ) );
 		$paged    = max( 1, (int) $paged );
@@ -204,44 +216,37 @@ class RWGA_DB_Implementation_Drafts {
 		$recommendation_id = (int) $recommendation_id;
 		$wk                  = sanitize_key( (string) $workflow_key );
 
-		if ( $recommendation_id > 0 && '' !== $wk ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			$rows = $wpdb->get_results(
-				$wpdb->prepare(
-					"SELECT * FROM {$table} WHERE recommendation_id = %d AND workflow_key = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
-					$recommendation_id,
-					$wk,
-					$per_page,
-					$offset
-				),
-				ARRAY_A
-			);
-		} elseif ( $recommendation_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			$rows = $wpdb->get_results(
-				$wpdb->prepare(
-					"SELECT * FROM {$table} WHERE recommendation_id = %d ORDER BY created_at DESC LIMIT %d OFFSET %d",
-					$recommendation_id,
-					$per_page,
-					$offset
-				),
-				ARRAY_A
-			);
-		} elseif ( '' !== $wk ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			$rows = $wpdb->get_results(
-				$wpdb->prepare(
-					"SELECT * FROM {$table} WHERE workflow_key = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
-					$wk,
-					$per_page,
-					$offset
-				),
-				ARRAY_A
-			);
-		} else {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ), ARRAY_A );
+		$where = array();
+		$args  = array();
+		if ( $recommendation_id > 0 ) {
+			$where[] = 'recommendation_id = %d';
+			$args[]  = $recommendation_id;
 		}
+		if ( '' !== $wk ) {
+			$where[] = 'workflow_key = %s';
+			$args[]  = $wk;
+		}
+		if ( ! empty( $filters['status'] ) ) {
+			$where[] = 'status = %s';
+			$args[]  = sanitize_key( (string) $filters['status'] );
+		}
+		if ( ! empty( $filters['from_date'] ) ) {
+			$where[] = 'DATE(created_at) >= %s';
+			$args[]  = sanitize_text_field( (string) $filters['from_date'] );
+		}
+		if ( ! empty( $filters['to_date'] ) ) {
+			$where[] = 'DATE(created_at) <= %s';
+			$args[]  = sanitize_text_field( (string) $filters['to_date'] );
+		}
+		$sql = "SELECT * FROM {$table}";
+		if ( ! empty( $where ) ) {
+			$sql .= ' WHERE ' . implode( ' AND ', $where );
+		}
+		$sql   .= ' ORDER BY created_at DESC LIMIT %d OFFSET %d';
+		$args[] = $per_page;
+		$args[] = $offset;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
 	}
 

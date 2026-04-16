@@ -17,6 +17,7 @@ $rwga_pagination        = isset( $rwga_pagination ) && is_array( $rwga_paginatio
 );
 $rwga_filter_analysis   = isset( $rwga_filter_analysis ) ? (int) $rwga_filter_analysis : 0;
 $rwgc_nav_current       = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-recommendations';
+$rwga_filters           = isset( $rwga_filters ) && is_array( $rwga_filters ) ? $rwga_filters : array();
 
 $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 ?>
@@ -64,6 +65,13 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 			<label class="rwgc-field__label" for="rwga-filter-analysis"><?php esc_html_e( 'Analysis run #', 'reactwoo-geo-ai' ); ?></label>
 			<input type="number" min="0" name="analysis_run" id="rwga-filter-analysis" class="rwgc-input" value="<?php echo $rwga_filter_analysis > 0 ? (int) $rwga_filter_analysis : ''; ?>" style="max-width: 8rem;" />
 			<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Filter', 'reactwoo-geo-ai' ); ?></button>
+			<select name="lifecycle_status" class="rwgc-select rwgc-input">
+				<option value=""><?php esc_html_e( 'All statuses', 'reactwoo-geo-ai' ); ?></option>
+				<option value="recommendations_generated" <?php selected( 'recommendations_generated', isset( $rwga_filters['lifecycle_status'] ) ? $rwga_filters['lifecycle_status'] : '' ); ?>><?php esc_html_e( 'Recommendations generated', 'reactwoo-geo-ai' ); ?></option>
+				<option value="implementation_generated" <?php selected( 'implementation_generated', isset( $rwga_filters['lifecycle_status'] ) ? $rwga_filters['lifecycle_status'] : '' ); ?>><?php esc_html_e( 'Implementation generated', 'reactwoo-geo-ai' ); ?></option>
+			</select>
+			<input type="date" name="from_date" value="<?php echo esc_attr( isset( $rwga_filters['from_date'] ) ? (string) $rwga_filters['from_date'] : '' ); ?>" />
+			<input type="date" name="to_date" value="<?php echo esc_attr( isset( $rwga_filters['to_date'] ) ? (string) $rwga_filters['to_date'] : '' ); ?>" />
 			<?php if ( $rwga_filter_analysis > 0 ) : ?>
 				<a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>
 			<?php endif; ?>

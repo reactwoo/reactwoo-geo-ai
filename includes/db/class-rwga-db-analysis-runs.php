@@ -151,11 +151,33 @@ class RWGA_DB_Analysis_Runs {
 	 *
 	 * @return int
 	 */
-	public static function count_rows() {
+	public static function count_rows( array $filters = array() ) {
 		global $wpdb;
 		$table = RWGA_DB::analysis_runs_table();
+		$where = array();
+		$args  = array();
+		if ( ! empty( $filters['asset_type'] ) ) {
+			$where[] = 'asset_type = %s';
+			$args[]  = sanitize_key( (string) $filters['asset_type'] );
+		}
+		if ( ! empty( $filters['lifecycle_status'] ) ) {
+			$where[] = 'lifecycle_status = %s';
+			$args[]  = sanitize_key( (string) $filters['lifecycle_status'] );
+		}
+		if ( ! empty( $filters['from_date'] ) ) {
+			$where[] = 'DATE(created_at) >= %s';
+			$args[]  = sanitize_text_field( (string) $filters['from_date'] );
+		}
+		if ( ! empty( $filters['to_date'] ) ) {
+			$where[] = 'DATE(created_at) <= %s';
+			$args[]  = sanitize_text_field( (string) $filters['to_date'] );
+		}
+		$sql = "SELECT COUNT(*) FROM {$table}";
+		if ( ! empty( $where ) ) {
+			$sql .= ' WHERE ' . implode( ' AND ', $where );
+		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-		$c = $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		$c = empty( $args ) ? $wpdb->get_var( $sql ) : $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
 		return (int) $c;
 	}
 
@@ -166,15 +188,59 @@ class RWGA_DB_Analysis_Runs {
 	 * @param int $paged    Page number (1-based).
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function list_paged( $per_page = 20, $paged = 1 ) {
+	public static function list_paged( $per_page = 20, $paged = 1, array $filters = array() ) {
 		global $wpdb;
 		$per_page = max( 1, min( 100, (int) $per_page ) );
 		$paged    = max( 1, (int) $paged );
 		$offset   = ( $paged - 1 ) * $per_page;
 		$table    = RWGA_DB::analysis_runs_table();
+		$where = array();
+		$args  = array();
+		if ( ! empty( $filters['asset_type'] ) ) {
+			$where[] = 'asset_type = %s';
+			$args[]  = sanitize_key( (string) $filters['asset_type'] );
+		}
+		if ( ! empty( $filters['lifecycle_status'] ) ) {
+			$where[] = 'lifecycle_status = %s';
+			$args[]  = sanitize_key( (string) $filters['lifecycle_status'] );
+		}
+		if ( ! empty( $filters['from_date'] ) ) {
+			$where[] = 'DATE(created_at) >= %s';
+			$args[]  = sanitize_text_field( (string) $filters['from_date'] );
+		}
+		if ( ! empty( $filters['to_date'] ) ) {
+			$where[] = 'DATE(created_at) <= %s';
+			$args[]  = sanitize_text_field( (string) $filters['to_date'] );
+		}
+		$sql = "SELECT * FROM {$table}";
+		if ( ! empty( $where ) ) {
+			$sql .= ' WHERE ' . implode( ' AND ', $where );
+		}
+		$sql   .= ' ORDER BY created_at DESC LIMIT %d OFFSET %d';
+		$args[] = $per_page;
+		$args[] = $offset;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Update lifecycle status.
+	 *
+	 * @param int    $id Run id.
+	 * @param string $status Status value.
+	 * @return bool
+	 */
+	public static function set_lifecycle_status( $id, $status ) {
+		global $wpdb;
+		$id     = (int) $id;
+		$status = sanitize_key( (string) $status );
+		if ( $id <= 0 || '' === $status ) {
+			return false;
+		}
+		$table = RWGA_DB::analysis_runs_table();
+		$ok    = $wpdb->update( $table, array( 'lifecycle_status' => $status, 'updated_at' => current_time( 'mysql', true ) ), array( 'id' => $id ), array( '%s', '%s' ), array( '%d' ) );
+		return false !== $ok;
 	}
 
 	/**

@@ -1437,16 +1437,23 @@ class RWGA_Admin {
 
 		$per_page = 20;
 		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$total    = class_exists( 'RWGA_DB_Analysis_Runs', false ) ? RWGA_DB_Analysis_Runs::count_rows() : 0;
+		$filters  = array(
+			'asset_type'       => isset( $_GET['asset_type'] ) ? sanitize_key( wp_unslash( $_GET['asset_type'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			'lifecycle_status' => isset( $_GET['lifecycle_status'] ) ? sanitize_key( wp_unslash( $_GET['lifecycle_status'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			'from_date'        => isset( $_GET['from_date'] ) ? sanitize_text_field( wp_unslash( $_GET['from_date'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			'to_date'          => isset( $_GET['to_date'] ) ? sanitize_text_field( wp_unslash( $_GET['to_date'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		);
+		$total    = class_exists( 'RWGA_DB_Analysis_Runs', false ) ? RWGA_DB_Analysis_Runs::count_rows( $filters ) : 0;
 		$pages    = max( 1, (int) ceil( $total / $per_page ) );
 
-		$rwga_rows = class_exists( 'RWGA_DB_Analysis_Runs', false ) ? RWGA_DB_Analysis_Runs::list_paged( $per_page, $paged ) : array();
+		$rwga_rows = class_exists( 'RWGA_DB_Analysis_Runs', false ) ? RWGA_DB_Analysis_Runs::list_paged( $per_page, $paged, $filters ) : array();
 
 		$rwga_pagination = array(
 			'total'   => $total,
 			'pages'   => $pages,
 			'current' => $paged,
 		);
+		$rwga_filters = $filters;
 		$rwgc_nav_current = 'rwga-analyses';
 		include RWGA_PATH . 'admin/views/analyses-list.php';
 	}
@@ -1497,11 +1504,16 @@ class RWGA_Admin {
 
 		$per_page = 20;
 		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$total    = class_exists( 'RWGA_DB_Recommendations', false ) ? RWGA_DB_Recommendations::count_rows( $filter ) : 0;
+		$filters  = array(
+			'lifecycle_status' => isset( $_GET['lifecycle_status'] ) ? sanitize_key( wp_unslash( $_GET['lifecycle_status'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			'from_date'        => isset( $_GET['from_date'] ) ? sanitize_text_field( wp_unslash( $_GET['from_date'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			'to_date'          => isset( $_GET['to_date'] ) ? sanitize_text_field( wp_unslash( $_GET['to_date'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		);
+		$total    = class_exists( 'RWGA_DB_Recommendations', false ) ? RWGA_DB_Recommendations::count_rows( $filter, $filters ) : 0;
 		$pages    = max( 1, (int) ceil( $total / $per_page ) );
 
 		$rwga_rows = class_exists( 'RWGA_DB_Recommendations', false )
-			? RWGA_DB_Recommendations::list_paged( $per_page, $paged, $filter )
+			? RWGA_DB_Recommendations::list_paged( $per_page, $paged, $filter, $filters )
 			: array();
 
 		$rwga_pagination = array(
@@ -1510,6 +1522,7 @@ class RWGA_Admin {
 			'current' => $paged,
 		);
 		$rwga_filter_analysis = $filter;
+		$rwga_filters         = $filters;
 		$rwgc_nav_current     = 'rwga-recommendations';
 		include RWGA_PATH . 'admin/views/recommendations-list.php';
 	}
@@ -1558,11 +1571,16 @@ class RWGA_Admin {
 
 		$per_page = 20;
 		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$total    = class_exists( 'RWGA_DB_Implementation_Drafts', false ) ? RWGA_DB_Implementation_Drafts::count_rows( $filter, $wk ) : 0;
+		$filters  = array(
+			'status'    => isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			'from_date' => isset( $_GET['from_date'] ) ? sanitize_text_field( wp_unslash( $_GET['from_date'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			'to_date'   => isset( $_GET['to_date'] ) ? sanitize_text_field( wp_unslash( $_GET['to_date'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		);
+		$total    = class_exists( 'RWGA_DB_Implementation_Drafts', false ) ? RWGA_DB_Implementation_Drafts::count_rows( $filter, $wk, $filters ) : 0;
 		$pages    = max( 1, (int) ceil( $total / $per_page ) );
 
 		$rwga_rows = class_exists( 'RWGA_DB_Implementation_Drafts', false )
-			? RWGA_DB_Implementation_Drafts::list_paged( $per_page, $paged, $filter, $wk )
+			? RWGA_DB_Implementation_Drafts::list_paged( $per_page, $paged, $filter, $wk, $filters )
 			: array();
 
 		$rwga_pagination = array(
@@ -1572,6 +1590,7 @@ class RWGA_Admin {
 		);
 		$rwga_filter_recommendation = $filter;
 		$rwga_filter_workflow       = $wk;
+		$rwga_filters               = $filters;
 		$rwgc_nav_current           = 'rwga-implementation-drafts';
 		$rwga_recommendation_rows   = self::get_recommendation_rows_for_select();
 		include RWGA_PATH . 'admin/views/implementation-drafts-list.php';
@@ -1716,6 +1735,13 @@ class RWGA_Admin {
 		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
 		}
+		$settings    = class_exists( 'RWGA_Settings', false ) ? RWGA_Settings::get_settings() : array();
+		$guided_mode = ! isset( $settings['guided_mode_enabled'] ) || (bool) $settings['guided_mode_enabled'];
+		$mode_param  = isset( $_GET['rwga_mode'] ) ? sanitize_key( wp_unslash( $_GET['rwga_mode'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! $guided_mode || 'admin' === $mode_param ) {
+			self::render_dashboard_legacy();
+			return;
+		}
 		$rwga_summary = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
 		$rwga_cache   = class_exists( 'RWGA_Usage', false ) ? RWGA_Usage::get_cache() : null;
 		$rwga_queue_preview = class_exists( 'RWGA_Drafts', false ) ? RWGA_Drafts::get_queue_rows() : array();
@@ -1726,6 +1752,24 @@ class RWGA_Admin {
 		}
 		$rwgc_nav_current = self::MENU_PARENT;
 		include RWGA_PATH . 'admin/views/start.php';
+	}
+
+	/**
+	 * Legacy admin dashboard render path.
+	 *
+	 * @return void
+	 */
+	private static function render_dashboard_legacy() {
+		$rwga_summary = class_exists( 'RWGA_Connection', false ) ? RWGA_Connection::get_summary() : array();
+		$rwga_cache   = class_exists( 'RWGA_Usage', false ) ? RWGA_Usage::get_cache() : null;
+		$rwga_queue_preview = class_exists( 'RWGA_Drafts', false ) ? RWGA_Drafts::get_queue_rows() : array();
+		$rwga_queue_preview = is_array( $rwga_queue_preview ) ? array_slice( $rwga_queue_preview, 0, 5 ) : array();
+		$rwga_analysis_preview = array();
+		if ( class_exists( 'RWGA_DB_Analysis_Runs', false ) ) {
+			$rwga_analysis_preview = RWGA_DB_Analysis_Runs::list_recent( 5 );
+		}
+		$rwgc_nav_current = self::MENU_PARENT;
+		include RWGA_PATH . 'admin/views/dashboard.php';
 	}
 
 	/**

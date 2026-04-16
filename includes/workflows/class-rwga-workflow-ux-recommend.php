@@ -209,6 +209,9 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 				'count'               => count( $ids ),
 			)
 		);
+		if ( $analysis_run_id > 0 && class_exists( 'RWGA_DB_Analysis_Runs', false ) ) {
+			RWGA_DB_Analysis_Runs::set_lifecycle_status( $analysis_run_id, 'recommendations_generated' );
+		}
 
 		return array(
 			'success'            => true,

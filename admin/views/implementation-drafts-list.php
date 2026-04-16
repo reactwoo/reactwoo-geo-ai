@@ -19,6 +19,7 @@ $rwga_filter_recommendation   = isset( $rwga_filter_recommendation ) ? (int) $rw
 $rwga_filter_workflow         = isset( $rwga_filter_workflow ) ? (string) $rwga_filter_workflow : '';
 $rwgc_nav_current             = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-implementation-drafts';
 $rwga_recommendation_rows     = isset( $rwga_recommendation_rows ) && is_array( $rwga_recommendation_rows ) ? $rwga_recommendation_rows : array();
+$rwga_filters                 = isset( $rwga_filters ) && is_array( $rwga_filters ) ? $rwga_filters : array();
 
 $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 ?>
@@ -264,6 +265,16 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 					<option value="seo_implement" <?php selected( 'seo_implement', $rwga_filter_workflow ); ?>><?php esc_html_e( 'SEO', 'reactwoo-geo-ai' ); ?></option>
 				</select>
 			</p>
+			<p>
+				<label class="rwgc-field__label" for="rwga-filter-status"><?php esc_html_e( 'Status', 'reactwoo-geo-ai' ); ?></label>
+				<select name="status" id="rwga-filter-status" class="rwgc-select rwgc-input">
+					<option value=""><?php esc_html_e( 'All', 'reactwoo-geo-ai' ); ?></option>
+					<option value="draft" <?php selected( 'draft', isset( $rwga_filters['status'] ) ? $rwga_filters['status'] : '' ); ?>><?php esc_html_e( 'Draft', 'reactwoo-geo-ai' ); ?></option>
+					<option value="applied" <?php selected( 'applied', isset( $rwga_filters['status'] ) ? $rwga_filters['status'] : '' ); ?>><?php esc_html_e( 'Applied', 'reactwoo-geo-ai' ); ?></option>
+				</select>
+			</p>
+			<input type="date" name="from_date" value="<?php echo esc_attr( isset( $rwga_filters['from_date'] ) ? (string) $rwga_filters['from_date'] : '' ); ?>" />
+			<input type="date" name="to_date" value="<?php echo esc_attr( isset( $rwga_filters['to_date'] ) ? (string) $rwga_filters['to_date'] : '' ); ?>" />
 			<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Filter', 'reactwoo-geo-ai' ); ?></button>
 			<?php if ( $rwga_filter_recommendation > 0 || '' !== $rwga_filter_workflow ) : ?>
 				<a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Clear', 'reactwoo-geo-ai' ); ?></a>

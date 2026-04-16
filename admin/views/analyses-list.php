@@ -16,6 +16,7 @@ $rwga_pagination = isset( $rwga_pagination ) && is_array( $rwga_pagination ) ? $
 	'current' => 1,
 );
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-analyses';
+$rwga_filters    = isset( $rwga_filters ) && is_array( $rwga_filters ) ? $rwga_filters : array();
 
 $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 ?>
@@ -59,6 +60,24 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 	<?php endif; ?>
 
 	<div class="rwgc-card">
+		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="rwga-rec-filter">
+			<input type="hidden" name="page" value="rwga-analyses" />
+			<select name="asset_type" class="rwgc-select rwgc-input">
+				<option value=""><?php esc_html_e( 'All assets', 'reactwoo-geo-ai' ); ?></option>
+				<option value="page" <?php selected( 'page', isset( $rwga_filters['asset_type'] ) ? $rwga_filters['asset_type'] : '' ); ?>><?php esc_html_e( 'Page', 'reactwoo-geo-ai' ); ?></option>
+				<option value="product" <?php selected( 'product', isset( $rwga_filters['asset_type'] ) ? $rwga_filters['asset_type'] : '' ); ?>><?php esc_html_e( 'Product', 'reactwoo-geo-ai' ); ?></option>
+				<option value="variant" <?php selected( 'variant', isset( $rwga_filters['asset_type'] ) ? $rwga_filters['asset_type'] : '' ); ?>><?php esc_html_e( 'Variant', 'reactwoo-geo-ai' ); ?></option>
+				<option value="competitor" <?php selected( 'competitor', isset( $rwga_filters['asset_type'] ) ? $rwga_filters['asset_type'] : '' ); ?>><?php esc_html_e( 'Competitor', 'reactwoo-geo-ai' ); ?></option>
+			</select>
+			<select name="lifecycle_status" class="rwgc-select rwgc-input">
+				<option value=""><?php esc_html_e( 'All statuses', 'reactwoo-geo-ai' ); ?></option>
+				<option value="analysed" <?php selected( 'analysed', isset( $rwga_filters['lifecycle_status'] ) ? $rwga_filters['lifecycle_status'] : '' ); ?>><?php esc_html_e( 'Analysed', 'reactwoo-geo-ai' ); ?></option>
+				<option value="recommendations_generated" <?php selected( 'recommendations_generated', isset( $rwga_filters['lifecycle_status'] ) ? $rwga_filters['lifecycle_status'] : '' ); ?>><?php esc_html_e( 'Recommendations generated', 'reactwoo-geo-ai' ); ?></option>
+			</select>
+			<input type="date" name="from_date" value="<?php echo esc_attr( isset( $rwga_filters['from_date'] ) ? (string) $rwga_filters['from_date'] : '' ); ?>" />
+			<input type="date" name="to_date" value="<?php echo esc_attr( isset( $rwga_filters['to_date'] ) ? (string) $rwga_filters['to_date'] : '' ); ?>" />
+			<button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Filter', 'reactwoo-geo-ai' ); ?></button>
+		</form>
 		<?php if ( empty( $rwga_rows ) ) : ?>
 			<?php
 			if ( class_exists( 'RWGC_Admin_UI', false ) ) {

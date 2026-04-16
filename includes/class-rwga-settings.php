@@ -581,6 +581,9 @@ class RWGA_Settings {
 			$f       = sanitize_key( (string) $settings['ux_analysis_focus'] );
 			$out['ux_analysis_focus'] = in_array( $f, $allowed, true ) ? $f : ( isset( $prev['ux_analysis_focus'] ) ? (string) $prev['ux_analysis_focus'] : $defaults['ux_analysis_focus'] );
 		}
+		if ( 'advanced' === $scope && isset( $settings['guided_mode_enabled'] ) ) {
+			$out['guided_mode_enabled'] = (bool) $settings['guided_mode_enabled'];
+		}
 
 		$new_license = isset( $settings['reactwoo_license_key'] ) ? sanitize_text_field( (string) $settings['reactwoo_license_key'] ) : '';
 		$bridge_on   = ( 1 === self::get_bridge_flag_from_db() );
@@ -623,6 +626,7 @@ class RWGA_Settings {
 			'reactwoo_license_use_core_fallback'     => true,
 			'workflow_engine'                        => 'local',
 			'ux_analysis_focus'                      => 'messaging',
+			'guided_mode_enabled'                    => true,
 		);
 	}
 }

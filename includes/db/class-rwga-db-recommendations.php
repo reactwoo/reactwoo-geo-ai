@@ -152,16 +152,34 @@ class RWGA_DB_Recommendations {
 	 * @param int $analysis_run_id Optional filter by analysis run.
 	 * @return int
 	 */
-	public static function count_rows( $analysis_run_id = 0 ) {
+	public static function count_rows( $analysis_run_id = 0, array $filters = array() ) {
 		global $wpdb;
 		$table           = RWGA_DB::recommendations_table();
 		$analysis_run_id = (int) $analysis_run_id;
+		$where           = array();
+		$args            = array();
 		if ( $analysis_run_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE analysis_run_id = %d", $analysis_run_id ) );
+			$where[] = 'analysis_run_id = %d';
+			$args[]  = $analysis_run_id;
+		}
+		if ( ! empty( $filters['lifecycle_status'] ) ) {
+			$where[] = 'lifecycle_status = %s';
+			$args[]  = sanitize_key( (string) $filters['lifecycle_status'] );
+		}
+		if ( ! empty( $filters['from_date'] ) ) {
+			$where[] = 'DATE(created_at) >= %s';
+			$args[]  = sanitize_text_field( (string) $filters['from_date'] );
+		}
+		if ( ! empty( $filters['to_date'] ) ) {
+			$where[] = 'DATE(created_at) <= %s';
+			$args[]  = sanitize_text_field( (string) $filters['to_date'] );
+		}
+		$sql = "SELECT COUNT(*) FROM {$table}";
+		if ( ! empty( $where ) ) {
+			$sql .= ' WHERE ' . implode( ' AND ', $where );
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		return (int) ( empty( $args ) ? $wpdb->get_var( $sql ) : $wpdb->get_var( $wpdb->prepare( $sql, $args ) ) );
 	}
 
 	/**
@@ -172,7 +190,7 @@ class RWGA_DB_Recommendations {
 	 * @param int $analysis_run_id Optional filter.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function list_paged( $per_page = 20, $paged = 1, $analysis_run_id = 0 ) {
+	public static function list_paged( $per_page = 20, $paged = 1, $analysis_run_id = 0, array $filters = array() ) {
 		global $wpdb;
 		$per_page = max( 1, min( 100, (int) $per_page ) );
 		$paged    = max( 1, (int) $paged );
@@ -180,22 +198,53 @@ class RWGA_DB_Recommendations {
 		$table    = RWGA_DB::recommendations_table();
 		$analysis_run_id = (int) $analysis_run_id;
 
+		$where = array();
+		$args  = array();
 		if ( $analysis_run_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			$rows = $wpdb->get_results(
-				$wpdb->prepare(
-					"SELECT * FROM {$table} WHERE analysis_run_id = %d ORDER BY created_at DESC LIMIT %d OFFSET %d",
-					$analysis_run_id,
-					$per_page,
-					$offset
-				),
-				ARRAY_A
-			);
-		} else {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ), ARRAY_A );
+			$where[] = 'analysis_run_id = %d';
+			$args[]  = $analysis_run_id;
 		}
+		if ( ! empty( $filters['lifecycle_status'] ) ) {
+			$where[] = 'lifecycle_status = %s';
+			$args[]  = sanitize_key( (string) $filters['lifecycle_status'] );
+		}
+		if ( ! empty( $filters['from_date'] ) ) {
+			$where[] = 'DATE(created_at) >= %s';
+			$args[]  = sanitize_text_field( (string) $filters['from_date'] );
+		}
+		if ( ! empty( $filters['to_date'] ) ) {
+			$where[] = 'DATE(created_at) <= %s';
+			$args[]  = sanitize_text_field( (string) $filters['to_date'] );
+		}
+		$sql = "SELECT * FROM {$table}";
+		if ( ! empty( $where ) ) {
+			$sql .= ' WHERE ' . implode( ' AND ', $where );
+		}
+		$sql   .= ' ORDER BY created_at DESC LIMIT %d OFFSET %d';
+		$args[] = $per_page;
+		$args[] = $offset;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name trusted.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Update lifecycle status for one recommendation.
+	 *
+	 * @param int    $id Recommendation id.
+	 * @param string $status Status.
+	 * @return bool
+	 */
+	public static function set_lifecycle_status( $id, $status ) {
+		global $wpdb;
+		$id     = (int) $id;
+		$status = sanitize_key( (string) $status );
+		if ( $id <= 0 || '' === $status ) {
+			return false;
+		}
+		$table = RWGA_DB::recommendations_table();
+		$ok    = $wpdb->update( $table, array( 'lifecycle_status' => $status, 'updated_at' => current_time( 'mysql', true ) ), array( 'id' => $id ), array( '%s', '%s' ), array( '%d' ) );
+		return false !== $ok;
 	}
 
 	/**
