@@ -1750,7 +1750,7 @@ class RWGA_Admin {
 			);
 		}
 		$rwgc_nav_current     = 'rwga-recommendations';
-		include RWGA_PATH . 'admin/views/recommendation-detail.php';
+		include RWGA_PATH . 'admin/views/recommendation-report.php';
 	}
 
 	/**
