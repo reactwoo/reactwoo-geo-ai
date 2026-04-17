@@ -1614,6 +1614,15 @@ class RWGA_Admin {
 		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
 		}
+		$journey = isset( $_GET['journey'] ) ? (int) $_GET['journey'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $journey > 0 && class_exists( 'RWGA_Current_Workflow', false ) ) {
+			$state = RWGA_Current_Workflow::get();
+			$run   = isset( $state['analysis_run_id'] ) ? (int) $state['analysis_run_id'] : 0;
+			if ( $run > 0 ) {
+				self::render_analysis_detail( $run );
+				return;
+			}
+		}
 
 		$run_id = isset( $_GET['run_id'] ) ? (int) $_GET['run_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( $run_id > 0 ) {
@@ -1678,6 +1687,15 @@ class RWGA_Admin {
 	public static function render_recommendations() {
 		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;
+		}
+		$journey = isset( $_GET['journey'] ) ? (int) $_GET['journey'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $journey > 0 && class_exists( 'RWGA_Current_Workflow', false ) ) {
+			$state = RWGA_Current_Workflow::get();
+			$run   = isset( $state['analysis_run_id'] ) ? (int) $state['analysis_run_id'] : 0;
+			if ( $run > 0 ) {
+				self::render_recommendation_report( $run );
+				return;
+			}
 		}
 
 		$rec_id = isset( $_GET['rec_id'] ) ? (int) $_GET['rec_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended

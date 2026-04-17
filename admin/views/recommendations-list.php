@@ -34,6 +34,8 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+	<?php RWGA_Admin::render_current_workflow_state(); ?>
+	<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-recommendations&journey=1' ) ); ?>"><?php esc_html_e( 'Continue current workflow', 'reactwoo-geo-ai' ); ?></a></p>
 
 	<?php
 	$rwga_rec = isset( $_GET['rwga_rec'] ) ? sanitize_key( wp_unslash( $_GET['rwga_rec'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
