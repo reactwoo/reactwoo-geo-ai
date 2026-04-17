@@ -25,8 +25,8 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'Recommendations', 'reactwoo-geo-ai' ),
-			__( 'After you analyse a page, recommendations list clear next steps with impact and confidence.', 'reactwoo-geo-ai' )
+			__( 'Recommendation library', 'reactwoo-geo-ai' ),
+			__( 'Browse grouped and record-level recommendations from prior analyses and reopen them to continue implementation.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
@@ -44,7 +44,7 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 		echo esc_html(
 			sprintf(
 				/* translators: %d: number of cards saved */
-				_n( 'Saved %d recommendation.', 'Saved %d recommendations.', $n, 'reactwoo-geo-ai' ),
+				_n( 'Generated %d recommendation.', 'Generated %d recommendations.', $n, 'reactwoo-geo-ai' ),
 				$n
 			)
 		);
@@ -82,7 +82,7 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 				<input type="hidden" name="action" value="rwga_bulk_implement_analysis" />
 				<input type="hidden" name="analysis_run_id" value="<?php echo (int) $rwga_filter_analysis; ?>" />
 				<?php wp_nonce_field( 'rwga_bulk_implement_analysis' ); ?>
-				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate copy + SEO drafts for this analysis run', 'reactwoo-geo-ai' ); ?></button>
+				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate implementation drafts for this analysis', 'reactwoo-geo-ai' ); ?></button>
 			</form>
 		<?php endif; ?>
 	</div>
@@ -158,7 +158,7 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 							<td><?php echo ! empty( $row['lifecycle_status'] ) ? esc_html( (string) $row['lifecycle_status'] ) : esc_html__( 'recommendations_generated', 'reactwoo-geo-ai' ); ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
 							<td>
-								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $rec_url ); ?>"><?php esc_html_e( 'View recommendation', 'reactwoo-geo-ai' ); ?></a>
+								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $rec_url ); ?>"><?php esc_html_e( 'Open recommendation report', 'reactwoo-geo-ai' ); ?></a>
 								<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
 									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-left:6px;">
 										<input type="hidden" name="action" value="rwga_copy_implement" />

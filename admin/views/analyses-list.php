@@ -24,8 +24,8 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'Analyse pages', 'reactwoo-geo-ai' ),
-			__( 'Each run captures a snapshot of a page so you can review findings and build recommendations.', 'reactwoo-geo-ai' )
+			__( 'Report library', 'reactwoo-geo-ai' ),
+			__( 'Browse completed analysis reports and reopen any run to continue generating recommendations.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
@@ -54,7 +54,7 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 	<?php endif; ?>
 
 	<?php if ( isset( $_GET['rwga_sample'] ) && 'ok' === sanitize_key( wp_unslash( $_GET['rwga_sample'] ) ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
-		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Analysis run completed.', 'reactwoo-geo-ai' ); ?></p></div>
+		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Analysis complete. Open the report to generate recommendations.', 'reactwoo-geo-ai' ); ?></p></div>
 	<?php endif; ?>
 	<?php if ( isset( $_GET['rwga_analysis'] ) && 'deleted' === sanitize_key( wp_unslash( $_GET['rwga_analysis'] ) ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Analysis and linked recommendations/drafts were deleted.', 'reactwoo-geo-ai' ); ?></p></div>
@@ -144,7 +144,7 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 							<td><?php echo isset( $row['geo_target'] ) && $row['geo_target'] ? esc_html( (string) $row['geo_target'] ) : '—'; ?></td>
 							<td><?php echo isset( $row['created_at'] ) ? esc_html( (string) $row['created_at'] ) : '—'; ?></td>
 							<td>
-								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'View', 'reactwoo-geo-ai' ); ?></a>
+								<a class="rwgc-btn rwgc-btn--sm rwgc-btn--secondary" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'Open report', 'reactwoo-geo-ai' ); ?></a>
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-left:6px;">
 									<input type="hidden" name="action" value="rwga_analysis_delete" />
 									<input type="hidden" name="run_id" value="<?php echo (int) $rid; ?>" />

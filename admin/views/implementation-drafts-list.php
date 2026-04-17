@@ -36,6 +36,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+	<?php RWGA_Admin::render_current_workflow_state(); ?>
 	<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-implementation-drafts&view=review&journey=1' ) ); ?>"><?php esc_html_e( 'Open implementation review', 'reactwoo-geo-ai' ); ?></a></p>
 
 	<?php
@@ -46,7 +47,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 		echo esc_html(
 			sprintf(
 				/* translators: %d: number of draft rows saved */
-				_n( 'Saved %d implementation draft.', 'Saved %d implementation drafts.', $n, 'reactwoo-geo-ai' ),
+				_n( 'Generated %d implementation draft.', 'Generated %d implementation drafts.', $n, 'reactwoo-geo-ai' ),
 				$n
 			)
 		);
@@ -69,7 +70,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 		echo esc_html(
 			sprintf(
 				/* translators: %d: number of SEO draft rows saved */
-				_n( 'Saved %d SEO draft.', 'Saved %d SEO drafts.', $n, 'reactwoo-geo-ai' ),
+				_n( 'Generated %d SEO draft.', 'Generated %d SEO drafts.', $n, 'reactwoo-geo-ai' ),
 				$n
 			)
 		);
