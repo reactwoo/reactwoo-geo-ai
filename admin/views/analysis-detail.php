@@ -205,6 +205,9 @@ $severity_class = array(
 		<?php if ( empty( $rwga_recommendations ) ) : ?>
 			<p class="description"><?php esc_html_e( 'No recommendations generated yet for this analysis.', 'reactwoo-geo-ai' ); ?></p>
 		<?php else : ?>
+			<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( add_query_arg( array( 'page' => 'rwga-recommendations', 'analysis_run' => $run_id, 'view' => 'report', 'journey' => 1 ), admin_url( 'admin.php' ) ) ); ?>"><?php esc_html_e( 'Open recommendation report', 'reactwoo-geo-ai' ); ?></a></p>
+			<details class="rwga-dev-details">
+				<summary><?php esc_html_e( 'View recommendation records', 'reactwoo-geo-ai' ); ?></summary>
 			<table class="widefat striped rwga-table-comfortable">
 				<thead>
 					<tr>
@@ -249,6 +252,7 @@ $severity_class = array(
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+			</details>
 		<?php endif; ?>
 	</div>
 

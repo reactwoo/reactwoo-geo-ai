@@ -25,6 +25,21 @@ foreach ( $rwga_drafts as $draft ) {
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--implementation-review">
 	<h1><?php esc_html_e( 'Implementation review', 'reactwoo-geo-ai' ); ?></h1>
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+	<?php RWGA_Admin::render_current_workflow_state(); ?>
+
+	<?php
+	$rwga_apply = isset( $_GET['rwga_apply'] ) ? sanitize_key( wp_unslash( $_GET['rwga_apply'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$rwga_variant = isset( $_GET['rwga_variant'] ) ? sanitize_key( wp_unslash( $_GET['rwga_variant'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'ok' === $rwga_apply ) {
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Draft content applied to the current page.', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
+	if ( 'ok' === $rwga_variant ) {
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Variant draft created.', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
+	if ( ! empty( $_GET['rwga_err'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sanitize_text_field( wp_unslash( rawurldecode( (string) $_GET['rwga_err'] ) ) ) ) . '</p></div>';
+	}
+	?>
 
 	<div class="rwgc-card rwga-report-content">
 		<h2><?php esc_html_e( 'Generated implementation report', 'reactwoo-geo-ai' ); ?></h2>

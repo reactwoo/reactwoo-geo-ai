@@ -65,7 +65,12 @@ $is_grouped_report = '' !== $rwga_report_html;
 		<?php elseif ( ! empty( $rwga_rec['report_html'] ) ) : ?>
 			<div class="rwga-report-html"><?php echo wp_kses_post( (string) $rwga_rec['report_html'] ); ?></div>
 		<?php endif; ?>
+		<?php if ( $is_grouped_report ) : ?>
+		<details class="rwga-dev-details">
+			<summary><?php esc_html_e( 'Technical details', 'reactwoo-geo-ai' ); ?></summary>
+		<?php else : ?>
 		<h3><?php esc_html_e( 'Summary', 'reactwoo-geo-ai' ); ?></h3>
+		<?php endif; ?>
 		<dl class="rwga-license-dl">
 			<dt><?php esc_html_e( 'Priority', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_rec['priority_level'] ) ? esc_html( (string) $rwga_rec['priority_level'] ) : '—'; ?></dd>
@@ -86,6 +91,9 @@ $is_grouped_report = '' !== $rwga_report_html;
 			<dt><?php esc_html_e( 'Created (UTC)', 'reactwoo-geo-ai' ); ?></dt>
 			<dd><?php echo isset( $rwga_rec['created_at'] ) ? esc_html( (string) $rwga_rec['created_at'] ) : '—'; ?></dd>
 		</dl>
+		<?php if ( $is_grouped_report ) : ?>
+		</details>
+		<?php endif; ?>
 
 		<?php if ( empty( $rwga_rec['report_html'] ) ) : ?>
 		<h3><?php esc_html_e( 'Problem', 'reactwoo-geo-ai' ); ?></h3>
@@ -162,34 +170,39 @@ $is_grouped_report = '' !== $rwga_report_html;
 	<?php endif; ?>
 	<div class="rwgc-card rwga-implementation-actions">
 		<h2><?php esc_html_e( 'Choose how to implement', 'reactwoo-geo-ai' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Generate implementation drafts first, then use one of the executable actions below.', 'reactwoo-geo-ai' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Use one primary next action to continue this workflow.', 'reactwoo-geo-ai' ); ?></p>
 		<?php
 		$state = class_exists( 'RWGA_Current_Workflow', false ) ? RWGA_Current_Workflow::get() : array();
 		$draft_ids = isset( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ? implode( ',', array_map( 'intval', $state['draft_ids'] ) ) : '';
 		$variant_page_id = isset( $state['variant_page_id'] ) ? (int) $state['variant_page_id'] : 0;
+		$has_drafts = '' !== $draft_ids;
 		?>
 		<div class="rwgc-actions rwgc-actions--stack-mobile">
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="rwga_apply_drafts_to_live" />
-				<input type="hidden" name="page_id" value="<?php echo (int) $page_id; ?>" />
-				<input type="hidden" name="draft_ids" value="<?php echo esc_attr( $draft_ids ); ?>" />
-				<?php wp_nonce_field( 'rwga_apply_drafts_to_live' ); ?>
-				<button class="rwgc-btn rwgc-btn--primary" type="submit"><?php esc_html_e( 'Apply to current page', 'reactwoo-geo-ai' ); ?></button>
-			</form>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="rwga_create_variant_from_drafts" />
-				<input type="hidden" name="page_id" value="<?php echo (int) $page_id; ?>" />
-				<input type="hidden" name="draft_ids" value="<?php echo esc_attr( $draft_ids ); ?>" />
-				<?php wp_nonce_field( 'rwga_create_variant_from_drafts' ); ?>
-				<button class="rwgc-btn rwgc-btn--secondary" type="submit"><?php esc_html_e( 'Create variant draft', 'reactwoo-geo-ai' ); ?></button>
-			</form>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="rwga_send_variant_to_geo_optimise" />
-				<input type="hidden" name="variant_page_id" value="<?php echo (int) $variant_page_id; ?>" />
-				<input type="hidden" name="analysis_run_id" value="<?php echo (int) $analysis_run_id; ?>" />
-				<?php wp_nonce_field( 'rwga_send_variant_to_geo_optimise' ); ?>
-				<button class="rwgc-btn rwgc-btn--secondary" type="submit"><?php esc_html_e( 'Send variant to Geo Optimise', 'reactwoo-geo-ai' ); ?></button>
-			</form>
+			<?php if ( ! $has_drafts ) : ?>
+				<p class="description"><?php esc_html_e( 'Generate implementation drafts to unlock apply, variant, and testing actions.', 'reactwoo-geo-ai' ); ?></p>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="rwga_apply_drafts_to_live" />
+					<input type="hidden" name="page_id" value="<?php echo (int) $page_id; ?>" />
+					<input type="hidden" name="draft_ids" value="<?php echo esc_attr( $draft_ids ); ?>" />
+					<?php wp_nonce_field( 'rwga_apply_drafts_to_live' ); ?>
+					<button class="rwgc-btn rwgc-btn--primary" type="submit"><?php esc_html_e( 'Apply to current page', 'reactwoo-geo-ai' ); ?></button>
+				</form>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="rwga_create_variant_from_drafts" />
+					<input type="hidden" name="page_id" value="<?php echo (int) $page_id; ?>" />
+					<input type="hidden" name="draft_ids" value="<?php echo esc_attr( $draft_ids ); ?>" />
+					<?php wp_nonce_field( 'rwga_create_variant_from_drafts' ); ?>
+					<button class="rwgc-btn rwgc-btn--secondary" type="submit"><?php esc_html_e( 'Create variant draft', 'reactwoo-geo-ai' ); ?></button>
+				</form>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="rwga_send_variant_to_geo_optimise" />
+					<input type="hidden" name="variant_page_id" value="<?php echo (int) $variant_page_id; ?>" />
+					<input type="hidden" name="analysis_run_id" value="<?php echo (int) $analysis_run_id; ?>" />
+					<?php wp_nonce_field( 'rwga_send_variant_to_geo_optimise' ); ?>
+					<button class="rwgc-btn rwgc-btn--secondary" type="submit"><?php esc_html_e( 'Send variant to Geo Optimise', 'reactwoo-geo-ai' ); ?></button>
+				</form>
+			<?php endif; ?>
 		</div>
 	</div>
 </div>
