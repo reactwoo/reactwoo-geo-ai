@@ -27,15 +27,16 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
 		<?php
 		RWGC_Admin_UI::render_page_header(
-			__( 'Implement', 'reactwoo-geo-ai' ),
-			__( 'Turn recommendations into reviewable copy and SEO drafts. Nothing is published automatically.', 'reactwoo-geo-ai' )
+			__( 'Draft library', 'reactwoo-geo-ai' ),
+			__( 'Archive and manage generated drafts. For guided continuation, use the Implementation review journey screen.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
-		<h1><?php esc_html_e( 'Implement', 'reactwoo-geo-ai' ); ?></h1>
+		<h1><?php esc_html_e( 'Draft library', 'reactwoo-geo-ai' ); ?></h1>
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+	<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-implementation-drafts&view=review&journey=1' ) ); ?>"><?php esc_html_e( 'Open implementation review', 'reactwoo-geo-ai' ); ?></a></p>
 
 	<?php
 	$rwga_copy = isset( $_GET['rwga_copy'] ) ? sanitize_key( wp_unslash( $_GET['rwga_copy'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended

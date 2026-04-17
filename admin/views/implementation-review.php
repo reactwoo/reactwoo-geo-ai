@@ -26,6 +26,7 @@ foreach ( $rwga_drafts as $draft ) {
 	<h1><?php esc_html_e( 'Implementation review', 'reactwoo-geo-ai' ); ?></h1>
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 	<?php RWGA_Admin::render_current_workflow_state(); ?>
+	<p><a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-implementation-drafts' ) ); ?>"><?php esc_html_e( 'Open draft library', 'reactwoo-geo-ai' ); ?></a></p>
 
 	<?php
 	$rwga_apply = isset( $_GET['rwga_apply'] ) ? sanitize_key( wp_unslash( $_GET['rwga_apply'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended

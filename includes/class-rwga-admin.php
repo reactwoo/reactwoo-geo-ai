@@ -1794,6 +1794,14 @@ class RWGA_Admin {
 			self::render_implementation_review();
 			return;
 		}
+		$journey = isset( $_GET['journey'] ) ? (int) $_GET['journey'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $journey > 0 && class_exists( 'RWGA_Current_Workflow', false ) ) {
+			$state = RWGA_Current_Workflow::get();
+			if ( ! empty( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ) {
+				self::render_implementation_review();
+				return;
+			}
+		}
 
 		$filter   = isset( $_GET['recommendation_id'] ) ? (int) $_GET['recommendation_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$wk_raw   = isset( $_GET['workflow_key'] ) ? sanitize_key( wp_unslash( $_GET['workflow_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
