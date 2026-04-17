@@ -139,14 +139,20 @@ class RWGA_Admin {
 		$step_label = __( 'Start', 'reactwoo-geo-ai' );
 		$cta_lab  = __( 'Start workflow', 'reactwoo-geo-ai' );
 		if ( in_array( $step, array( 'analysis_complete', 'recommendations_selected' ), true ) && class_exists( 'RWGA_Journey_Router', false ) ) {
-			$cta_url = RWGA_Journey_Router::recommendation_report_url( $analysis );
+			// Must land on analysis detail: that screen owns the POST that generates recommendations.
+			$cta_url    = RWGA_Journey_Router::analysis_detail_url( $analysis ) . '#rwga-generate-recommendations';
 			$step_label = __( 'Analysis complete', 'reactwoo-geo-ai' );
-			$cta_lab = __( 'Generate recommendations', 'reactwoo-geo-ai' );
-		} elseif ( in_array( $step, array( 'recommendation_report_ready', 'implementation_generated' ), true ) && class_exists( 'RWGA_Journey_Router', false ) ) {
-			$draft_ids = isset( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ? $state['draft_ids'] : array();
-			$cta_url   = RWGA_Journey_Router::implementation_review_url( $draft_ids, $analysis );
+			$cta_lab    = __( 'Generate recommendation report', 'reactwoo-geo-ai' );
+		} elseif ( 'recommendation_report_ready' === $step && class_exists( 'RWGA_Journey_Router', false ) ) {
+			// Recommendations exist; next work is implementation generation from the recommendation report screen.
+			$cta_url    = RWGA_Journey_Router::recommendation_report_url( $analysis ) . '#rwga-generate-implementation';
 			$step_label = __( 'Recommendations ready', 'reactwoo-geo-ai' );
-			$cta_lab   = __( 'Generate implementation drafts', 'reactwoo-geo-ai' );
+			$cta_lab    = __( 'Generate implementation drafts', 'reactwoo-geo-ai' );
+		} elseif ( 'implementation_generated' === $step && class_exists( 'RWGA_Journey_Router', false ) ) {
+			$draft_ids  = isset( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ? $state['draft_ids'] : array();
+			$cta_url    = RWGA_Journey_Router::implementation_review_url( $draft_ids, $analysis );
+			$step_label = __( 'Implementation drafts ready', 'reactwoo-geo-ai' );
+			$cta_lab    = __( 'Open implementation review', 'reactwoo-geo-ai' );
 		} elseif ( in_array( $step, array( 'variant_created', 'sent_to_geo_optimise' ), true ) ) {
 			$step_label = 'variant_created' === $step ? __( 'Variant created', 'reactwoo-geo-ai' ) : __( 'Sent to Geo Optimise', 'reactwoo-geo-ai' );
 			$cta_lab    = __( 'Open implementation review', 'reactwoo-geo-ai' );

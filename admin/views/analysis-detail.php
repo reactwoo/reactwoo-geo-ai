@@ -60,6 +60,8 @@ $severity_class = array(
 		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
 	} elseif ( 'noflow' === $rwga_rec_err ) {
 		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Recommendation workflow is not available.', 'reactwoo-geo-ai' ) . '</p></div>';
+	} elseif ( 'bad' === $rwga_rec_err ) {
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Could not start recommendations: missing analysis run. Open a report from the report library and try again.', 'reactwoo-geo-ai' ) . '</p></div>';
 	}
 	?>
 
@@ -133,7 +135,7 @@ $severity_class = array(
 	</div>
 
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
-	<div class="rwgc-card rwga-next-step">
+	<div class="rwgc-card rwga-next-step" id="rwga-generate-recommendations">
 		<h2><?php esc_html_e( 'Next step: Generate recommendations', 'reactwoo-geo-ai' ); ?></h2>
 		<p><?php esc_html_e( 'Select which areas you want to improve based on this analysis.', 'reactwoo-geo-ai' ); ?></p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwgc-form-grid">

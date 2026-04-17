@@ -41,7 +41,7 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-recom
 	</div>
 
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
-	<div class="rwgc-card rwgc-card--highlight">
+	<div class="rwgc-card rwgc-card--highlight" id="rwga-generate-implementation">
 		<h2><?php esc_html_e( 'Generate implementation drafts', 'reactwoo-geo-ai' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Continue the journey by generating section-aware implementation drafts.', 'reactwoo-geo-ai' ); ?></p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
