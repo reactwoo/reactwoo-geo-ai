@@ -6,6 +6,29 @@
 .rwga-report-html h3 { margin-top: 1em; margin-bottom: 0.35em; }
 .rwga-report-html p { margin: 0 0 0.8em; line-height: 1.5; }
 .rwga-report-html ul { margin: 0 0 1em 1.2em; }
+.rwga-wrap { display: flex; flex-direction: column; gap: 24px; }
+.rwgc-card + .rwgc-card { margin-top: 0; }
+.rwga-next-step,
+.rwga-workflow-state,
+.rwga-implementation-actions {
+	border-left: 4px solid #2271b1;
+}
+.rwga-report-content h2,
+.rwga-report-content h3,
+.rwga-report-content h4 {
+	margin-top: 1.25em;
+	margin-bottom: 0.5em;
+}
+.rwga-report-content p {
+	margin: 0 0 1em;
+	line-height: 1.6;
+}
+.rwga-report-content ul {
+	margin: 0 0 1em 1.25em;
+}
+.rwga-report-content > * + * {
+	margin-top: 12px;
+}
 /**
  * Geo AI admin — complements Geo Core .rwgc-* styles.
  */

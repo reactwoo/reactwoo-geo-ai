@@ -14,6 +14,7 @@ $rwgc_nav_current      = isset( $rwgc_nav_current ) ? $rwgc_nav_current : RWGA_A
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+	<?php RWGA_Admin::render_current_workflow_state(); ?>
 	<p><a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( admin_url( 'admin.php?page=' . RWGA_Admin::MENU_PARENT . '&rwga_mode=admin' ) ); ?>"><?php esc_html_e( 'Switch to Admin mode', 'reactwoo-geo-ai' ); ?></a></p>
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
 	<?php RWGA_Admin::render_usage_refresh_notices(); ?>

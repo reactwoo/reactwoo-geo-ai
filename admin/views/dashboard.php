@@ -69,6 +69,7 @@ if ( class_exists( 'RWGA_Settings', false ) ) {
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+	<?php RWGA_Admin::render_current_workflow_state(); ?>
 
 	<?php settings_errors( 'rwga_geo_ai' ); ?>
 	<?php RWGA_Admin::render_usage_refresh_notices(); ?>

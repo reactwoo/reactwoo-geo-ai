@@ -45,96 +45,164 @@ class RWGA_Report_Formatter {
 	 * @param array<string, mixed> $result Analysis result.
 	 * @return string
 	 */
-	public static function format_analysis_report( array $result ) {
-		$summary  = isset( $result['summary'] ) ? (string) $result['summary'] : '';
-		$score    = isset( $result['score'] ) ? (string) $result['score'] : '—';
-		$conf     = isset( $result['confidence'] ) ? (string) $result['confidence'] : '—';
-		$findings = isset( $result['findings'] ) && is_array( $result['findings'] ) ? $result['findings'] : array();
+	public static function format_analysis_report( array $run, array $findings = array(), array $recommendations = array() ) {
+		$summary = isset( $run['summary'] ) ? (string) $run['summary'] : '';
+		$score   = isset( $run['score'] ) ? (string) $run['score'] : '—';
+		$conf    = isset( $run['confidence'] ) ? (string) $run['confidence'] : '—';
+		if ( empty( $findings ) && isset( $run['findings'] ) && is_array( $run['findings'] ) ) {
+			$findings = $run['findings'];
+		}
 
-		ob_start();
-		?>
-		<h2><?php esc_html_e( 'Executive Summary', 'reactwoo-geo-ai' ); ?></h2>
-		<?php echo wpautop( esc_html( $summary ) ); ?>
-		<h2><?php esc_html_e( 'Overall Score', 'reactwoo-geo-ai' ); ?></h2>
-		<p><strong><?php echo esc_html( $score ); ?></strong> / 100 &mdash; <?php esc_html_e( 'Confidence', 'reactwoo-geo-ai' ); ?>: <?php echo esc_html( $conf ); ?></p>
-		<h2><?php esc_html_e( 'Findings by Category', 'reactwoo-geo-ai' ); ?></h2>
-		<?php if ( empty( $findings ) ) : ?>
-			<p><?php esc_html_e( 'No findings were produced for this run.', 'reactwoo-geo-ai' ); ?></p>
-		<?php else : ?>
-			<?php foreach ( $findings as $finding ) : ?>
-				<?php
-				$f = is_array( $finding ) ? $finding : array();
+		$html  = self::render_section( __( 'Executive Summary', 'reactwoo-geo-ai' ), $summary );
+		$html .= '<h2>' . esc_html__( 'Overall Score', 'reactwoo-geo-ai' ) . '</h2>';
+		$html .= '<p><strong>' . esc_html( $score ) . '</strong> / 100 &mdash; ' . esc_html__( 'Confidence', 'reactwoo-geo-ai' ) . ': ' . esc_html( $conf ) . '</p>';
+		$html .= '<h2>' . esc_html__( 'Findings by Category', 'reactwoo-geo-ai' ) . '</h2>';
+
+		if ( empty( $findings ) ) {
+			$html .= '<p>' . esc_html__( 'No findings were produced for this run.', 'reactwoo-geo-ai' ) . '</p>';
+		} else {
+			foreach ( $findings as $finding ) {
+				$f     = is_array( $finding ) ? $finding : array();
 				$title = isset( $f['title'] ) ? (string) $f['title'] : '';
 				$cat   = isset( $f['category'] ) ? (string) $f['category'] : 'general';
 				$sev   = isset( $f['severity'] ) ? (string) $f['severity'] : 'medium';
 				$evi   = isset( $f['evidence'] ) ? (string) $f['evidence'] : '';
 				$hint  = isset( $f['recommendation_hint'] ) ? (string) $f['recommendation_hint'] : '';
-				?>
-				<h3><?php echo esc_html( $title ); ?></h3>
-				<p><strong><?php esc_html_e( 'Category', 'reactwoo-geo-ai' ); ?>:</strong> <?php echo esc_html( $cat ); ?> &mdash; <strong><?php esc_html_e( 'Severity', 'reactwoo-geo-ai' ); ?>:</strong> <?php echo esc_html( $sev ); ?></p>
-				<?php echo wpautop( esc_html( $evi ) ); ?>
-				<?php if ( '' !== trim( $hint ) ) : ?>
-					<p><strong><?php esc_html_e( 'Suggested next step:', 'reactwoo-geo-ai' ); ?></strong> <?php echo esc_html( $hint ); ?></p>
-				<?php endif; ?>
-			<?php endforeach; ?>
-		<?php endif; ?>
-		<?php
-		return self::clean( (string) ob_get_clean() );
+				$html .= '<h3>' . esc_html( $title ) . '</h3>';
+				$html .= '<p><strong>' . esc_html__( 'Category', 'reactwoo-geo-ai' ) . ':</strong> ' . esc_html( $cat ) . ' &mdash; <strong>' . esc_html__( 'Severity', 'reactwoo-geo-ai' ) . ':</strong> ' . esc_html( $sev ) . '</p>';
+				$html .= self::render_paragraphs( $evi );
+				if ( '' !== trim( $hint ) ) {
+					$html .= '<p><strong>' . esc_html__( 'Suggested next step:', 'reactwoo-geo-ai' ) . '</strong> ' . esc_html( $hint ) . '</p>';
+				}
+			}
+		}
+		if ( ! empty( $recommendations ) ) {
+			$html .= self::format_recommendation_report( $recommendations, array( 'show_title' => true ) );
+		}
+		return self::clean( $html );
 	}
 
 	/**
 	 * @param array<string, mixed> $recommendation Recommendation row/payload.
 	 * @return string
 	 */
-	public static function format_recommendation_report( array $recommendation ) {
-		$title = isset( $recommendation['title'] ) ? (string) $recommendation['title'] : '';
-		$problem = isset( $recommendation['problem'] ) ? (string) $recommendation['problem'] : '';
-		$why = isset( $recommendation['why_it_matters'] ) ? (string) $recommendation['why_it_matters'] : '';
-		$action = isset( $recommendation['recommendation'] ) ? (string) $recommendation['recommendation'] : '';
-		$impact = isset( $recommendation['expected_impact'] ) ? (string) $recommendation['expected_impact'] : '';
+	public static function format_recommendation_report( array $recommendations, array $context = array() ) {
+		$list = array();
+		if ( isset( $recommendations['title'] ) || isset( $recommendations['recommendation'] ) ) {
+			$list[] = $recommendations;
+		} else {
+			$list = $recommendations;
+		}
+		$grouped = array();
+		foreach ( $list as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$cat = isset( $row['category'] ) ? sanitize_key( (string) $row['category'] ) : 'general';
+			if ( ! isset( $grouped[ $cat ] ) ) {
+				$grouped[ $cat ] = array();
+			}
+			$grouped[ $cat ][] = $row;
+		}
+		$html = '';
+		if ( ! empty( $context['show_title'] ) ) {
+			$html .= '<h2>' . esc_html__( 'Recommendation report', 'reactwoo-geo-ai' ) . '</h2>';
+		}
+		$html .= '<h3>' . esc_html__( 'What we are addressing', 'reactwoo-geo-ai' ) . '</h3>';
+		$html .= '<p>' . esc_html__( 'The following recommendations continue directly from your latest analysis.', 'reactwoo-geo-ai' ) . '</p>';
+		$html .= '<h3>' . esc_html__( 'Why this matters', 'reactwoo-geo-ai' ) . '</h3>';
+		$html .= '<p>' . esc_html__( 'These changes improve clarity, trust, conversion flow, and page performance.', 'reactwoo-geo-ai' ) . '</p>';
+		$html .= '<h2>' . esc_html__( 'Recommended changes', 'reactwoo-geo-ai' ) . '</h2>';
 
-		ob_start();
-		?>
-		<h2><?php echo esc_html( $title ); ?></h2>
-		<h3><?php esc_html_e( 'What we are addressing', 'reactwoo-geo-ai' ); ?></h3>
-		<?php echo wpautop( esc_html( $problem ) ); ?>
-		<h3><?php esc_html_e( 'Why this matters', 'reactwoo-geo-ai' ); ?></h3>
-		<?php echo wpautop( esc_html( $why ) ); ?>
-		<h3><?php esc_html_e( 'Recommended changes', 'reactwoo-geo-ai' ); ?></h3>
-		<?php echo wpautop( esc_html( $action ) ); ?>
-		<?php if ( '' !== trim( $impact ) ) : ?>
-			<h3><?php esc_html_e( 'Expected impact', 'reactwoo-geo-ai' ); ?></h3>
-			<p><?php echo esc_html( $impact ); ?></p>
-		<?php endif; ?>
-		<?php
-		return self::clean( (string) ob_get_clean() );
+		foreach ( $grouped as $cat => $rows ) {
+			$html  .= '<h3>' . esc_html( ucwords( str_replace( '_', ' ', (string) $cat ) ) ) . '</h3>';
+			$items = array();
+			foreach ( $rows as $r ) {
+				$title  = isset( $r['title'] ) ? (string) $r['title'] : '';
+				$action = isset( $r['recommendation'] ) ? (string) $r['recommendation'] : '';
+				$items[] = trim( $title . ': ' . preg_replace( '/\s+/', ' ', $action ) );
+			}
+			$html .= self::render_bullets( $items );
+		}
+
+		return self::clean( $html );
 	}
 
 	/**
 	 * @param array<string, mixed> $draft Draft row.
 	 * @return string
 	 */
-	public static function format_draft_report( array $draft ) {
-		$title = isset( $draft['title'] ) ? (string) $draft['title'] : '';
-		$type  = isset( $draft['draft_type'] ) ? (string) $draft['draft_type'] : '';
-		$payload = array();
-		if ( isset( $draft['draft_payload'] ) ) {
-			$payload = is_array( $draft['draft_payload'] ) ? $draft['draft_payload'] : json_decode( (string) $draft['draft_payload'], true );
+	public static function format_implementation_report( array $drafts, array $context = array() ) {
+		$list = isset( $drafts['id'] ) ? array( $drafts ) : $drafts;
+		$html = '<h2>' . esc_html__( 'Implementation draft', 'reactwoo-geo-ai' ) . '</h2>';
+		foreach ( $list as $draft ) {
+			if ( ! is_array( $draft ) ) {
+				continue;
+			}
+			$title   = isset( $draft['title'] ) ? (string) $draft['title'] : __( 'Section', 'reactwoo-geo-ai' );
+			$problem = isset( $context['issue'] ) ? (string) $context['issue'] : __( 'Issue inferred from recommendation context', 'reactwoo-geo-ai' );
+			$html   .= '<h3>' . esc_html( $title ) . '</h3>';
+			$html   .= '<p><strong>' . esc_html__( 'Issue:', 'reactwoo-geo-ai' ) . '</strong> ' . esc_html( $problem ) . '</p>';
+			$payload = isset( $draft['draft_payload'] ) ? $draft['draft_payload'] : array();
+			if ( ! is_array( $payload ) ) {
+				$payload = json_decode( (string) $payload, true );
+			}
+			$payload = is_array( $payload ) ? $payload : array();
+			foreach ( $payload as $key => $value ) {
+				$html .= '<h4>' . esc_html( ucwords( str_replace( '_', ' ', (string) $key ) ) ) . '</h4>';
+				$html .= self::render_paragraphs( is_scalar( $value ) ? (string) $value : wp_json_encode( $value ) );
+			}
 		}
-		$payload = is_array( $payload ) ? $payload : array();
+		return self::clean( $html );
+	}
 
-		ob_start();
-		?>
-		<h2><?php echo esc_html( $title ); ?></h2>
-		<p><strong><?php esc_html_e( 'Draft type:', 'reactwoo-geo-ai' ); ?></strong> <?php echo esc_html( $type ); ?></p>
-		<h3><?php esc_html_e( 'Generated content', 'reactwoo-geo-ai' ); ?></h3>
-		<ul>
-			<?php foreach ( $payload as $k => $v ) : ?>
-				<li><strong><?php echo esc_html( (string) $k ); ?>:</strong> <?php echo esc_html( is_scalar( $v ) ? (string) $v : wp_json_encode( $v ) ); ?></li>
-			<?php endforeach; ?>
-		</ul>
-		<?php
-		return self::clean( (string) ob_get_clean() );
+	/**
+	 * Backward-compatible single draft formatter.
+	 *
+	 * @param array<string, mixed> $draft Draft row.
+	 * @return string
+	 */
+	public static function format_draft_report( array $draft ) {
+		return self::format_implementation_report( array( $draft ) );
+	}
+
+	/**
+	 * @param string               $heading Heading.
+	 * @param string               $body Body.
+	 * @param array<int, string>   $items List items.
+	 * @return string
+	 */
+	public static function render_section( $heading, $body = '', array $items = array() ) {
+		$html = '<h2>' . esc_html( (string) $heading ) . '</h2>';
+		$html .= self::render_paragraphs( (string) $body );
+		if ( ! empty( $items ) ) {
+			$html .= self::render_bullets( $items );
+		}
+		return $html;
+	}
+
+	/**
+	 * @param array<int, string> $items Bullets.
+	 * @return string
+	 */
+	public static function render_bullets( array $items ) {
+		if ( empty( $items ) ) {
+			return '';
+		}
+		$html = '<ul>';
+		foreach ( $items as $item ) {
+			$html .= '<li>' . esc_html( (string) $item ) . '</li>';
+		}
+		$html .= '</ul>';
+		return $html;
+	}
+
+	/**
+	 * @param string $text Text.
+	 * @return string
+	 */
+	public static function render_paragraphs( $text ) {
+		return wpautop( esc_html( (string) $text ) );
 	}
 }
 

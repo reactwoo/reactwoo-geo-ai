@@ -118,7 +118,10 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-automation-rules.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-memory-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-automation-runner.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-current-workflow.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-report-formatter.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-journey-router.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-implementation-router.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-engine.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-remote-client.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-page-context.php';

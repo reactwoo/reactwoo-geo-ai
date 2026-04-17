@@ -27,6 +27,7 @@ class RWGA_Admin {
 		add_action( 'admin_init', array( __CLASS__, 'handle_license_actions' ) );
 		add_action( 'admin_post_rwga_sample_ux', array( __CLASS__, 'handle_sample_ux' ) );
 		add_action( 'admin_post_rwga_recommend_ux', array( __CLASS__, 'handle_recommend_ux' ) );
+		add_action( 'admin_post_rwga_generate_recommendation_report', array( __CLASS__, 'handle_generate_recommendation_report' ) );
 		add_action( 'admin_post_rwga_start_workflow', array( __CLASS__, 'handle_start_workflow' ) );
 		add_action( 'admin_post_rwga_copy_implement', array( __CLASS__, 'handle_copy_implement' ) );
 		add_action( 'admin_post_rwga_seo_implement', array( __CLASS__, 'handle_seo_implement' ) );
@@ -39,6 +40,9 @@ class RWGA_Admin {
 		add_action( 'admin_post_rwga_recommendation_delete', array( __CLASS__, 'handle_recommendation_delete' ) );
 		add_action( 'admin_post_rwga_draft_delete', array( __CLASS__, 'handle_draft_delete' ) );
 		add_action( 'admin_post_rwga_set_implementation_route', array( __CLASS__, 'handle_set_implementation_route' ) );
+		add_action( 'admin_post_rwga_apply_drafts_to_live', array( __CLASS__, 'handle_apply_drafts_to_live' ) );
+		add_action( 'admin_post_rwga_create_variant_from_drafts', array( __CLASS__, 'handle_create_variant_from_drafts' ) );
+		add_action( 'admin_post_rwga_send_variant_to_geo_optimise', array( __CLASS__, 'handle_send_variant_to_geo_optimise' ) );
 		add_action( 'admin_post_rwga_clear_geo_ai_license', array( __CLASS__, 'handle_clear_license_post' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
@@ -112,6 +116,42 @@ class RWGA_Admin {
 			echo '<a class="' . esc_attr( $class ) . '" href="' . esc_url( admin_url( 'admin.php?page=' . $slug ) ) . '">' . esc_html( $label ) . '</a>';
 		}
 		echo '</nav>';
+	}
+
+	/**
+	 * Render current workflow state panel.
+	 *
+	 * @return void
+	 */
+	public static function render_current_workflow_state() {
+		if ( ! class_exists( 'RWGA_Current_Workflow', false ) ) {
+			return;
+		}
+		$state = RWGA_Current_Workflow::get();
+		if ( empty( $state ) ) {
+			return;
+		}
+		$asset_id = isset( $state['asset_id'] ) ? (int) $state['asset_id'] : 0;
+		$asset    = $asset_id > 0 ? get_the_title( $asset_id ) : __( 'Unknown', 'reactwoo-geo-ai' );
+		$step     = isset( $state['journey_step'] ) ? (string) $state['journey_step'] : 'started';
+		$analysis = isset( $state['analysis_run_id'] ) ? (int) $state['analysis_run_id'] : 0;
+		$cta_url  = $analysis > 0 && class_exists( 'RWGA_Journey_Router', false ) ? RWGA_Journey_Router::analysis_detail_url( $analysis ) : admin_url( 'admin.php?page=' . self::MENU_PARENT );
+		$cta_lab  = __( 'Continue workflow', 'reactwoo-geo-ai' );
+		if ( in_array( $step, array( 'analysis_complete', 'recommendations_selected' ), true ) && class_exists( 'RWGA_Journey_Router', false ) ) {
+			$cta_url = RWGA_Journey_Router::recommendation_report_url( $analysis );
+			$cta_lab = __( 'Continue to recommendations', 'reactwoo-geo-ai' );
+		} elseif ( in_array( $step, array( 'recommendation_report_ready', 'implementation_generated' ), true ) && class_exists( 'RWGA_Journey_Router', false ) ) {
+			$draft_ids = isset( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ? $state['draft_ids'] : array();
+			$cta_url   = RWGA_Journey_Router::implementation_review_url( $draft_ids, $analysis );
+			$cta_lab   = __( 'Continue to implementation', 'reactwoo-geo-ai' );
+		}
+		echo '<div class="rwgc-card rwga-workflow-state">';
+		echo '<strong>' . esc_html__( 'Current workflow', 'reactwoo-geo-ai' ) . '</strong>';
+		echo '<p>' . esc_html__( 'Asset:', 'reactwoo-geo-ai' ) . ' ' . esc_html( (string) $asset ) . '</p>';
+		echo '<p>' . esc_html__( 'Analysis:', 'reactwoo-geo-ai' ) . ' ' . esc_html( $analysis > 0 ? (string) $analysis : __( 'Not started', 'reactwoo-geo-ai' ) ) . '</p>';
+		echo '<p>' . esc_html__( 'Step:', 'reactwoo-geo-ai' ) . ' ' . esc_html( str_replace( '_', ' ', $step ) ) . '</p>';
+		echo '<p><a class="rwgc-btn rwgc-btn--primary" href="' . esc_url( $cta_url ) . '">' . esc_html( $cta_lab ) . '</a></p>';
+		echo '</div>';
 	}
 
 	/**
@@ -670,11 +710,20 @@ class RWGA_Admin {
 		}
 
 		$run_id = isset( $out['analysis_run_id'] ) ? (int) $out['analysis_run_id'] : 0;
-		wp_safe_redirect(
-			admin_url(
-				'admin.php?page=rwga-analyses&run_id=' . $run_id . '&rwga_sample=ok'
-			)
-		);
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::update(
+				array(
+					'asset_type'       => 'page',
+					'asset_id'         => $page_id,
+					'analysis_run_id'  => $run_id,
+					'selected_categories' => array(),
+				)
+			);
+			RWGA_Current_Workflow::set_step( 'analysis_complete' );
+		}
+		$url = class_exists( 'RWGA_Journey_Router', false ) ? RWGA_Journey_Router::analysis_detail_url( $run_id ) : admin_url( 'admin.php?page=rwga-analyses&run_id=' . $run_id );
+		$url = add_query_arg( 'rwga_sample', 'ok', $url );
+		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -733,10 +782,31 @@ class RWGA_Admin {
 		}
 
 		$count = isset( $out['recommendation_ids'] ) && is_array( $out['recommendation_ids'] ) ? count( $out['recommendation_ids'] ) : 0;
-		wp_safe_redirect(
-			admin_url( 'admin.php?page=rwga-recommendations&analysis_run=' . (int) $analysis_run_id . '&rwga_rec=ok&rwga_rec_count=' . (int) $count )
-		);
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::update(
+				array(
+					'analysis_run_id'      => $analysis_run_id,
+					'recommendation_ids'   => isset( $out['recommendation_ids'] ) && is_array( $out['recommendation_ids'] ) ? $out['recommendation_ids'] : array(),
+					'selected_categories'  => $cats,
+				)
+			);
+			RWGA_Current_Workflow::set_step( 'recommendation_report_ready' );
+		}
+		$url = class_exists( 'RWGA_Journey_Router', false )
+			? RWGA_Journey_Router::recommendation_report_url( $analysis_run_id )
+			: admin_url( 'admin.php?page=rwga-recommendations&analysis_run=' . (int) $analysis_run_id . '&view=report&journey=1' );
+		$url = add_query_arg( array( 'rwga_rec' => 'ok', 'rwga_rec_count' => (int) $count ), $url );
+		wp_safe_redirect( $url );
 		exit;
+	}
+
+	/**
+	 * Alias action for recommendation report generation.
+	 *
+	 * @return void
+	 */
+	public static function handle_generate_recommendation_report() {
+		self::handle_recommend_ux();
 	}
 
 	/**
@@ -812,6 +882,7 @@ class RWGA_Admin {
 
 		$recs = RWGA_DB_Recommendations::list_for_analysis( $analysis_run_id );
 		$draft_count = 0;
+		$all_draft_ids = array();
 		foreach ( $recs as $rec ) {
 			if ( ! is_array( $rec ) || empty( $rec['id'] ) ) {
 				continue;
@@ -827,16 +898,23 @@ class RWGA_Admin {
 			$c = $copy->execute( $payload );
 			if ( is_array( $c ) && ! empty( $c['draft_ids'] ) && is_array( $c['draft_ids'] ) ) {
 				$draft_count += count( $c['draft_ids'] );
+				$all_draft_ids = array_merge( $all_draft_ids, $c['draft_ids'] );
 			}
 			$s = $seo->execute( $payload );
 			if ( is_array( $s ) && ! empty( $s['draft_ids'] ) && is_array( $s['draft_ids'] ) ) {
 				$draft_count += count( $s['draft_ids'] );
+				$all_draft_ids = array_merge( $all_draft_ids, $s['draft_ids'] );
 			}
 		}
-
-		wp_safe_redirect(
-			admin_url( 'admin.php?page=rwga-implementation-drafts&rwga_impl=ok&rwga_draft_count=' . (int) $draft_count . '&analysis_run=' . (int) $analysis_run_id )
-		);
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::set_draft_ids( $all_draft_ids );
+			RWGA_Current_Workflow::set_step( 'implementation_generated' );
+		}
+		$url = class_exists( 'RWGA_Journey_Router', false )
+			? RWGA_Journey_Router::implementation_review_url( $all_draft_ids, $analysis_run_id )
+			: admin_url( 'admin.php?page=rwga-implementation-drafts&view=review&journey=1' );
+		$url = add_query_arg( array( 'rwga_impl' => 'ok', 'rwga_draft_count' => (int) $draft_count, 'analysis_run' => (int) $analysis_run_id ), $url );
+		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -888,7 +966,19 @@ class RWGA_Admin {
 			exit;
 		}
 		$run_id = isset( $out['analysis_run_id'] ) ? (int) $out['analysis_run_id'] : 0;
-		wp_safe_redirect( admin_url( 'admin.php?page=rwga-analyses&run_id=' . $run_id ) );
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::update(
+				array(
+					'asset_type'      => $asset_type,
+					'asset_id'        => $asset_id,
+					'analysis_focus'  => $focus,
+					'analysis_run_id' => $run_id,
+				)
+			);
+			RWGA_Current_Workflow::set_step( 'analysis_complete' );
+		}
+		$url = class_exists( 'RWGA_Journey_Router', false ) ? RWGA_Journey_Router::analysis_detail_url( $run_id ) : admin_url( 'admin.php?page=rwga-analyses&run_id=' . $run_id );
+		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -972,7 +1062,93 @@ class RWGA_Admin {
 			exit;
 		}
 		RWGA_DB_Implementation_Drafts::set_route_for_recommendation( $recommendation_id, $route );
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::update(
+				array(
+					'implementation_mode' => $route,
+					'recommendation_ids'  => array( $recommendation_id ),
+				)
+			);
+		}
 		wp_safe_redirect( admin_url( 'admin.php?page=rwga-recommendations&rec_id=' . $recommendation_id . '&rwga_route=ok' ) );
+		exit;
+	}
+
+	/**
+	 * Apply generated drafts to live page.
+	 *
+	 * @return void
+	 */
+	public static function handle_apply_drafts_to_live() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to apply drafts.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_apply_drafts_to_live' );
+		$page_id   = isset( $_POST['page_id'] ) ? (int) wp_unslash( $_POST['page_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$draft_ids = isset( $_POST['draft_ids'] ) ? array_filter( array_map( 'intval', explode( ',', (string) wp_unslash( $_POST['draft_ids'] ) ) ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$result    = class_exists( 'RWGA_Implementation_Router', false ) ? RWGA_Implementation_Router::apply_drafts_to_live( $draft_ids, $page_id ) : new WP_Error( 'rwga_missing_router', __( 'Implementation router unavailable.', 'reactwoo-geo-ai' ) );
+		if ( is_wp_error( $result ) ) {
+			wp_safe_redirect( add_query_arg( array( 'page' => 'rwga-implementation-drafts', 'view' => 'review', 'rwga_apply' => 'error', 'rwga_err' => rawurlencode( $result->get_error_message() ) ), admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::set_step( 'applied_live' );
+		}
+		wp_safe_redirect( add_query_arg( array( 'page' => 'rwga-implementation-drafts', 'view' => 'review', 'rwga_apply' => 'ok' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/**
+	 * Create variant from drafts.
+	 *
+	 * @return void
+	 */
+	public static function handle_create_variant_from_drafts() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to create variants.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_create_variant_from_drafts' );
+		$page_id   = isset( $_POST['page_id'] ) ? (int) wp_unslash( $_POST['page_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$draft_ids = isset( $_POST['draft_ids'] ) ? array_filter( array_map( 'intval', explode( ',', (string) wp_unslash( $_POST['draft_ids'] ) ) ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$result    = class_exists( 'RWGA_Implementation_Router', false ) ? RWGA_Implementation_Router::create_variant_from_drafts( $draft_ids, $page_id ) : new WP_Error( 'rwga_missing_router', __( 'Implementation router unavailable.', 'reactwoo-geo-ai' ) );
+		if ( is_wp_error( $result ) ) {
+			wp_safe_redirect( add_query_arg( array( 'page' => 'rwga-implementation-drafts', 'view' => 'review', 'rwga_variant' => 'error', 'rwga_err' => rawurlencode( $result->get_error_message() ) ), admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		$variant_page_id = isset( $result['variant_page_id'] ) ? (int) $result['variant_page_id'] : 0;
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::set_variant_page_id( $variant_page_id );
+			RWGA_Current_Workflow::set_step( 'variant_created' );
+		}
+		wp_safe_redirect( add_query_arg( array( 'page' => 'rwga-implementation-drafts', 'view' => 'review', 'rwga_variant' => 'ok', 'variant_page_id' => $variant_page_id ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/**
+	 * Send variant to Geo Optimise.
+	 *
+	 * @return void
+	 */
+	public static function handle_send_variant_to_geo_optimise() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to send variants.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_send_variant_to_geo_optimise' );
+		$variant_page_id = isset( $_POST['variant_page_id'] ) ? (int) wp_unslash( $_POST['variant_page_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$analysis_run_id = isset( $_POST['analysis_run_id'] ) ? (int) wp_unslash( $_POST['analysis_run_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( $variant_page_id <= 0 && class_exists( 'RWGA_Current_Workflow', false ) ) {
+			$state           = RWGA_Current_Workflow::get();
+			$variant_page_id = isset( $state['variant_page_id'] ) ? (int) $state['variant_page_id'] : 0;
+		}
+		$url = class_exists( 'RWGA_Implementation_Router', false ) ? RWGA_Implementation_Router::send_variant_to_geo_optimise( $variant_page_id, array( 'analysis_run_id' => $analysis_run_id ) ) : new WP_Error( 'rwga_missing_router', __( 'Implementation router unavailable.', 'reactwoo-geo-ai' ) );
+		if ( is_wp_error( $url ) ) {
+			wp_safe_redirect( add_query_arg( array( 'page' => 'rwga-implementation-drafts', 'view' => 'review', 'rwga_geo' => 'error', 'rwga_err' => rawurlencode( $url->get_error_message() ) ), admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::set_step( 'sent_to_geo_optimise' );
+		}
+		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -1035,10 +1211,15 @@ class RWGA_Admin {
 		}
 
 		$count = isset( $out['draft_ids'] ) && is_array( $out['draft_ids'] ) ? count( $out['draft_ids'] ) : 0;
-		$redir = admin_url( 'admin.php?page=rwga-implementation-drafts&rwga_copy=ok&rwga_draft_count=' . (int) $count );
-		if ( $recommendation_id > 0 ) {
-			$redir = add_query_arg( 'recommendation_id', $recommendation_id, $redir );
+		$draft_ids = isset( $out['draft_ids'] ) && is_array( $out['draft_ids'] ) ? $out['draft_ids'] : array();
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::set_draft_ids( $draft_ids );
+			RWGA_Current_Workflow::set_step( 'implementation_generated' );
 		}
+		$redir = class_exists( 'RWGA_Journey_Router', false )
+			? RWGA_Journey_Router::implementation_review_url( $draft_ids )
+			: admin_url( 'admin.php?page=rwga-implementation-drafts&view=review&journey=1' );
+		$redir = add_query_arg( array( 'rwga_copy' => 'ok', 'rwga_draft_count' => (int) $count ), $redir );
 		wp_safe_redirect( $redir );
 		exit;
 	}
@@ -1102,10 +1283,15 @@ class RWGA_Admin {
 		}
 
 		$count = isset( $out['draft_ids'] ) && is_array( $out['draft_ids'] ) ? count( $out['draft_ids'] ) : 0;
-		$redir = admin_url( 'admin.php?page=rwga-implementation-drafts&rwga_seo=ok&rwga_draft_count=' . (int) $count . '&workflow_key=seo_implement' );
-		if ( $recommendation_id > 0 ) {
-			$redir = add_query_arg( 'recommendation_id', $recommendation_id, $redir );
+		$draft_ids = isset( $out['draft_ids'] ) && is_array( $out['draft_ids'] ) ? $out['draft_ids'] : array();
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			RWGA_Current_Workflow::set_draft_ids( $draft_ids );
+			RWGA_Current_Workflow::set_step( 'implementation_generated' );
 		}
+		$redir = class_exists( 'RWGA_Journey_Router', false )
+			? RWGA_Journey_Router::implementation_review_url( $draft_ids )
+			: admin_url( 'admin.php?page=rwga-implementation-drafts&view=review&journey=1' );
+		$redir = add_query_arg( array( 'rwga_seo' => 'ok', 'rwga_draft_count' => (int) $count, 'workflow_key' => 'seo_implement' ), $redir );
 		wp_safe_redirect( $redir );
 		exit;
 	}
@@ -1499,6 +1685,12 @@ class RWGA_Admin {
 			self::render_recommendation_detail( $rec_id );
 			return;
 		}
+		$analysis_run_report = isset( $_GET['analysis_run'] ) ? (int) $_GET['analysis_run'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$view_mode           = isset( $_GET['view'] ) ? sanitize_key( wp_unslash( $_GET['view'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $analysis_run_report > 0 && 'report' === $view_mode ) {
+			self::render_recommendation_report( $analysis_run_report );
+			return;
+		}
 
 		$filter = isset( $_GET['analysis_run'] ) ? (int) $_GET['analysis_run'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
@@ -1525,6 +1717,40 @@ class RWGA_Admin {
 		$rwga_filters         = $filters;
 		$rwgc_nav_current     = 'rwga-recommendations';
 		include RWGA_PATH . 'admin/views/recommendations-list.php';
+	}
+
+	/**
+	 * Render grouped recommendation report for one analysis run.
+	 *
+	 * @param int $analysis_run_id Analysis run ID.
+	 * @return void
+	 */
+	private static function render_recommendation_report( $analysis_run_id ) {
+		$analysis_run_id = (int) $analysis_run_id;
+		if ( $analysis_run_id <= 0 || ! class_exists( 'RWGA_DB_Recommendations', false ) ) {
+			wp_die( esc_html__( 'Invalid recommendation report context.', 'reactwoo-geo-ai' ), '', array( 'response' => 404 ) );
+		}
+		$rwga_recommendation_rows = RWGA_DB_Recommendations::list_for_analysis( $analysis_run_id );
+		$rwga_report_html = class_exists( 'RWGA_Report_Formatter', false )
+			? RWGA_Report_Formatter::format_recommendation_report( $rwga_recommendation_rows, array( 'show_title' => true ) )
+			: '';
+		$rwga_analysis_run_id = $analysis_run_id;
+		if ( class_exists( 'RWGA_Current_Workflow', false ) ) {
+			$ids = array();
+			foreach ( $rwga_recommendation_rows as $row ) {
+				if ( is_array( $row ) && ! empty( $row['id'] ) ) {
+					$ids[] = (int) $row['id'];
+				}
+			}
+			RWGA_Current_Workflow::update(
+				array(
+					'analysis_run_id'    => $analysis_run_id,
+					'recommendation_ids' => $ids,
+				)
+			);
+		}
+		$rwgc_nav_current     = 'rwga-recommendations';
+		include RWGA_PATH . 'admin/views/recommendation-detail.php';
 	}
 
 	/**
@@ -1563,6 +1789,11 @@ class RWGA_Admin {
 			self::render_implementation_draft_detail( $draft_id );
 			return;
 		}
+		$view_mode = isset( $_GET['view'] ) ? sanitize_key( wp_unslash( $_GET['view'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( 'review' === $view_mode ) {
+			self::render_implementation_review();
+			return;
+		}
 
 		$filter   = isset( $_GET['recommendation_id'] ) ? (int) $_GET['recommendation_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$wk_raw   = isset( $_GET['workflow_key'] ) ? sanitize_key( wp_unslash( $_GET['workflow_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -1594,6 +1825,34 @@ class RWGA_Admin {
 		$rwgc_nav_current           = 'rwga-implementation-drafts';
 		$rwga_recommendation_rows   = self::get_recommendation_rows_for_select();
 		include RWGA_PATH . 'admin/views/implementation-drafts-list.php';
+	}
+
+	/**
+	 * Render workflow-first implementation review screen.
+	 *
+	 * @return void
+	 */
+	private static function render_implementation_review() {
+		$state = class_exists( 'RWGA_Current_Workflow', false ) ? RWGA_Current_Workflow::get() : array();
+		$draft_ids = array();
+		if ( isset( $_GET['draft_ids'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$draft_ids = array_filter( array_map( 'intval', explode( ',', (string) wp_unslash( $_GET['draft_ids'] ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		}
+		if ( empty( $draft_ids ) && ! empty( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ) {
+			$draft_ids = array_values( array_map( 'intval', $state['draft_ids'] ) );
+		}
+		$rwga_drafts = array();
+		if ( class_exists( 'RWGA_DB_Implementation_Drafts', false ) ) {
+			foreach ( $draft_ids as $id ) {
+				$row = RWGA_DB_Implementation_Drafts::get( (int) $id );
+				if ( is_array( $row ) ) {
+					$rwga_drafts[] = $row;
+				}
+			}
+		}
+		$rwga_workflow_state = $state;
+		$rwgc_nav_current    = 'rwga-implementation-drafts';
+		include RWGA_PATH . 'admin/views/implementation-review.php';
 	}
 
 	/**
