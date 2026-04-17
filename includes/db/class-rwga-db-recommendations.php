@@ -52,8 +52,14 @@ class RWGA_DB_Recommendations {
 			'title'              => isset( $row['title'] ) ? sanitize_text_field( (string) $row['title'] ) : '',
 			'problem'            => isset( $row['problem'] ) ? wp_kses_post( (string) $row['problem'] ) : '',
 			'why_it_matters'     => isset( $row['why_it_matters'] ) ? wp_kses_post( (string) $row['why_it_matters'] ) : '',
-			'recommendation'     => isset( $row['recommendation'] ) ? wp_kses_post( (string) $row['recommendation'] ) : '',
-			'selected_categories'=> isset( $row['selected_categories'] ) ? wp_json_encode( (array) $row['selected_categories'] ) : null,
+			'recommendation'      => isset( $row['recommendation'] ) ? wp_kses_post( (string) $row['recommendation'] ) : '',
+			'page_placement'      => isset( $row['page_placement'] ) && '' !== trim( (string) $row['page_placement'] )
+				? sanitize_text_field( (string) $row['page_placement'] )
+				: null,
+			'suggested_copy_json' => isset( $row['suggested_copy_json'] ) && is_string( $row['suggested_copy_json'] ) && '' !== $row['suggested_copy_json']
+				? (string) $row['suggested_copy_json']
+				: null,
+			'selected_categories' => isset( $row['selected_categories'] ) ? wp_json_encode( (array) $row['selected_categories'] ) : null,
 			'report_html'        => isset( $row['report_html'] ) ? wp_kses_post( (string) $row['report_html'] ) : null,
 			'expected_impact'    => $exp,
 			'confidence'         => $conf,
@@ -64,12 +70,14 @@ class RWGA_DB_Recommendations {
 			'updated_at'         => $now,
 		);
 
-		// 20 columns — nulls use %s for wpdb compatibility.
+		// 22 columns — nulls use %s for wpdb compatibility.
 		$formats = array(
 			null === $data['analysis_run_id'] ? '%s' : '%d',
 			'%s',
 			'%s',
 			null === $data['page_id'] ? '%s' : '%d',
+			'%s',
+			'%s',
 			'%s',
 			'%s',
 			'%s',

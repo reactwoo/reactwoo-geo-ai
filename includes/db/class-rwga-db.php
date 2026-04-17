@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_DB {
 
 	const VERSION_OPTION = 'rwga_db_version';
-	const SCHEMA_VERSION = '1.1.0';
+	const SCHEMA_VERSION = '1.2.0';
 
 	/**
 	 * @return string
@@ -158,6 +158,8 @@ class RWGA_DB {
 			problem longtext NOT NULL,
 			why_it_matters longtext NOT NULL,
 			recommendation longtext NOT NULL,
+			page_placement varchar(512) NULL,
+			suggested_copy_json longtext NULL,
 			selected_categories longtext NULL,
 			report_html longtext NULL,
 			expected_impact varchar(100) NULL,

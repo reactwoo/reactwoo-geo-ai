@@ -19,16 +19,18 @@ class RWGA_Report_Formatter {
 	 */
 	private static function allowed_tags() {
 		return array(
-			'h2'     => array(),
-			'h3'     => array(),
-			'h4'     => array(),
-			'p'      => array(),
-			'ul'     => array(),
-			'ol'     => array(),
-			'li'     => array(),
-			'strong' => array(),
-			'em'     => array(),
-			'br'     => array(),
+			'h2'        => array(),
+			'h3'        => array(),
+			'h4'        => array(),
+			'h5'        => array(),
+			'p'         => array(),
+			'ul'        => array(),
+			'ol'        => array(),
+			'li'        => array(),
+			'strong'    => array(),
+			'em'        => array(),
+			'br'        => array(),
+			'blockquote'=> array(),
 		);
 	}
 
@@ -86,6 +88,112 @@ class RWGA_Report_Formatter {
 	 * @param array<string, mixed> $recommendation Recommendation row/payload.
 	 * @return string
 	 */
+	/**
+	 * Human label for a recommendation category key.
+	 *
+	 * @param string $cat Category slug.
+	 * @return string
+	 */
+	public static function recommendation_category_label( $cat ) {
+		$cat = sanitize_key( (string) $cat );
+		$labels = array(
+			'messaging'       => __( 'Copy & messaging', 'reactwoo-geo-ai' ),
+			'conversion'      => __( 'CTAs & conversion', 'reactwoo-geo-ai' ),
+			'trust'           => __( 'Trust & proof', 'reactwoo-geo-ai' ),
+			'layout'          => __( 'Layout & structure', 'reactwoo-geo-ai' ),
+			'performance'     => __( 'Performance', 'reactwoo-geo-ai' ),
+			'accessibility'   => __( 'Accessibility', 'reactwoo-geo-ai' ),
+			'content'         => __( 'Content', 'reactwoo-geo-ai' ),
+			'general'         => __( 'General', 'reactwoo-geo-ai' ),
+		);
+		return isset( $labels[ $cat ] ) ? $labels[ $cat ] : ucwords( str_replace( '_', ' ', $cat ) );
+	}
+
+	/**
+	 * Decode suggested_copy_json from a DB row.
+	 *
+	 * @param array<string, mixed> $row Row.
+	 * @return array<string, string>
+	 */
+	public static function decode_suggested_copy( array $row ) {
+		if ( empty( $row['suggested_copy_json'] ) || ! is_string( $row['suggested_copy_json'] ) ) {
+			return array();
+		}
+		$decoded = json_decode( $row['suggested_copy_json'], true );
+		return is_array( $decoded ) ? $decoded : array();
+	}
+
+	/**
+	 * HTML for one recommendation card (placement + paste-ready copy + context).
+	 *
+	 * @param array<string, mixed> $row Recommendation row.
+	 * @return string
+	 */
+	public static function format_recommendation_card_html( array $row ) {
+		$title    = isset( $row['title'] ) ? (string) $row['title'] : '';
+		$problem  = isset( $row['problem'] ) ? trim( (string) $row['problem'] ) : '';
+		$why      = isset( $row['why_it_matters'] ) ? trim( (string) $row['why_it_matters'] ) : '';
+		$tactic   = isset( $row['recommendation'] ) ? trim( (string) $row['recommendation'] ) : '';
+		$place    = isset( $row['page_placement'] ) ? trim( (string) $row['page_placement'] ) : '';
+		$copy     = self::decode_suggested_copy( $row );
+		if ( empty( $copy ) && isset( $row['suggested_copy'] ) && is_array( $row['suggested_copy'] ) ) {
+			$copy = $row['suggested_copy'];
+		}
+
+		$html  = '<div class="rwga-rec-card">';
+		$html .= '<h4>' . esc_html( $title ) . '</h4>';
+
+		if ( '' !== $place ) {
+			$html .= '<p><strong>' . esc_html__( 'Where to apply this', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $place ) . '</p>';
+		}
+
+		if ( ! empty( $copy['primary_cta_label'] ) || ! empty( $copy['headline'] ) || ! empty( $copy['subheadline'] ) ) {
+			$html .= '<h5>' . esc_html__( 'Suggested copy (paste-ready)', 'reactwoo-geo-ai' ) . '</h5>';
+			if ( ! empty( $copy['replace_this'] ) ) {
+				$html .= '<p><em>' . esc_html__( 'Replace or update:', 'reactwoo-geo-ai' ) . '</em> ' . esc_html( (string) $copy['replace_this'] ) . '</p>';
+			}
+			if ( ! empty( $copy['headline'] ) ) {
+				$html .= '<p><strong>' . esc_html__( 'Headline', 'reactwoo-geo-ai' ) . '</strong><br />';
+				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['headline'] ) . '</blockquote></p>';
+			}
+			if ( ! empty( $copy['subheadline'] ) ) {
+				$html .= '<p><strong>' . esc_html__( 'Subheadline / supporting line', 'reactwoo-geo-ai' ) . '</strong><br />';
+				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['subheadline'] ) . '</blockquote></p>';
+			}
+			if ( ! empty( $copy['primary_cta_label'] ) ) {
+				$html .= '<p><strong>' . esc_html__( 'Primary button', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( (string) $copy['primary_cta_label'] ) . '</p>';
+			}
+			if ( ! empty( $copy['secondary_cta_label'] ) ) {
+				$html .= '<p><strong>' . esc_html__( 'Secondary button', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( (string) $copy['secondary_cta_label'] ) . '</p>';
+			}
+			if ( ! empty( $copy['supporting_snippet'] ) ) {
+				$html .= '<p><strong>' . esc_html__( 'Trust / proof line', 'reactwoo-geo-ai' ) . '</strong><br />';
+				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['supporting_snippet'] ) . '</blockquote></p>';
+			}
+		} elseif ( '' !== $tactic ) {
+			$html .= '<h5>' . esc_html__( 'Guidance', 'reactwoo-geo-ai' ) . '</h5>';
+			$html .= self::render_paragraphs( $tactic );
+		}
+
+		if ( '' !== $problem ) {
+			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'Issue', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $problem ) . '</p>';
+		}
+		if ( '' !== $why ) {
+			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'Why it matters', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $why ) . '</p>';
+		}
+		if ( '' !== $tactic && ( ! empty( $copy['primary_cta_label'] ) || ! empty( $copy['headline'] ) ) ) {
+			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'How to implement', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $tactic ) . '</p>';
+		}
+
+		$html .= '</div>';
+		return self::clean( $html );
+	}
+
+	/**
+	 * @param array<int, array<string, mixed>>|array<string, mixed> $recommendations List or single card.
+	 * @param array<string, mixed>                                  $context         Options: show_title.
+	 * @return string
+	 */
 	public static function format_recommendation_report( array $recommendations, array $context = array() ) {
 		$list = array();
 		if ( isset( $recommendations['title'] ) || isset( $recommendations['recommendation'] ) ) {
@@ -108,21 +216,16 @@ class RWGA_Report_Formatter {
 		if ( ! empty( $context['show_title'] ) ) {
 			$html .= '<h2>' . esc_html__( 'Recommendation report', 'reactwoo-geo-ai' ) . '</h2>';
 		}
-		$html .= '<h3>' . esc_html__( 'What we are addressing', 'reactwoo-geo-ai' ) . '</h3>';
-		$html .= '<p>' . esc_html__( 'The following recommendations continue directly from your latest analysis.', 'reactwoo-geo-ai' ) . '</p>';
-		$html .= '<h3>' . esc_html__( 'Why this matters', 'reactwoo-geo-ai' ) . '</h3>';
-		$html .= '<p>' . esc_html__( 'These changes improve clarity, trust, conversion flow, and page performance.', 'reactwoo-geo-ai' ) . '</p>';
+		$html .= '<h3>' . esc_html__( 'What you get in this report', 'reactwoo-geo-ai' ) . '</h3>';
+		$html .= '<p>' . esc_html__( 'Each item names where on the page to work, then gives paste-ready headline, subhead, and button labels where applicable. Use your brand voice—treat the quoted lines as drafts to drop into your hero, CTA row, or trust strip.', 'reactwoo-geo-ai' ) . '</p>';
+
 		$html .= '<h2>' . esc_html__( 'Recommended changes', 'reactwoo-geo-ai' ) . '</h2>';
 
 		foreach ( $grouped as $cat => $rows ) {
-			$html  .= '<h3>' . esc_html( ucwords( str_replace( '_', ' ', (string) $cat ) ) ) . '</h3>';
-			$items = array();
+			$html .= '<h3>' . esc_html( self::recommendation_category_label( $cat ) ) . '</h3>';
 			foreach ( $rows as $r ) {
-				$title  = isset( $r['title'] ) ? (string) $r['title'] : '';
-				$action = isset( $r['recommendation'] ) ? (string) $r['recommendation'] : '';
-				$items[] = trim( $title . ': ' . preg_replace( '/\s+/', ' ', $action ) );
+				$html .= self::format_recommendation_card_html( $r );
 			}
-			$html .= self::render_bullets( $items );
 		}
 
 		return self::clean( $html );

@@ -163,6 +163,16 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 			if ( ! is_array( $rec ) ) {
 				continue;
 			}
+			$page_placement = isset( $rec['page_placement'] ) ? sanitize_text_field( (string) $rec['page_placement'] ) : '';
+			$suggested_arr  = isset( $rec['suggested_copy'] ) && is_array( $rec['suggested_copy'] ) ? $rec['suggested_copy'] : array();
+			$suggested_json = ! empty( $suggested_arr ) ? wp_json_encode( $suggested_arr ) : null;
+			$row_for_html   = array_merge(
+				$rec,
+				array(
+					'page_placement' => $page_placement,
+					'suggested_copy' => $suggested_arr,
+				)
+			);
 			$id = RWGA_DB_Recommendations::insert(
 				array(
 					'analysis_run_id' => $analysis_run_id,
@@ -176,8 +186,10 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 					'problem'         => isset( $rec['problem'] ) ? wp_kses_post( (string) $rec['problem'] ) : '',
 					'why_it_matters'  => isset( $rec['why_it_matters'] ) ? wp_kses_post( (string) $rec['why_it_matters'] ) : '',
 					'recommendation'  => isset( $rec['recommendation'] ) ? wp_kses_post( (string) $rec['recommendation'] ) : '',
+					'page_placement'  => '' !== $page_placement ? $page_placement : null,
+					'suggested_copy_json' => $suggested_json,
 					'selected_categories' => $selected_categories,
-					'report_html'     => class_exists( 'RWGA_Report_Formatter', false ) ? RWGA_Report_Formatter::format_recommendation_report( $rec ) : '',
+					'report_html'     => class_exists( 'RWGA_Report_Formatter', false ) ? RWGA_Report_Formatter::format_recommendation_card_html( $row_for_html ) : '',
 					'expected_impact' => isset( $rec['expected_impact'] ) ? sanitize_text_field( (string) $rec['expected_impact'] ) : null,
 					'confidence'      => isset( $rec['confidence'] ) ? (float) $rec['confidence'] : null,
 					'status'          => 'open',
@@ -259,8 +271,7 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 
 				$rec_text_raw = isset( $f['recommendation_hint'] ) && '' !== trim( (string) $f['recommendation_hint'] )
 					? (string) $f['recommendation_hint']
-					: __( 'Test a clearer headline, stronger CTA hierarchy, and specific proof near the decision point.', 'reactwoo-geo-ai' );
-				$rec_text = $this->format_structured_recommendation( $problem, $why, $rec_text_raw, $cat );
+					: __( 'Clarify the offer, strengthen the primary CTA, and add proof near the decision point.', 'reactwoo-geo-ai' );
 
 				$impact = isset( $f['impact_estimate'] ) ? sanitize_text_field( (string) $f['impact_estimate'] ) : 'medium';
 				$conf   = isset( $f['confidence'] ) ? (float) $f['confidence'] : 0.7;
@@ -269,15 +280,20 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 					? __( 'Prioritise:', 'reactwoo-geo-ai' ) . ' ' . $title
 					: __( 'Improve conversion focus', 'reactwoo-geo-ai' );
 
+				$placement = $this->stub_page_placement_for_category( $cat );
+				$suggested = $this->stub_suggested_copy( $cat, $title, $problem, $rec_text_raw );
+
 				$out[] = array(
-					'priority_level'  => $pri,
-					'category'        => $cat,
-					'title'           => $title_out,
-					'problem'         => $problem,
-					'why_it_matters'  => $why,
-					'recommendation'  => $rec_text,
-					'expected_impact' => $impact,
-					'confidence'      => $conf,
+					'priority_level'   => $pri,
+					'category'         => $cat,
+					'title'            => $title_out,
+					'problem'          => $problem,
+					'why_it_matters'   => $why,
+					'recommendation'   => __( 'Implementation:', 'reactwoo-geo-ai' ) . ' ' . sanitize_text_field( $rec_text_raw ),
+					'page_placement'   => $placement,
+					'suggested_copy'   => $suggested,
+					'expected_impact'  => $impact,
+					'confidence'       => $conf,
 				);
 			}
 		} else {
@@ -293,7 +309,9 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 				'title'           => __( 'Establish a clearer primary story', 'reactwoo-geo-ai' ),
 				'problem'         => $problem,
 				'why_it_matters'  => $why,
-				'recommendation'  => $this->format_structured_recommendation( $problem, $why, $base_recommendation, 'general' ),
+				'recommendation'  => __( 'Implementation:', 'reactwoo-geo-ai' ) . ' ' . sanitize_text_field( $base_recommendation ),
+				'page_placement'  => __( 'Hero / first screen: headline, supporting line, and primary CTA.', 'reactwoo-geo-ai' ),
+				'suggested_copy'  => $this->stub_suggested_copy( 'general', '', $problem, $base_recommendation ),
 				'expected_impact' => 'medium',
 				'confidence'      => 0.65,
 			);
@@ -303,41 +321,77 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 	}
 
 	/**
-	 * Keep recommendation text actionable and consistently structured.
+	 * Where on the page this applies (stub).
 	 *
-	 * @param string $problem Problem statement.
-	 * @param string $why Why it matters statement.
-	 * @param string $raw Raw recommendation hint.
-	 * @param string $category Finding category.
+	 * @param string $category Category slug.
 	 * @return string
 	 */
-	private function format_structured_recommendation( $problem, $why, $raw, $category ) {
-		$raw = trim( (string) $raw );
-		if ( '' === $raw ) {
-			$raw = __( 'Clarify the value proposition, reduce CTA conflict, and add specific proof near the conversion moment.', 'reactwoo-geo-ai' );
-		}
-		$primary_cta   = __( 'Get started', 'reactwoo-geo-ai' );
-		$secondary_cta = __( 'See pricing', 'reactwoo-geo-ai' );
-		if ( false !== stripos( $raw, 'demo' ) || false !== stripos( (string) $problem, 'demo' ) ) {
-			$primary_cta = __( 'Book a demo', 'reactwoo-geo-ai' );
-		}
-		$proof = __( 'Add one testimonial with role/company and one measurable result stat near the primary CTA.', 'reactwoo-geo-ai' );
+	private function stub_page_placement_for_category( $category ) {
 		$category = sanitize_key( (string) $category );
-		if ( 'trust' === $category ) {
-			$proof = __( 'Show logos, a short testimonial quote, and one numeric outcome claim with source context.', 'reactwoo-geo-ai' );
-		} elseif ( 'layout' === $category ) {
-			$proof = __( 'Place proof directly after the hero and again before pricing/checkout to reduce decision friction.', 'reactwoo-geo-ai' );
+		switch ( $category ) {
+			case 'messaging':
+				return __( 'Hero / first viewport: main headline (H1) and lead line under it.', 'reactwoo-geo-ai' );
+			case 'conversion':
+				return __( 'Primary CTA row in hero or sticky bar; secondary CTA one step below or beside.', 'reactwoo-geo-ai' );
+			case 'trust':
+				return __( 'Trust strip directly under hero or above footer near checkout/contact.', 'reactwoo-geo-ai' );
+			case 'layout':
+				return __( 'Body sections: headings, bullets, and image captions between hero and footer.', 'reactwoo-geo-ai' );
+			case 'performance':
+			case 'accessibility':
+			case 'content':
+				return __( 'Above-the-fold block and the next content section.', 'reactwoo-geo-ai' );
+			default:
+				return __( 'Hero and first scroll section visitors see.', 'reactwoo-geo-ai' );
+		}
+	}
+
+	/**
+	 * Paste-ready copy object for local stub engine.
+	 *
+	 * @param string $category Category slug.
+	 * @param string $title    Finding title.
+	 * @param string $problem  Problem text.
+	 * @param string $hint     Recommendation hint.
+	 * @return array<string, string>
+	 */
+	private function stub_suggested_copy( $category, $title, $problem, $hint ) {
+		$category = sanitize_key( (string) $category );
+		$short    = '' !== trim( (string) $title ) ? sanitize_text_field( (string) $title ) : __( 'this page', 'reactwoo-geo-ai' );
+		$primary  = __( 'Shop now', 'reactwoo-geo-ai' );
+		$second   = __( 'Browse collection', 'reactwoo-geo-ai' );
+		if ( false !== stripos( (string) $hint, 'demo' ) || false !== stripos( (string) $problem, 'demo' ) ) {
+			$primary = __( 'Book a demo', 'reactwoo-geo-ai' );
+			$second  = __( 'See how it works', 'reactwoo-geo-ai' );
 		}
 
-		return sprintf(
-			/* translators: 1: problem, 2: why, 3: implementation, 4: CTA pair, 5: proof guidance */
-			__( 'Problem to fix: %1$s | Why it matters: %2$s | Implementation: %3$s | Copy example: "Get [specific outcome] in [timeframe] without [main objection]." | CTA options: Primary "%4$s", Secondary "%5$s" | Proof to add: %6$s', 'reactwoo-geo-ai' ),
-			sanitize_text_field( (string) $problem ),
-			sanitize_text_field( (string) $why ),
-			sanitize_text_field( $raw ),
-			$primary_cta,
-			$secondary_cta,
-			$proof
+		$headline = sprintf(
+			/* translators: %s: short page/finding label */
+			__( 'The better way to fix %s — clear outcome, less friction.', 'reactwoo-geo-ai' ),
+			$short
+		);
+		$sub = __( 'Everything you need to decide in one screen: proof, pricing context, and a single next step.', 'reactwoo-geo-ai' );
+		$snippet = __( 'Join thousands of happy customers — 4.9★ average · secure checkout', 'reactwoo-geo-ai' );
+
+		if ( 'trust' === $category ) {
+			$headline = __( 'Trusted by teams who need results they can measure', 'reactwoo-geo-ai' );
+			$sub      = __( 'Short quote + logo row + one numeric proof point (time saved or ROI).', 'reactwoo-geo-ai' );
+			$snippet  = __( '“We cut onboarding time by 40% in week one.” — Customer name, Role', 'reactwoo-geo-ai' );
+		} elseif ( 'conversion' === $category ) {
+			$headline = __( 'Ready when you are', 'reactwoo-geo-ai' );
+			$sub      = __( 'One primary action; secondary stays visually quieter.', 'reactwoo-geo-ai' );
+		} elseif ( 'layout' === $category ) {
+			$headline = __( 'Skim-friendly sections', 'reactwoo-geo-ai' );
+			$sub      = __( 'Use H2 + 3 bullets + one image per major topic so visitors can scan.', 'reactwoo-geo-ai' );
+		}
+
+		return array(
+			'replace_this'        => __( 'Current headline, subhead, and button labels in the section above.', 'reactwoo-geo-ai' ),
+			'headline'            => $headline,
+			'subheadline'         => trim( $sub ),
+			'primary_cta_label'   => $primary,
+			'secondary_cta_label' => $second,
+			'supporting_snippet'  => $snippet,
 		);
 	}
 }
