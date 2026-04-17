@@ -14,7 +14,16 @@ $rwga_analysis_run_id = isset( $rwga_analysis_run_id ) ? (int) $rwga_analysis_ru
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-recommendations';
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--recommendation-report">
-	<h1><?php esc_html_e( 'Recommendation report', 'reactwoo-geo-ai' ); ?></h1>
+	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+		<?php
+		RWGC_Admin_UI::render_page_header(
+			__( 'Recommendation report', 'reactwoo-geo-ai' ),
+			__( 'Review grouped recommendations, then generate implementation drafts to continue.', 'reactwoo-geo-ai' )
+		);
+		?>
+	<?php else : ?>
+		<h1><?php esc_html_e( 'Recommendation report', 'reactwoo-geo-ai' ); ?></h1>
+	<?php endif; ?>
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 	<?php RWGA_Admin::render_current_workflow_state(); ?>
 

@@ -23,7 +23,16 @@ foreach ( $rwga_drafts as $draft ) {
 }
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--implementation-review">
-	<h1><?php esc_html_e( 'Implementation review', 'reactwoo-geo-ai' ); ?></h1>
+	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+		<?php
+		RWGC_Admin_UI::render_page_header(
+			__( 'Implementation review', 'reactwoo-geo-ai' ),
+			__( 'Review generated changes, then apply to the current page or send a variant to testing.', 'reactwoo-geo-ai' )
+		);
+		?>
+	<?php else : ?>
+		<h1><?php esc_html_e( 'Implementation review', 'reactwoo-geo-ai' ); ?></h1>
+	<?php endif; ?>
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 	<?php RWGA_Admin::render_current_workflow_state(); ?>
 	<p><a class="rwgc-btn rwgc-btn--tertiary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-implementation-drafts' ) ); ?>"><?php esc_html_e( 'Open draft library', 'reactwoo-geo-ai' ); ?></a></p>
@@ -32,10 +41,10 @@ foreach ( $rwga_drafts as $draft ) {
 	$rwga_apply = isset( $_GET['rwga_apply'] ) ? sanitize_key( wp_unslash( $_GET['rwga_apply'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$rwga_variant = isset( $_GET['rwga_variant'] ) ? sanitize_key( wp_unslash( $_GET['rwga_variant'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( 'ok' === $rwga_apply ) {
-		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Draft content applied to the current page.', 'reactwoo-geo-ai' ) . '</p></div>';
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Changes applied to the current page.', 'reactwoo-geo-ai' ) . '</p></div>';
 	}
 	if ( 'ok' === $rwga_variant ) {
-		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Variant draft created.', 'reactwoo-geo-ai' ) . '</p></div>';
+		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Variant draft created and ready for testing.', 'reactwoo-geo-ai' ) . '</p></div>';
 	}
 	if ( ! empty( $_GET['rwga_err'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sanitize_text_field( wp_unslash( rawurldecode( (string) $_GET['rwga_err'] ) ) ) ) . '</p></div>';
@@ -71,7 +80,7 @@ foreach ( $rwga_drafts as $draft ) {
 				<input type="hidden" name="page_id" value="<?php echo (int) $page_id; ?>" />
 				<input type="hidden" name="draft_ids" value="<?php echo esc_attr( implode( ',', $draft_ids ) ); ?>" />
 				<?php wp_nonce_field( 'rwga_apply_drafts_to_live' ); ?>
-				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Replace content on this page', 'reactwoo-geo-ai' ); ?></button>
+				<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Apply to current page', 'reactwoo-geo-ai' ); ?></button>
 			</form>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="rwga_create_variant_from_drafts" />

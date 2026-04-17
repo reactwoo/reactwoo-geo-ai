@@ -33,7 +33,7 @@ $is_grouped_report = '' !== $rwga_report_html;
 				__( 'Recommendation #%d', 'reactwoo-geo-ai' ),
 				$rec_id
 			),
-			__( 'Read the problem and suggested fix, then generate implementation drafts when you are ready to apply changes.', 'reactwoo-geo-ai' )
+			__( 'Review this recommendation report, then generate implementation drafts as your next step.', 'reactwoo-geo-ai' )
 		);
 		?>
 	<?php else : ?>
