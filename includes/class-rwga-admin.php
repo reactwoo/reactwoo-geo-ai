@@ -136,20 +136,31 @@ class RWGA_Admin {
 		$step     = isset( $state['journey_step'] ) ? (string) $state['journey_step'] : 'started';
 		$analysis = isset( $state['analysis_run_id'] ) ? (int) $state['analysis_run_id'] : 0;
 		$cta_url  = $analysis > 0 && class_exists( 'RWGA_Journey_Router', false ) ? RWGA_Journey_Router::analysis_detail_url( $analysis ) : admin_url( 'admin.php?page=' . self::MENU_PARENT );
-		$cta_lab  = __( 'Continue workflow', 'reactwoo-geo-ai' );
+		$step_label = __( 'Start', 'reactwoo-geo-ai' );
+		$cta_lab  = __( 'Start workflow', 'reactwoo-geo-ai' );
 		if ( in_array( $step, array( 'analysis_complete', 'recommendations_selected' ), true ) && class_exists( 'RWGA_Journey_Router', false ) ) {
 			$cta_url = RWGA_Journey_Router::recommendation_report_url( $analysis );
-			$cta_lab = __( 'Continue to recommendations', 'reactwoo-geo-ai' );
+			$step_label = __( 'Analysis complete', 'reactwoo-geo-ai' );
+			$cta_lab = __( 'Generate recommendations', 'reactwoo-geo-ai' );
 		} elseif ( in_array( $step, array( 'recommendation_report_ready', 'implementation_generated' ), true ) && class_exists( 'RWGA_Journey_Router', false ) ) {
 			$draft_ids = isset( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ? $state['draft_ids'] : array();
 			$cta_url   = RWGA_Journey_Router::implementation_review_url( $draft_ids, $analysis );
-			$cta_lab   = __( 'Continue to implementation', 'reactwoo-geo-ai' );
+			$step_label = __( 'Recommendations ready', 'reactwoo-geo-ai' );
+			$cta_lab   = __( 'Generate implementation drafts', 'reactwoo-geo-ai' );
+		} elseif ( in_array( $step, array( 'variant_created', 'sent_to_geo_optimise' ), true ) ) {
+			$step_label = 'variant_created' === $step ? __( 'Variant created', 'reactwoo-geo-ai' ) : __( 'Sent to Geo Optimise', 'reactwoo-geo-ai' );
+			$cta_lab    = __( 'Open implementation review', 'reactwoo-geo-ai' );
+			$cta_url    = class_exists( 'RWGA_Journey_Router', false ) ? RWGA_Journey_Router::implementation_review_url( isset( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ? $state['draft_ids'] : array(), $analysis ) : $cta_url;
+		} elseif ( 'applied_live' === $step ) {
+			$step_label = __( 'Applied live', 'reactwoo-geo-ai' );
+			$cta_lab    = __( 'Review applied changes', 'reactwoo-geo-ai' );
+			$cta_url    = class_exists( 'RWGA_Journey_Router', false ) ? RWGA_Journey_Router::implementation_review_url( isset( $state['draft_ids'] ) && is_array( $state['draft_ids'] ) ? $state['draft_ids'] : array(), $analysis ) : $cta_url;
 		}
 		echo '<div class="rwgc-card rwga-workflow-state">';
 		echo '<strong>' . esc_html__( 'Current workflow', 'reactwoo-geo-ai' ) . '</strong>';
 		echo '<p>' . esc_html__( 'Asset:', 'reactwoo-geo-ai' ) . ' ' . esc_html( (string) $asset ) . '</p>';
 		echo '<p>' . esc_html__( 'Analysis:', 'reactwoo-geo-ai' ) . ' ' . esc_html( $analysis > 0 ? (string) $analysis : __( 'Not started', 'reactwoo-geo-ai' ) ) . '</p>';
-		echo '<p>' . esc_html__( 'Step:', 'reactwoo-geo-ai' ) . ' ' . esc_html( str_replace( '_', ' ', $step ) ) . '</p>';
+		echo '<p>' . esc_html__( 'Status:', 'reactwoo-geo-ai' ) . ' ' . esc_html( $step_label ) . '</p>';
 		echo '<p><a class="rwgc-btn rwgc-btn--primary" href="' . esc_url( $cta_url ) . '">' . esc_html( $cta_lab ) . '</a></p>';
 		echo '</div>';
 	}
