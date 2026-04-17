@@ -11,6 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $rwga_report_html = isset( $rwga_report_html ) ? (string) $rwga_report_html : '';
 $rwga_analysis_run_id = isset( $rwga_analysis_run_id ) ? (int) $rwga_analysis_run_id : 0;
+$rwga_recommendation_count = isset( $rwga_recommendation_count ) ? (int) $rwga_recommendation_count : 0;
 $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-recommendations';
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--recommendation-report">
@@ -27,6 +28,13 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-recom
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 	<?php RWGA_Admin::render_current_workflow_state(); ?>
 
+	<?php
+	$rwga_impl_flag = isset( $_GET['rwga_impl'] ) ? sanitize_key( wp_unslash( $_GET['rwga_impl'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'nodrafts' === $rwga_impl_flag ) {
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'No implementation drafts were created. Check that recommendations still exist, your license allows workflows, then try again.', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
+	?>
+
 	<div class="rwgc-actions rwgc-actions--stack-mobile" style="margin-bottom:16px;">
 		<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-analyses&run_id=' . (int) $rwga_analysis_run_id ) ); ?>"><?php esc_html_e( 'View analysis', 'reactwoo-geo-ai' ); ?></a>
 		<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-recommendations' ) ); ?>"><?php esc_html_e( 'Open recommendation library', 'reactwoo-geo-ai' ); ?></a>
@@ -41,6 +49,7 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-recom
 	</div>
 
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
+		<?php if ( $rwga_recommendation_count > 0 ) : ?>
 	<div class="rwgc-card rwgc-card--highlight" id="rwga-generate-implementation">
 		<h2><?php esc_html_e( 'Generate implementation drafts', 'reactwoo-geo-ai' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Continue the journey by generating section-aware implementation drafts.', 'reactwoo-geo-ai' ); ?></p>
@@ -51,6 +60,13 @@ $rwgc_nav_current = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-recom
 			<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate implementation drafts', 'reactwoo-geo-ai' ); ?></button>
 		</form>
 	</div>
+		<?php else : ?>
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Generate implementation drafts', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'There are no recommendations saved for this analysis run (they may have been deleted). Generate a recommendation report from the analysis first, then return here.', 'reactwoo-geo-ai' ); ?></p>
+		<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-analyses&run_id=' . (int) $rwga_analysis_run_id . '&journey=1#rwga-generate-recommendations' ) ); ?>"><?php esc_html_e( 'Open analysis report', 'reactwoo-geo-ai' ); ?></a></p>
+	</div>
+		<?php endif; ?>
 	<?php endif; ?>
 </div>
 

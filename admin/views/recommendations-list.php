@@ -57,6 +57,8 @@ $list_url = admin_url( 'admin.php?page=rwga-recommendations' );
 	$rwga_impl = isset( $_GET['rwga_impl'] ) ? sanitize_key( wp_unslash( $_GET['rwga_impl'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( 'unlicensed' === $rwga_impl ) {
 		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Add a Geo AI license key to generate implementation drafts.', 'reactwoo-geo-ai' ) . '</p></div>';
+	} elseif ( 'nodrafts' === $rwga_impl ) {
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'No implementation drafts were saved. Confirm recommendations still exist and try generating drafts again.', 'reactwoo-geo-ai' ) . '</p></div>';
 	}
 	?>
 

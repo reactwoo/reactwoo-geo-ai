@@ -63,6 +63,10 @@ $severity_class = array(
 	} elseif ( 'bad' === $rwga_rec_err ) {
 		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Could not start recommendations: missing analysis run. Open a report from the report library and try again.', 'reactwoo-geo-ai' ) . '</p></div>';
 	}
+	$rwga_impl_flag = isset( $_GET['rwga_impl'] ) ? sanitize_key( wp_unslash( $_GET['rwga_impl'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'norecs' === $rwga_impl_flag ) {
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Implementation drafts need saved recommendations for this analysis. Generate a recommendation report first (recommendations may have been deleted).', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
 	?>
 
 	<div class="rwgc-actions rwgc-actions--stack-mobile" style="margin-bottom: 16px;">

@@ -49,6 +49,18 @@ foreach ( $rwga_drafts as $draft ) {
 	if ( ! empty( $_GET['rwga_err'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( sanitize_text_field( wp_unslash( rawurldecode( (string) $_GET['rwga_err'] ) ) ) ) . '</p></div>';
 	}
+	$rwga_impl_flag = isset( $_GET['rwga_impl'] ) ? sanitize_key( wp_unslash( $_GET['rwga_impl'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'ok' === $rwga_impl_flag ) {
+		$n = isset( $_GET['rwga_draft_count'] ) ? (int) $_GET['rwga_draft_count'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $n > 0 ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( _n( 'Generated %d implementation draft.', 'Generated %d implementation drafts.', $n, 'reactwoo-geo-ai' ), $n ) ) . '</p></div>';
+		} else {
+			echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'No new drafts were found for this visit. If you expected drafts, regenerate from the recommendation report.', 'reactwoo-geo-ai' ) . '</p></div>';
+		}
+	}
+	if ( 'nodrafts' === $rwga_impl_flag ) {
+		echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html__( 'Draft generation produced no rows. Check recommendations and try again from the recommendation report.', 'reactwoo-geo-ai' ) . '</p></div>';
+	}
 	?>
 
 	<div class="rwgc-card rwga-report-content">

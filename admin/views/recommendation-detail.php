@@ -23,6 +23,7 @@ $confidence      = isset( $rwga_rec['confidence'] ) && null !== $rwga_rec['confi
 $exp_impact      = isset( $rwga_rec['expected_impact'] ) ? (string) $rwga_rec['expected_impact'] : '';
 $rwga_report_html = isset( $rwga_report_html ) ? (string) $rwga_report_html : '';
 $is_grouped_report = '' !== $rwga_report_html;
+$rwga_same_run_rec_count = isset( $rwga_same_run_rec_count ) ? (int) $rwga_same_run_rec_count : 0;
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--recommendation-detail">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
@@ -109,7 +110,7 @@ $is_grouped_report = '' !== $rwga_report_html;
 		<?php endif; ?>
 	</div>
 
-	<?php if ( $is_grouped_report && $analysis_run_id > 0 && current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
+	<?php if ( $is_grouped_report && $analysis_run_id > 0 && $rwga_same_run_rec_count > 0 && current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
 	<div class="rwgc-card rwgc-card--highlight" id="rwga-generate-implementation">
 		<h2><?php esc_html_e( 'Generate implementation drafts', 'reactwoo-geo-ai' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Generate section-aware implementation drafts from this recommendation report.', 'reactwoo-geo-ai' ); ?></p>
@@ -119,6 +120,12 @@ $is_grouped_report = '' !== $rwga_report_html;
 			<?php wp_nonce_field( 'rwga_bulk_implement_analysis' ); ?>
 			<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Generate implementation drafts', 'reactwoo-geo-ai' ); ?></button>
 		</form>
+	</div>
+	<?php elseif ( $is_grouped_report && $analysis_run_id > 0 && $rwga_same_run_rec_count <= 0 && current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) : ?>
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Generate implementation drafts', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'No recommendation records remain for this analysis (they may have been deleted). Open the analysis and generate a new recommendation report before creating drafts.', 'reactwoo-geo-ai' ); ?></p>
+		<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-analyses&run_id=' . (int) $analysis_run_id . '&journey=1#rwga-generate-recommendations' ) ); ?>"><?php esc_html_e( 'Open analysis report', 'reactwoo-geo-ai' ); ?></a></p>
 	</div>
 	<?php elseif ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) && class_exists( 'RWGA_License', false ) && RWGA_License::can_run_workflows() ) : ?>
 	<div class="rwgc-card rwgc-card--highlight">
