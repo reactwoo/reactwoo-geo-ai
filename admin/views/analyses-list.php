@@ -34,7 +34,6 @@ $list_url = admin_url( 'admin.php?page=rwga-analyses' );
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 	<?php RWGA_Admin::render_current_workflow_state(); ?>
-	<p><a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-analyses&journey=1' ) ); ?>"><?php esc_html_e( 'Continue current workflow', 'reactwoo-geo-ai' ); ?></a></p>
 
 	<?php if ( current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) : ?>
 	<div class="rwgc-card">
