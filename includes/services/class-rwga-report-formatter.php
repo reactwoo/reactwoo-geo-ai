@@ -181,7 +181,16 @@ class RWGA_Report_Formatter {
 		if ( '' !== $why ) {
 			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'Why it matters', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $why ) . '</p>';
 		}
-		if ( '' !== $tactic && ( ! empty( $copy['primary_cta_label'] ) || ! empty( $copy['headline'] ) ) ) {
+		// Omit "How to implement" when it mostly repeats the issue (common model slip).
+		$show_tactic = '' !== $tactic && ( ! empty( $copy['primary_cta_label'] ) || ! empty( $copy['headline'] ) );
+		if ( $show_tactic && '' !== $problem && strlen( $tactic ) > 15 ) {
+			$pct = 0.0;
+			similar_text( strtolower( $problem ), strtolower( $tactic ), $pct );
+			if ( $pct > 62.0 ) {
+				$show_tactic = false;
+			}
+		}
+		if ( $show_tactic ) {
 			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'How to implement', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $tactic ) . '</p>';
 		}
 
