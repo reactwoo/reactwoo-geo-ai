@@ -19,18 +19,20 @@ class RWGA_Report_Formatter {
 	 */
 	private static function allowed_tags() {
 		return array(
-			'h2'        => array(),
-			'h3'        => array(),
-			'h4'        => array(),
-			'h5'        => array(),
-			'p'         => array(),
-			'ul'        => array(),
-			'ol'        => array(),
-			'li'        => array(),
-			'strong'    => array(),
-			'em'        => array(),
-			'br'        => array(),
-			'blockquote'=> array(),
+			'h2'         => array(),
+			'h3'         => array(),
+			'h4'         => array(),
+			'h5'         => array(),
+			'p'          => array( 'class' => true ),
+			'ul'         => array( 'class' => true ),
+			'ol'         => array(),
+			'li'         => array( 'class' => true ),
+			'div'        => array( 'class' => true ),
+			'span'       => array( 'class' => true ),
+			'strong'     => array( 'class' => true ),
+			'em'         => array(),
+			'br'         => array(),
+			'blockquote' => array( 'class' => true ),
 		);
 	}
 
@@ -110,6 +112,40 @@ class RWGA_Report_Formatter {
 	}
 
 	/**
+	 * CSS modifier for priority pill (matches finding severity styling).
+	 *
+	 * @param string $p priority_level raw.
+	 * @return string
+	 */
+	private static function priority_badge_class( $p ) {
+		$p = sanitize_key( (string) $p );
+		if ( 'high' === $p ) {
+			return 'rwga-rec-priority--high';
+		}
+		if ( 'low' === $p ) {
+			return 'rwga-rec-priority--low';
+		}
+		return 'rwga-rec-priority--medium';
+	}
+
+	/**
+	 * Short label for priority pill.
+	 *
+	 * @param string $p priority_level.
+	 * @return string
+	 */
+	private static function priority_badge_label( $p ) {
+		$p = sanitize_key( (string) $p );
+		if ( 'high' === $p ) {
+			return __( 'High priority', 'reactwoo-geo-ai' );
+		}
+		if ( 'low' === $p ) {
+			return __( 'Low priority', 'reactwoo-geo-ai' );
+		}
+		return __( 'Medium priority', 'reactwoo-geo-ai' );
+	}
+
+	/**
 	 * Decode suggested_copy_json from a DB row.
 	 *
 	 * @param array<string, mixed> $row Row.
@@ -125,64 +161,88 @@ class RWGA_Report_Formatter {
 
 	/**
 	 * HTML for one recommendation card (placement + paste-ready copy + context).
+	 * Layout mirrors analysis finding cards: head row (priority + title + category), then sections.
 	 *
 	 * @param array<string, mixed> $row Recommendation row.
+	 * @param array<string, mixed> $opts Optional: tag (div|li), show_category_badge (bool).
 	 * @return string
 	 */
-	public static function format_recommendation_card_html( array $row ) {
+	public static function format_recommendation_card_html( array $row, array $opts = array() ) {
+		$tag      = isset( $opts['tag'] ) && 'li' === $opts['tag'] ? 'li' : 'div';
+		$show_cat = ! isset( $opts['show_category_badge'] ) || false !== $opts['show_category_badge'];
+
 		$title    = isset( $row['title'] ) ? (string) $row['title'] : '';
 		$problem  = isset( $row['problem'] ) ? trim( (string) $row['problem'] ) : '';
 		$why      = isset( $row['why_it_matters'] ) ? trim( (string) $row['why_it_matters'] ) : '';
 		$tactic   = isset( $row['recommendation'] ) ? trim( (string) $row['recommendation'] ) : '';
 		$place    = isset( $row['page_placement'] ) ? trim( (string) $row['page_placement'] ) : '';
+		$prio     = isset( $row['priority_level'] ) ? sanitize_key( (string) $row['priority_level'] ) : 'medium';
+		$cat      = isset( $row['category'] ) ? sanitize_key( (string) $row['category'] ) : '';
 		$copy     = self::decode_suggested_copy( $row );
 		if ( empty( $copy ) && isset( $row['suggested_copy'] ) && is_array( $row['suggested_copy'] ) ) {
 			$copy = $row['suggested_copy'];
 		}
 
-		$html  = '<div class="rwga-rec-card">';
-		$html .= '<h4>' . esc_html( $title ) . '</h4>';
+		$html  = '<' . $tag . ' class="rwga-rec-card">';
+		$html .= '<div class="rwga-rec-card__head">';
+		$html .= '<span class="rwga-rec-priority ' . esc_attr( self::priority_badge_class( $prio ) ) . '">' . esc_html( self::priority_badge_label( $prio ) ) . '</span>';
+		$html .= '<strong class="rwga-rec-card__title">' . esc_html( $title ) . '</strong>';
+		if ( $show_cat && '' !== $cat ) {
+			$html .= '<span class="rwga-rec-card__category description">' . esc_html( self::recommendation_category_label( $cat ) ) . '</span>';
+		}
+		$html .= '</div>';
 
 		if ( '' !== $place ) {
-			$html .= '<p><strong>' . esc_html__( 'Where to apply this', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $place ) . '</p>';
+			$html .= '<p class="rwga-rec-card__where"><strong>' . esc_html__( 'Where to apply', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $place ) . '</p>';
 		}
 
-		if ( ! empty( $copy['primary_cta_label'] ) || ! empty( $copy['headline'] ) || ! empty( $copy['subheadline'] ) ) {
+		$has_paste = ! empty( $copy['primary_cta_label'] ) || ! empty( $copy['headline'] ) || ! empty( $copy['subheadline'] );
+
+		if ( '' !== $problem || '' !== $why ) {
+			$html .= '<div class="rwga-rec-card__section rwga-rec-card__section--context">';
+			$html .= '<h5>' . esc_html__( 'Context', 'reactwoo-geo-ai' ) . '</h5>';
+			if ( '' !== $problem ) {
+				$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'Issue', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $problem ) . '</p>';
+			}
+			if ( '' !== $why ) {
+				$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'Why it matters', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $why ) . '</p>';
+			}
+			$html .= '</div>';
+		}
+
+		if ( $has_paste ) {
+			$html .= '<div class="rwga-rec-card__section rwga-rec-card__section--paste">';
 			$html .= '<h5>' . esc_html__( 'Suggested copy (paste-ready)', 'reactwoo-geo-ai' ) . '</h5>';
 			if ( ! empty( $copy['replace_this'] ) ) {
-				$html .= '<p><em>' . esc_html__( 'Replace or update:', 'reactwoo-geo-ai' ) . '</em> ' . esc_html( (string) $copy['replace_this'] ) . '</p>';
+				$html .= '<p class="rwga-rec-card__replace"><em>' . esc_html__( 'Replace or update:', 'reactwoo-geo-ai' ) . '</em> ' . esc_html( (string) $copy['replace_this'] ) . '</p>';
 			}
 			if ( ! empty( $copy['headline'] ) ) {
-				$html .= '<p><strong>' . esc_html__( 'Headline', 'reactwoo-geo-ai' ) . '</strong><br />';
-				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['headline'] ) . '</blockquote></p>';
+				$html .= '<p class="rwga-rec-card__field"><strong>' . esc_html__( 'Headline', 'reactwoo-geo-ai' ) . '</strong></p>';
+				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['headline'] ) . '</blockquote>';
 			}
 			if ( ! empty( $copy['subheadline'] ) ) {
-				$html .= '<p><strong>' . esc_html__( 'Subheadline / supporting line', 'reactwoo-geo-ai' ) . '</strong><br />';
-				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['subheadline'] ) . '</blockquote></p>';
+				$html .= '<p class="rwga-rec-card__field"><strong>' . esc_html__( 'Subheadline / supporting line', 'reactwoo-geo-ai' ) . '</strong></p>';
+				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['subheadline'] ) . '</blockquote>';
 			}
 			if ( ! empty( $copy['primary_cta_label'] ) ) {
-				$html .= '<p><strong>' . esc_html__( 'Primary button', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( (string) $copy['primary_cta_label'] ) . '</p>';
+				$html .= '<p class="rwga-rec-card__cta"><strong>' . esc_html__( 'Primary button', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( (string) $copy['primary_cta_label'] ) . '</p>';
 			}
 			if ( ! empty( $copy['secondary_cta_label'] ) ) {
-				$html .= '<p><strong>' . esc_html__( 'Secondary button', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( (string) $copy['secondary_cta_label'] ) . '</p>';
+				$html .= '<p class="rwga-rec-card__cta"><strong>' . esc_html__( 'Secondary button', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( (string) $copy['secondary_cta_label'] ) . '</p>';
 			}
 			if ( ! empty( $copy['supporting_snippet'] ) ) {
-				$html .= '<p><strong>' . esc_html__( 'Trust / proof line', 'reactwoo-geo-ai' ) . '</strong><br />';
-				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['supporting_snippet'] ) . '</blockquote></p>';
+				$html .= '<p class="rwga-rec-card__field"><strong>' . esc_html__( 'Trust / proof line', 'reactwoo-geo-ai' ) . '</strong></p>';
+				$html .= '<blockquote class="rwga-paste-copy">' . esc_html( (string) $copy['supporting_snippet'] ) . '</blockquote>';
 			}
+			$html .= '</div>';
 		} elseif ( '' !== $tactic ) {
+			$html .= '<div class="rwga-rec-card__section rwga-rec-card__section--paste">';
 			$html .= '<h5>' . esc_html__( 'Guidance', 'reactwoo-geo-ai' ) . '</h5>';
 			$html .= self::render_paragraphs( $tactic );
+			$html .= '</div>';
 		}
 
-		if ( '' !== $problem ) {
-			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'Issue', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $problem ) . '</p>';
-		}
-		if ( '' !== $why ) {
-			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'Why it matters', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $why ) . '</p>';
-		}
-		// Omit "How to implement" when it mostly repeats the issue (common model slip).
-		$show_tactic = '' !== $tactic && ( ! empty( $copy['primary_cta_label'] ) || ! empty( $copy['headline'] ) );
+		$show_tactic = '' !== $tactic && $has_paste;
 		if ( $show_tactic && '' !== $problem && strlen( $tactic ) > 15 ) {
 			$pct = 0.0;
 			similar_text( strtolower( $problem ), strtolower( $tactic ), $pct );
@@ -191,10 +251,13 @@ class RWGA_Report_Formatter {
 			}
 		}
 		if ( $show_tactic ) {
-			$html .= '<p class="rwga-rec-card__meta"><strong>' . esc_html__( 'How to implement', 'reactwoo-geo-ai' ) . '</strong> — ' . esc_html( $tactic ) . '</p>';
+			$html .= '<div class="rwga-rec-card__section rwga-rec-card__section--how">';
+			$html .= '<h5>' . esc_html__( 'How to implement', 'reactwoo-geo-ai' ) . '</h5>';
+			$html .= '<p class="rwga-rec-card__meta">' . esc_html( $tactic ) . '</p>';
+			$html .= '</div>';
 		}
 
-		$html .= '</div>';
+		$html .= '</' . $tag . '>';
 		return self::clean( $html );
 	}
 
@@ -232,9 +295,17 @@ class RWGA_Report_Formatter {
 
 		foreach ( $grouped as $cat => $rows ) {
 			$html .= '<h3>' . esc_html( self::recommendation_category_label( $cat ) ) . '</h3>';
+			$html .= '<ul class="rwga-rec-list">';
 			foreach ( $rows as $r ) {
-				$html .= self::format_recommendation_card_html( $r );
+				$html .= self::format_recommendation_card_html(
+					$r,
+					array(
+						'tag'                   => 'li',
+						'show_category_badge'   => false,
+					)
+				);
 			}
+			$html .= '</ul>';
 		}
 
 		return self::clean( $html );
