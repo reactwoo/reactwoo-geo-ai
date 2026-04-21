@@ -113,6 +113,25 @@ class RWGA_Page_Context {
 			'accessible'             => $readable,
 		);
 
+		if ( function_exists( 'rwgc_get_context_snapshot' ) ) {
+			$runtime_context = rwgc_get_context_snapshot();
+			if ( is_array( $runtime_context ) ) {
+				$attribution = isset( $runtime_context['attribution'] ) && is_array( $runtime_context['attribution'] )
+					? $runtime_context['attribution']
+					: array();
+				$matched_profile = isset( $runtime_context['matched_profile'] ) ? $runtime_context['matched_profile'] : null;
+				$ctx['profile_context'] = array(
+					'matched_profile' => $matched_profile,
+					'source'          => isset( $attribution['source'] ) ? (string) $attribution['source'] : '',
+					'medium'          => isset( $attribution['medium'] ) ? (string) $attribution['medium'] : '',
+					'campaign'        => isset( $attribution['campaign'] ) ? (string) $attribution['campaign'] : '',
+					'content'         => isset( $attribution['content'] ) ? (string) $attribution['content'] : '',
+					'term'            => isset( $attribution['term'] ) ? (string) $attribution['term'] : '',
+					'gclid'           => isset( $attribution['gclid'] ) ? (string) $attribution['gclid'] : '',
+				);
+			}
+		}
+
 		/**
 		 * Enrich or trim page context before workflow payloads.
 		 *
