@@ -14,8 +14,9 @@ class RWGA_Platform_Client {
 	/** Last {@see get_bearer_for_updates()} failure for Settings → Plugin updates diagnostics. */
 	const BEARER_ERROR_TRANSIENT = 'rwga_updates_bearer_last_error';
 
-	const LOGIN_PATH       = '/api/v5/auth/login';
-	const DEFAULT_API_BASE = 'https://api.reactwoo.com';
+	const LOGIN_PATH           = '/api/v5/auth/login';
+	const DEFAULT_API_BASE     = 'https://api.reactwoo.com';
+	const DEFAULT_LICENSE_BASE = 'https://license.reactwoo.com';
 	const PRODUCT_SLUG     = 'reactwoo-geo-ai';
 
 	/**
@@ -55,6 +56,29 @@ class RWGA_Platform_Client {
 		}
 
 		return self::DEFAULT_API_BASE;
+	}
+
+
+	/**
+	 * @return string
+	 */
+	public static function get_license_base() {
+		if ( defined( 'RWGA_REACTWOO_LICENSE_BASE' ) && is_string( RWGA_REACTWOO_LICENSE_BASE ) ) {
+			$configured = trim( (string) RWGA_REACTWOO_LICENSE_BASE );
+			if ( '' !== $configured && wp_http_validate_url( $configured ) ) {
+				return untrailingslashit( esc_url_raw( $configured ) );
+			}
+		}
+
+		$via_filter = apply_filters( 'rwga_reactwoo_license_base', null );
+		if ( is_string( $via_filter ) ) {
+			$filtered = esc_url_raw( trim( $via_filter ) );
+			if ( $filtered && wp_http_validate_url( $filtered ) ) {
+				return untrailingslashit( $filtered );
+			}
+		}
+
+		return self::DEFAULT_LICENSE_BASE;
 	}
 
 	/**
@@ -370,7 +394,7 @@ class RWGA_Platform_Client {
 		$filtered = apply_filters( 'rwgc_auth_login_body', $body, $license, $domain );
 		$body     = is_array( $filtered ) ? $filtered : $body;
 
-		$login_url = self::get_api_base() . self::LOGIN_PATH;
+		$login_url = self::get_license_base() . self::LOGIN_PATH;
 		self::log_license_api_trace(
 			'login_request',
 			array(
