@@ -394,7 +394,8 @@ class RWGA_Platform_Client {
 		$filtered = apply_filters( 'rwgc_auth_login_body', $body, $license, $domain );
 		$body     = is_array( $filtered ) ? $filtered : $body;
 
-		$login_url = self::get_license_base() . self::LOGIN_PATH;
+		// POST /api/v5/auth/login is implemented on the ReactWoo API app (api.reactwoo.com), not on license.reactwoo.com.
+		$login_url = untrailingslashit( self::get_api_base() ) . self::LOGIN_PATH;
 		self::log_license_api_trace(
 			'login_request',
 			array(
