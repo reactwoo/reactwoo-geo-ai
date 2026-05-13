@@ -1,0 +1,19 @@
+---
+description: Geo AI satellite — build parity, Geo Core + API integration, release hygiene
+alwaysApply: true
+---
+
+# ReactWoo Geo AI (satellite)
+
+## Product boundary
+
+- Requires **ReactWoo Geo Core**. Do not duplicate MaxMind / visitor geo stacks; use Core hooks and REST discovery.
+- AI and license-sensitive calls follow ReactWoo API patterns documented in Geo Core master plan; keep WordPress surface focused on UX and bridges.
+
+## Repo structure
+
+- `includes/`, `admin/`, `assets/`, `reactwoo-geo-ai.php`, `readme.txt`, `scripts/package_zip.py`, `package.json` → `reactwooBuild.*`.
+
+## After implementation
+
+When a change is **complete and validated**, unless the user opts out: **commit**, bump **`RWGA_VERSION`** + plugin header + readme **Stable tag** if shipping, **annotated tag** `v*`, `npm run package:zip` or `git archive` with `--prefix=reactwoo-geo-ai/`, **push** branch and tag. Do **not** commit generated `.zip` files.
