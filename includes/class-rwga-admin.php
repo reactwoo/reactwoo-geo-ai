@@ -1,6 +1,6 @@
 <?php
 /**
- * Geo AI — wp-admin (top-level menu; summary on Geo Core dashboard).
+ * Geo AI — wp-admin (submenus under ReactWoo Geo Core; summary on Geo Core dashboard).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,9 +13,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_Admin {
 
 	/**
-	 * Parent admin page slug.
+	 * Parent admin page slug (first screen).
 	 */
 	const MENU_PARENT = 'rwga-dashboard';
+
+	/**
+	 * WordPress admin menu parent (Geo Core hub).
+	 *
+	 * @return string
+	 */
+	private static function admin_menu_parent() {
+		return 'rwgc-dashboard';
+	}
 
 	/**
 	 * @return void
@@ -1552,28 +1561,19 @@ class RWGA_Admin {
 	 */
 	public static function register_menu() {
 		$cap_view = RWGA_Capabilities::CAP_VIEW_REPORTS;
-
-		add_menu_page(
-			__( 'Geo AI', 'reactwoo-geo-ai' ),
-			__( 'Geo AI', 'reactwoo-geo-ai' ),
-			$cap_view,
-			self::MENU_PARENT,
-			array( __CLASS__, 'render_start' ),
-			'dashicons-admin-generic',
-			57
-		);
+		$parent   = self::admin_menu_parent();
 
 		add_submenu_page(
-			self::MENU_PARENT,
-			__( 'Geo AI — Start', 'reactwoo-geo-ai' ),
-			__( 'Start', 'reactwoo-geo-ai' ),
+			$parent,
+			__( 'Geo AI', 'reactwoo-geo-ai' ),
+			__( 'AI', 'reactwoo-geo-ai' ),
 			$cap_view,
 			self::MENU_PARENT,
 			array( __CLASS__, 'render_start' )
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Analyse', 'reactwoo-geo-ai' ),
 			__( 'Analyse', 'reactwoo-geo-ai' ),
 			$cap_view,
@@ -1582,7 +1582,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Recommendations', 'reactwoo-geo-ai' ),
 			__( 'Recommendations', 'reactwoo-geo-ai' ),
 			$cap_view,
@@ -1591,7 +1591,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Implement', 'reactwoo-geo-ai' ),
 			__( 'Implement', 'reactwoo-geo-ai' ),
 			$cap_view,
@@ -1600,7 +1600,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Competitor research', 'reactwoo-geo-ai' ),
 			__( 'Competitors', 'reactwoo-geo-ai' ),
 			$cap_view,
@@ -1609,7 +1609,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Automation', 'reactwoo-geo-ai' ),
 			__( 'Automation', 'reactwoo-geo-ai' ),
 			$cap_view,
@@ -1618,7 +1618,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Settings', 'reactwoo-geo-ai' ),
 			__( 'Settings', 'reactwoo-geo-ai' ),
 			'manage_options',
@@ -1627,7 +1627,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Queue', 'reactwoo-geo-ai' ),
 			__( 'Queue', 'reactwoo-geo-ai' ),
 			$cap_view,
@@ -1636,7 +1636,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Advanced', 'reactwoo-geo-ai' ),
 			__( 'Advanced', 'reactwoo-geo-ai' ),
 			'manage_options',
@@ -1645,7 +1645,7 @@ class RWGA_Admin {
 		);
 
 		add_submenu_page(
-			self::MENU_PARENT,
+			$parent,
 			__( 'Geo AI — Help', 'reactwoo-geo-ai' ),
 			__( 'Help', 'reactwoo-geo-ai' ),
 			$cap_view,

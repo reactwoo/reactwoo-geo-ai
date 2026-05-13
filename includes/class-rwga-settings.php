@@ -55,8 +55,8 @@ class RWGA_Settings {
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_init', array( __CLASS__, 'maybe_reset_snapshots_after_license_redirect' ), 0 );
-		add_action( 'load-rwga-dashboard_page_rwga-license', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
-		add_action( 'load-rwga-dashboard_page_rwga-advanced', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
+		add_action( 'load-rwgc-dashboard_page_rwga-license', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
+		add_action( 'load-rwgc-dashboard_page_rwga-advanced', array( __CLASS__, 'reset_db_option_snapshots' ), 1 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_clear_jwt_on_change' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'maybe_refresh_usage_after_license_change' ), 20, 2 );
 		add_action( 'update_option_' . self::OPTION_KEY, array( __CLASS__, 'reset_db_option_snapshots' ), 0 );
