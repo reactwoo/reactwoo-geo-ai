@@ -8,7 +8,10 @@ $rwgc_nav_current      = isset( $rwgc_nav_current ) ? $rwgc_nav_current : RWGA_A
 ?>
 <div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--start">
 	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
-		<?php RWGC_Admin_UI::render_page_header( __( 'Start an optimisation workflow', 'reactwoo-geo-ai' ), __( 'Choose what to improve, run analysis, then generate recommendations and implementation drafts.', 'reactwoo-geo-ai' ) ); ?>
+		<?php
+		RWGC_Admin_UI::render_page_header( __( 'Start an optimisation workflow', 'reactwoo-geo-ai' ), __( 'Choose what to improve, run analysis, then generate recommendations and implementation drafts.', 'reactwoo-geo-ai' ) );
+		RWGC_Admin_UI::render_provider_badge( 'geo_ai' );
+		?>
 	<?php else : ?>
 		<h1><?php esc_html_e( 'Start', 'reactwoo-geo-ai' ); ?></h1>
 	<?php endif; ?>

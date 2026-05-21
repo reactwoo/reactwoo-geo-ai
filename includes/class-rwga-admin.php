@@ -34,7 +34,6 @@ class RWGA_Admin {
 	 */
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ), 26 );
-		add_action( 'admin_head', array( __CLASS__, 'hide_detail_submenu_css' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_admin_actions' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_license_actions' ) );
@@ -147,64 +146,45 @@ class RWGA_Admin {
 	}
 
 	/**
-	 * Register one submenu under the Geo Core hub.
+	 * Register a Geo AI screen in the unified ReactWoo Geo app.
 	 *
-	 * @param string   $page_title Screen title.
-	 * @param string   $menu_title Sidebar label.
-	 * @param string   $slug       Page slug.
-	 * @param callable $callback   Render callback.
-	 * @param string   $capability Required capability.
+	 * @param array<string, mixed> $args route, menu_slug, label, callback, capability; optional section, order.
 	 * @return string|false
 	 */
-	private static function register_hub_submenu( $page_title, $menu_title, $slug, $callback, $capability ) {
-		$args = array(
-			'page_title' => $page_title,
-			'menu_title' => $menu_title,
-			'capability' => $capability,
-			'menu_slug'  => $slug,
-			'callback'   => $callback,
+	private static function register_app_route( array $args ) {
+		$args = wp_parse_args(
+			$args,
+			array(
+				'section'    => 'insights',
+				'provider'   => 'geo_ai',
+				'module'     => 'ai',
+				'capability' => RWGA_Capabilities::CAP_VIEW_REPORTS,
+			)
 		);
+		if ( empty( $args['page_title'] ) && ! empty( $args['label'] ) ) {
+			$args['page_title'] = (string) $args['label'];
+		}
+		if ( empty( $args['menu_title'] ) && ! empty( $args['label'] ) ) {
+			$args['menu_title'] = (string) $args['label'];
+		}
+		if ( function_exists( 'rw_geo_register_app_route' ) ) {
+			return rw_geo_register_app_route( $args );
+		}
 		if ( function_exists( 'rw_geo_register_admin_submenu' ) ) {
 			return rw_geo_register_admin_submenu( $args );
 		}
+		$slug = isset( $args['menu_slug'] ) ? sanitize_key( (string) $args['menu_slug'] ) : '';
+		if ( '' === $slug || empty( $args['callback'] ) || ! is_callable( $args['callback'] ) ) {
+			return false;
+		}
 		return add_submenu_page(
 			self::admin_menu_parent(),
-			$page_title,
-			$menu_title,
-			$capability,
+			(string) $args['page_title'],
+			(string) $args['menu_title'],
+			(string) $args['capability'],
 			$slug,
-			$callback
+			$args['callback']
 		);
-	}
-
-	/**
-	 * Hide detail Geo AI links from wp-admin sidebar when under Geo Core.
-	 *
-	 * @return void
-	 */
-	public static function hide_detail_submenu_css() {
-		if ( 'rwgc-dashboard' !== self::admin_menu_parent() || ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
-			return;
-		}
-		$hide = array(
-			'rwga-analyses',
-			'rwga-recommendations',
-			'rwga-implementation-drafts',
-			'rwga-competitors',
-			'rwga-automation',
-			'rwga-license',
-			'rwga-drafts',
-			'rwga-advanced',
-			'rwga-help',
-		);
-		echo '<style id="rwga-hide-detail-submenus">';
-		foreach ( $hide as $slug ) {
-			printf(
-				'#toplevel_page_rwgc-dashboard .wp-submenu li:has(> a[href*="page=%1$s"]) { display: none !important; }',
-				esc_attr( $slug )
-			);
-		}
-		echo '</style>';
 	}
 
 	/**
@@ -1642,85 +1622,94 @@ class RWGA_Admin {
 	public static function register_menu() {
 		$cap_view = RWGA_Capabilities::CAP_VIEW_REPORTS;
 
-		self::register_hub_submenu(
-			__( 'Geo AI', 'reactwoo-geo-ai' ),
-			__( 'AI', 'reactwoo-geo-ai' ),
-			self::MENU_PARENT,
-			array( __CLASS__, 'render_start' ),
-			$cap_view
+		$routes = array(
+			array(
+				'menu_slug'  => self::MENU_PARENT,
+				'route'      => 'ai-home',
+				'label'      => __( 'AI home', 'reactwoo-geo-ai' ),
+				'order'      => 10,
+				'callback'   => array( __CLASS__, 'render_start' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-analyses',
+				'route'      => 'reports',
+				'label'      => __( 'Analysis reports', 'reactwoo-geo-ai' ),
+				'order'      => 20,
+				'callback'   => array( __CLASS__, 'render_analyses' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-recommendations',
+				'route'      => 'recommendations',
+				'label'      => __( 'Recommendations', 'reactwoo-geo-ai' ),
+				'order'      => 30,
+				'callback'   => array( __CLASS__, 'render_recommendations' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-implementation-drafts',
+				'route'      => 'drafts',
+				'label'      => __( 'Implementation drafts', 'reactwoo-geo-ai' ),
+				'order'      => 40,
+				'callback'   => array( __CLASS__, 'render_implementation_drafts' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-competitors',
+				'route'      => 'competitors',
+				'label'      => __( 'Competitors', 'reactwoo-geo-ai' ),
+				'order'      => 50,
+				'callback'   => array( __CLASS__, 'render_competitor_research' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-automation',
+				'route'      => 'automation',
+				'label'      => __( 'Automation', 'reactwoo-geo-ai' ),
+				'order'      => 60,
+				'callback'   => array( __CLASS__, 'render_automation' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-drafts',
+				'route'      => 'queue',
+				'label'      => __( 'Queue', 'reactwoo-geo-ai' ),
+				'order'      => 70,
+				'callback'   => array( __CLASS__, 'render_drafts_queue' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-help',
+				'route'      => 'help',
+				'label'      => __( 'Help', 'reactwoo-geo-ai' ),
+				'order'      => 80,
+				'callback'   => array( __CLASS__, 'render_help' ),
+				'capability' => $cap_view,
+			),
+			array(
+				'menu_slug'  => 'rwga-license',
+				'section'    => 'settings',
+				'route'      => 'ai-license',
+				'label'      => __( 'Geo AI license', 'reactwoo-geo-ai' ),
+				'order'      => 90,
+				'callback'   => array( __CLASS__, 'render_license_settings' ),
+				'capability' => 'manage_options',
+			),
+			array(
+				'menu_slug'  => 'rwga-advanced',
+				'section'    => 'settings',
+				'route'      => 'ai-advanced',
+				'label'      => __( 'Geo AI advanced', 'reactwoo-geo-ai' ),
+				'order'      => 100,
+				'callback'   => array( __CLASS__, 'render_advanced' ),
+				'capability' => 'manage_options',
+			),
 		);
 
-		self::register_hub_submenu(
-			__( 'Geo AI — Analyse', 'reactwoo-geo-ai' ),
-			__( 'Analyse', 'reactwoo-geo-ai' ),
-			'rwga-analyses',
-			array( __CLASS__, 'render_analyses' ),
-			$cap_view
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Recommendations', 'reactwoo-geo-ai' ),
-			__( 'Recommendations', 'reactwoo-geo-ai' ),
-			'rwga-recommendations',
-			array( __CLASS__, 'render_recommendations' ),
-			$cap_view
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Implement', 'reactwoo-geo-ai' ),
-			__( 'Implement', 'reactwoo-geo-ai' ),
-			'rwga-implementation-drafts',
-			array( __CLASS__, 'render_implementation_drafts' ),
-			$cap_view
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Competitor research', 'reactwoo-geo-ai' ),
-			__( 'Competitors', 'reactwoo-geo-ai' ),
-			'rwga-competitors',
-			array( __CLASS__, 'render_competitor_research' ),
-			$cap_view
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Automation', 'reactwoo-geo-ai' ),
-			__( 'Automation', 'reactwoo-geo-ai' ),
-			'rwga-automation',
-			array( __CLASS__, 'render_automation' ),
-			$cap_view
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Settings', 'reactwoo-geo-ai' ),
-			__( 'Settings', 'reactwoo-geo-ai' ),
-			'rwga-license',
-			array( __CLASS__, 'render_license_settings' ),
-			'manage_options'
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Queue', 'reactwoo-geo-ai' ),
-			__( 'Queue', 'reactwoo-geo-ai' ),
-			'rwga-drafts',
-			array( __CLASS__, 'render_drafts_queue' ),
-			$cap_view
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Advanced', 'reactwoo-geo-ai' ),
-			__( 'Advanced', 'reactwoo-geo-ai' ),
-			'rwga-advanced',
-			array( __CLASS__, 'render_advanced' ),
-			'manage_options'
-		);
-
-		self::register_hub_submenu(
-			__( 'Geo AI — Help', 'reactwoo-geo-ai' ),
-			__( 'Help', 'reactwoo-geo-ai' ),
-			'rwga-help',
-			array( __CLASS__, 'render_help' ),
-			$cap_view
-		);
+		foreach ( $routes as $route ) {
+			self::register_app_route( $route );
+		}
 	}
 
 	/**
