@@ -27,6 +27,18 @@ if ( ! defined( 'RWGA_URL' ) ) {
 	define( 'RWGA_URL', plugin_dir_url( __FILE__ ) );
 }
 
+if ( class_exists( 'RWGC_I18n', false ) ) {
+	RWGC_I18n::bootstrap( RWGA_FILE, 'reactwoo-geo-ai' );
+} else {
+	add_action(
+		'init',
+		static function () {
+			load_plugin_textdomain( 'reactwoo-geo-ai', false, dirname( plugin_basename( RWGA_FILE ) ) . '/languages' );
+		},
+		0
+	);
+}
+
 require_once RWGA_PATH . 'includes/class-rwga-plugin.php';
 
 register_activation_hook(

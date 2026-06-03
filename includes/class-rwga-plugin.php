@@ -55,20 +55,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/class-rwga-updates-diagnostics.php';
 		RWGA_Updates_Diagnostics::init();
 
-		// Register before workflow engine so DB/workflow failures cannot block satellite updates.
-		if ( class_exists( 'RWGC_Satellite_Updater', false ) ) {
-			RWGC_Satellite_Updater::register(
-				array(
-					'basename'              => plugin_basename( RWGA_FILE ),
-					'version'               => RWGA_VERSION,
-					'catalog_slug'          => 'reactwoo-geo-ai',
-					'name'                  => __( 'ReactWoo Geo AI', 'reactwoo-geo-ai' ),
-					'description'           => __( 'AI-assisted geo variant drafts using the ReactWoo API with Geo Core.', 'reactwoo-geo-ai' ),
-					'get_bearer_callback'   => array( 'RWGA_Platform_Client', 'get_bearer_for_updates' ),
-					'get_api_base_callback' => array( 'RWGA_Platform_Client', 'get_api_base' ),
-				)
-			);
-		}
+		add_action( 'init', array( __CLASS__, 'register_satellite_updater' ), 1 );
 
 		$this->load_workflow_engine();
 
@@ -90,6 +77,26 @@ class RWGA_Plugin {
 		 * Fires when Geo AI satellite is ready (Geo Core is active).
 		 */
 		do_action( 'rwga_loaded' );
+	}
+
+	/**
+	 * @return void
+	 */
+	public static function register_satellite_updater() {
+		if ( ! class_exists( 'RWGC_Satellite_Updater', false ) ) {
+			return;
+		}
+		RWGC_Satellite_Updater::register(
+			array(
+				'basename'              => plugin_basename( RWGA_FILE ),
+				'version'               => RWGA_VERSION,
+				'catalog_slug'          => 'reactwoo-geo-ai',
+				'name'                  => __( 'ReactWoo Geo AI', 'reactwoo-geo-ai' ),
+				'description'           => __( 'AI-assisted geo variant drafts using the ReactWoo API with Geo Core.', 'reactwoo-geo-ai' ),
+				'get_bearer_callback'   => array( 'RWGA_Platform_Client', 'get_bearer_for_updates' ),
+				'get_api_base_callback' => array( 'RWGA_Platform_Client', 'get_api_base' ),
+			)
+		);
 	}
 
 	/**
