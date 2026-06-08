@@ -18,8 +18,10 @@ Geo AI is a **Geo Core satellite** (AI-assisted variant drafts and product workf
 ## Product notes
 
 - Fires **`rwga_loaded`** when ready. REST, usage, block editor bridges, and admin overview live here; Core exposes capabilities and shared admin patterns.
+- **Site intelligence:** sync via `RWGA_Site_Intelligence_Sync`, remote audit workflows, approval-gated actions — see **`docs/GEO-AI-INTELLIGENCE.md`**. Master plan: **`reactwoo-api/docs/PLAN-GEO-AI-INTELLIGENCE.md`**.
 
 ## References
 
-- Geo Core: `docs/phases/phase-5.md`, `docs/geo-core-cursor-master-plan.md`, `docs/releases-and-git-tags.md`.
+- Geo Core: `docs/phases/phase-5.md`, `docs/GEO-AI-SNAPSHOT.md`, `docs/geo-core-cursor-master-plan.md`, `docs/releases-and-git-tags.md`.
+- API env: `reactwoo-api/docs/GEO-AI-ENV-VARS.md`.
 - **`RWGA_VERSION`** in `reactwoo-geo-ai.php` must match the shipped release and readme **Stable tag**.
