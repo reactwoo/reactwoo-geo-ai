@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.70
+Stable tag: 0.4.71
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.71 =
+* **Cloud intelligence:** Split relationship graph into Pro targeting links and core/satellite edges; show experiment and commerce rule counts.
 
 = 0.4.70 =
 * **Cloud intelligence:** Relationship graph summary includes GeoCore Pro campaign, audience, and profile counts when present in synced snapshots.

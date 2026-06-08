@@ -61,6 +61,19 @@ $sync_url = wp_nonce_url(
 		$counts = isset( $graph['counts'] ) && is_array( $graph['counts'] ) ? $graph['counts'] : array();
 		$nodes  = isset( $graph['nodes'] ) && is_array( $graph['nodes'] ) ? $graph['nodes'] : array();
 		$edges  = isset( $graph['edges'] ) && is_array( $graph['edges'] ) ? $graph['edges'] : array();
+		$rwga_target_edges = array();
+		$rwga_core_edges   = array();
+		foreach ( $edges as $edge ) {
+			if ( ! is_array( $edge ) ) {
+				continue;
+			}
+			$etype = isset( $edge['type'] ) ? (string) $edge['type'] : '';
+			if ( 0 === strpos( $etype, 'targets_' ) ) {
+				$rwga_target_edges[] = $edge;
+			} else {
+				$rwga_core_edges[] = $edge;
+			}
+		}
 		?>
 		<div class="rwgc-card rwga-intel-graph-card" style="margin-bottom: 1.5rem;">
 			<h2><?php esc_html_e( 'Relationship graph', 'reactwoo-geo-ai' ); ?></h2>
@@ -68,7 +81,7 @@ $sync_url = wp_nonce_url(
 				<?php
 				printf(
 					/* translators: 1: snapshot hash prefix, 2: node count, 3: edge count */
-					esc_html__( 'From snapshot %1$s — %2$d nodes, %3$d edges (rules: %4$d, variants: %5$d, popups: %6$d, campaigns: %7$d, audiences: %8$d, profiles: %9$d).', 'reactwoo-geo-ai' ),
+					esc_html__( 'From snapshot %1$s — %2$d nodes, %3$d edges (rules: %4$d, variants: %5$d, popups: %6$d, campaigns: %7$d, audiences: %8$d, profiles: %9$d, experiments: %10$d, commerce rules: %11$d, targeting links: %12$d).', 'reactwoo-geo-ai' ),
 					esc_html( isset( $graph['snapshot_hash'] ) ? substr( (string) $graph['snapshot_hash'], 0, 12 ) . '…' : '—' ),
 					(int) ( $counts['nodes'] ?? count( $nodes ) ),
 					(int) ( $counts['edges'] ?? count( $edges ) ),
@@ -77,11 +90,43 @@ $sync_url = wp_nonce_url(
 					(int) ( $counts['popups'] ?? 0 ),
 					(int) ( $counts['campaigns'] ?? 0 ),
 					(int) ( $counts['audiences'] ?? 0 ),
-					(int) ( $counts['profiles'] ?? 0 )
+					(int) ( $counts['profiles'] ?? 0 ),
+					(int) ( $counts['experiments'] ?? 0 ),
+					(int) ( $counts['commerce_rules'] ?? 0 ),
+					(int) ( $counts['targeting_edges'] ?? count( $rwga_target_edges ) )
 				);
 				?>
 			</p>
-			<?php if ( ! empty( $edges ) ) : ?>
+			<?php if ( ! empty( $rwga_target_edges ) ) : ?>
+				<h3><?php esc_html_e( 'Pro targeting links', 'reactwoo-geo-ai' ); ?></h3>
+				<p class="description"><?php esc_html_e( 'Portable rules linked to synced Google Ads campaigns or GA4 audiences.', 'reactwoo-geo-ai' ); ?></p>
+				<table class="widefat striped rwga-intel-graph-table rwga-intel-graph-table--targeting">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Type', 'reactwoo-geo-ai' ); ?></th>
+							<th><?php esc_html_e( 'From', 'reactwoo-geo-ai' ); ?></th>
+							<th><?php esc_html_e( 'To', 'reactwoo-geo-ai' ); ?></th>
+							<th><?php esc_html_e( 'Note', 'reactwoo-geo-ai' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( array_slice( $rwga_target_edges, 0, 25 ) as $edge ) : ?>
+							<?php
+							$meta = isset( $edge['meta'] ) && is_array( $edge['meta'] ) ? $edge['meta'] : array();
+							$note = isset( $meta['condition_type'] ) ? (string) $meta['condition_type'] : '';
+							?>
+							<tr>
+								<td><code><?php echo esc_html( isset( $edge['type'] ) ? (string) $edge['type'] : '' ); ?></code></td>
+								<td><?php echo esc_html( isset( $edge['from'] ) ? (string) $edge['from'] : '' ); ?></td>
+								<td><?php echo esc_html( isset( $edge['to'] ) ? (string) $edge['to'] : '' ); ?></td>
+								<td><?php echo esc_html( $note ); ?></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+			<?php if ( ! empty( $rwga_core_edges ) ) : ?>
+				<h3><?php esc_html_e( 'Core & satellite relationships', 'reactwoo-geo-ai' ); ?></h3>
 				<table class="widefat striped rwga-intel-graph-table">
 					<thead>
 						<tr>
@@ -91,7 +136,7 @@ $sync_url = wp_nonce_url(
 						</tr>
 					</thead>
 					<tbody>
-						<?php foreach ( array_slice( $edges, 0, 40 ) as $edge ) : ?>
+						<?php foreach ( array_slice( $rwga_core_edges, 0, 40 ) as $edge ) : ?>
 							<?php if ( ! is_array( $edge ) ) { continue; } ?>
 							<tr>
 								<td><code><?php echo esc_html( isset( $edge['type'] ) ? (string) $edge['type'] : '' ); ?></code></td>
@@ -101,10 +146,10 @@ $sync_url = wp_nonce_url(
 						<?php endforeach; ?>
 					</tbody>
 				</table>
-				<?php if ( count( $edges ) > 40 ) : ?>
-					<p class="description"><?php esc_html_e( 'Showing first 40 relationships.', 'reactwoo-geo-ai' ); ?></p>
+				<?php if ( count( $rwga_core_edges ) > 40 ) : ?>
+					<p class="description"><?php esc_html_e( 'Showing first 40 core relationships.', 'reactwoo-geo-ai' ); ?></p>
 				<?php endif; ?>
-			<?php else : ?>
+			<?php elseif ( empty( $rwga_target_edges ) ) : ?>
 				<p><?php esc_html_e( 'No relationship edges in the latest snapshot.', 'reactwoo-geo-ai' ); ?></p>
 			<?php endif; ?>
 		</div>
