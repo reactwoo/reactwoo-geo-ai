@@ -189,24 +189,95 @@ class RWGA_Workflow_Intelligence extends RWGA_Workflow_Base {
 	 * @return array<string, mixed>
 	 */
 	public function persist( array $input, array $result ) {
+		$uid           = get_current_user_id();
+		$page_id       = isset( $input['page_id'] ) ? (int) $input['page_id'] : 0;
+		$geo           = isset( $input['geo_target'] ) ? (string) $input['geo_target'] : '';
+		$snapshot_hash = '';
+		if ( isset( $input['site_intelligence']['snapshot_hash'] ) ) {
+			$snapshot_hash = sanitize_text_field( (string) $input['site_intelligence']['snapshot_hash'] );
+		}
+
+		$recommendation_ids = array();
+		$action_ids         = array();
+
+		if ( class_exists( 'RWGA_DB_Recommendations', false ) ) {
+			$recs = isset( $result['recommendations'] ) && is_array( $result['recommendations'] ) ? $result['recommendations'] : array();
+			foreach ( $recs as $rec ) {
+				if ( ! is_array( $rec ) ) {
+					continue;
+				}
+				$rid = RWGA_DB_Recommendations::insert(
+					array(
+						'workflow_key'     => $this->get_key(),
+						'agent_key'        => $this->get_agent_key(),
+						'page_id'          => $page_id,
+						'geo_target'       => $geo,
+						'priority_level'   => isset( $rec['priority'] ) ? sanitize_key( (string) $rec['priority'] ) : 'medium',
+						'category'         => 'intelligence',
+						'title'            => isset( $rec['title'] ) ? (string) $rec['title'] : '',
+						'problem'          => isset( $result['summary'] ) ? (string) $result['summary'] : '',
+						'why_it_matters'   => isset( $rec['detail'] ) ? (string) $rec['detail'] : '',
+						'recommendation'   => isset( $rec['detail'] ) ? (string) $rec['detail'] : '',
+						'lifecycle_status' => 'intelligence_generated',
+						'created_by'       => $uid,
+					)
+				);
+				if ( $rid > 0 ) {
+					$recommendation_ids[] = $rid;
+				}
+			}
+		}
+
+		if ( class_exists( 'RWGA_DB_Intelligence_Actions', false ) ) {
+			$actions = isset( $result['actions'] ) && is_array( $result['actions'] ) ? $result['actions'] : array();
+			foreach ( $actions as $idx => $action ) {
+				if ( ! is_array( $action ) ) {
+					continue;
+				}
+				$rec_link = isset( $recommendation_ids[ $idx ] ) ? (int) $recommendation_ids[ $idx ] : ( ! empty( $recommendation_ids ) ? (int) $recommendation_ids[0] : 0 );
+				$aid      = RWGA_DB_Intelligence_Actions::insert(
+					array(
+						'workflow_key'      => $this->get_key(),
+						'recommendation_id' => $rec_link,
+						'action_type'       => isset( $action['action_type'] ) ? (string) $action['action_type'] : '',
+						'label'             => isset( $action['label'] ) ? (string) $action['label'] : '',
+						'action_json'       => isset( $action['action_json'] ) && is_array( $action['action_json'] ) ? $action['action_json'] : array(),
+						'entity_type'       => isset( $action['entity_type'] ) ? (string) $action['entity_type'] : '',
+						'entity_id'         => isset( $action['entity_id'] ) ? (string) $action['entity_id'] : '',
+						'page_id'           => $page_id,
+						'snapshot_hash'     => $snapshot_hash,
+						'status'            => 'pending',
+						'created_by'        => $uid,
+					)
+				);
+				if ( $aid > 0 ) {
+					$action_ids[] = $aid;
+				}
+			}
+		}
+
 		if ( class_exists( 'RWGA_Memory_Service', false ) ) {
 			RWGA_Memory_Service::append(
 				'intelligence_workflow_completed',
 				'workflow',
 				0,
-				isset( $input['page_id'] ) ? (int) $input['page_id'] : 0,
-				isset( $input['geo_target'] ) ? (string) $input['geo_target'] : '',
+				$page_id,
+				$geo,
 				array(
-					'workflow_key' => $this->get_key(),
-					'summary'      => isset( $result['summary'] ) ? (string) $result['summary'] : '',
-					'findings'     => isset( $result['findings'] ) ? count( (array) $result['findings'] ) : 0,
+					'workflow_key'        => $this->get_key(),
+					'summary'             => isset( $result['summary'] ) ? (string) $result['summary'] : '',
+					'findings'            => isset( $result['findings'] ) ? count( (array) $result['findings'] ) : 0,
+					'recommendation_ids'  => $recommendation_ids,
+					'action_ids'          => $action_ids,
 				)
 			);
 		}
 
 		return array(
-			'success' => true,
-			'result'  => $result,
+			'success'            => true,
+			'result'             => $result,
+			'recommendation_ids' => $recommendation_ids,
+			'action_ids'         => $action_ids,
 		);
 	}
 }

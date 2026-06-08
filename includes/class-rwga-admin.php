@@ -55,6 +55,8 @@ class RWGA_Admin {
 		add_action( 'admin_post_rwga_apply_drafts_to_live', array( __CLASS__, 'handle_apply_drafts_to_live' ) );
 		add_action( 'admin_post_rwga_create_variant_from_drafts', array( __CLASS__, 'handle_create_variant_from_drafts' ) );
 		add_action( 'admin_post_rwga_send_variant_to_geo_optimise', array( __CLASS__, 'handle_send_variant_to_geo_optimise' ) );
+		add_action( 'admin_post_rwga_intelligence_action_apply', array( __CLASS__, 'handle_intelligence_action_apply' ) );
+		add_action( 'admin_post_rwga_intelligence_action_dismiss', array( __CLASS__, 'handle_intelligence_action_dismiss' ) );
 		add_action( 'admin_post_rwga_clear_geo_ai_license', array( __CLASS__, 'handle_clear_license_post' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
@@ -119,6 +121,7 @@ class RWGA_Admin {
 			'rwga-analyses'              => __( 'Reports', 'reactwoo-geo-ai' ),
 			'rwga-recommendations'       => __( 'Recommendations', 'reactwoo-geo-ai' ),
 			'rwga-implementation-drafts' => __( 'Drafts', 'reactwoo-geo-ai' ),
+			'rwga-intelligence-actions'  => __( 'Intelligence actions', 'reactwoo-geo-ai' ),
 			'rwga-competitors'           => __( 'Competitors', 'reactwoo-geo-ai' ),
 			'rwga-automation'            => __( 'Automation', 'reactwoo-geo-ai' ),
 			'rwga-license'               => __( 'Settings', 'reactwoo-geo-ai' ),
@@ -1258,6 +1261,72 @@ class RWGA_Admin {
 	 *
 	 * @return void
 	 */
+	/**
+	 * Apply a pending intelligence action after explicit approval.
+	 *
+	 * @return void
+	 */
+	public static function handle_intelligence_action_apply() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to apply intelligence actions.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_intelligence_action_apply' );
+		$action_id = isset( $_POST['action_id'] ) ? (int) wp_unslash( $_POST['action_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$result    = class_exists( 'RWGA_Intelligence_Action_Applier', false )
+			? RWGA_Intelligence_Action_Applier::apply( $action_id )
+			: new WP_Error( 'rwga_missing_applier', __( 'Intelligence action applier unavailable.', 'reactwoo-geo-ai' ) );
+		if ( is_wp_error( $result ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'     => 'rwga-intelligence-actions',
+						'rwga_act' => 'error',
+						'rwga_err' => rawurlencode( $result->get_error_message() ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+		$redirect = add_query_arg( array( 'page' => 'rwga-intelligence-actions', 'rwga_act' => 'applied' ), admin_url( 'admin.php' ) );
+		if ( ! empty( $result['result']['redirect_url'] ) ) {
+			$redirect = (string) $result['result']['redirect_url'];
+		}
+		wp_safe_redirect( $redirect );
+		exit;
+	}
+
+	/**
+	 * Dismiss a pending intelligence action.
+	 *
+	 * @return void
+	 */
+	public static function handle_intelligence_action_dismiss() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to dismiss intelligence actions.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_intelligence_action_dismiss' );
+		$action_id = isset( $_POST['action_id'] ) ? (int) wp_unslash( $_POST['action_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$result    = class_exists( 'RWGA_Intelligence_Action_Applier', false )
+			? RWGA_Intelligence_Action_Applier::dismiss( $action_id )
+			: new WP_Error( 'rwga_missing_applier', __( 'Intelligence action applier unavailable.', 'reactwoo-geo-ai' ) );
+		if ( is_wp_error( $result ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'     => 'rwga-intelligence-actions',
+						'rwga_act' => 'error',
+						'rwga_err' => rawurlencode( $result->get_error_message() ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+		wp_safe_redirect( add_query_arg( array( 'page' => 'rwga-intelligence-actions', 'rwga_act' => 'dismissed' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
 	public static function handle_apply_drafts_to_live() {
 		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
 			wp_die( esc_html__( 'Sorry, you are not allowed to apply drafts.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
@@ -1720,6 +1789,15 @@ class RWGA_Admin {
 				'capability' => $cap_view,
 			),
 			array(
+				'menu_slug'  => 'rwga-intelligence-actions',
+				'route'      => 'intelligence-actions',
+				'label'      => __( 'Intelligence actions', 'reactwoo-geo-ai' ),
+				'order'      => 45,
+				'is_section_nav' => false,
+				'callback'   => array( __CLASS__, 'render_intelligence_actions' ),
+				'capability' => $cap_view,
+			),
+			array(
 				'menu_slug'  => 'rwga-competitors',
 				'route'      => 'competitors',
 				'label'      => __( 'Competitors', 'reactwoo-geo-ai' ),
@@ -2034,6 +2112,42 @@ class RWGA_Admin {
 		$rwgc_nav_current           = 'rwga-implementation-drafts';
 		$rwga_recommendation_rows   = self::get_recommendation_rows_for_select();
 		include RWGA_PATH . 'admin/views/implementation-drafts-list.php';
+	}
+
+	/**
+	 * Pending intelligence workflow actions (approval-gated).
+	 *
+	 * @return void
+	 */
+	public static function render_intelligence_actions() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
+			return;
+		}
+
+		$per_page = 20;
+		$paged    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$wk       = isset( $_GET['workflow_key'] ) ? sanitize_key( wp_unslash( $_GET['workflow_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$status   = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : 'pending'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$filters  = array();
+		if ( '' !== $status ) {
+			$filters['status'] = $status;
+		}
+
+		$total = class_exists( 'RWGA_DB_Intelligence_Actions', false ) ? RWGA_DB_Intelligence_Actions::count_rows( $wk, $filters ) : 0;
+		$pages = max( 1, (int) ceil( $total / $per_page ) );
+		$rwga_rows = class_exists( 'RWGA_DB_Intelligence_Actions', false )
+			? RWGA_DB_Intelligence_Actions::list_paged( $per_page, $paged, $wk, $filters )
+			: array();
+
+		$rwga_pagination    = array(
+			'total'   => $total,
+			'pages'   => $pages,
+			'current' => $paged,
+		);
+		$rwga_filter_status = $status;
+		$rwga_filter_workflow = $wk;
+		$rwgc_nav_current   = 'rwga-intelligence-actions';
+		include RWGA_PATH . 'admin/views/intelligence-actions-list.php';
 	}
 
 	/**

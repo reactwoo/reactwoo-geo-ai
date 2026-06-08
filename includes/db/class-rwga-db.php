@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_DB {
 
 	const VERSION_OPTION = 'rwga_db_version';
-	const SCHEMA_VERSION = '1.2.0';
+	const SCHEMA_VERSION = '1.3.0';
 
 	/**
 	 * @return string
@@ -79,6 +79,14 @@ class RWGA_DB {
 	public static function outcomes_table() {
 		global $wpdb;
 		return $wpdb->prefix . 'rwga_outcomes';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function intelligence_actions_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'rwga_intelligence_actions';
 	}
 
 	/**
@@ -289,6 +297,33 @@ class RWGA_DB {
 			KEY metric_key (metric_key)
 		) $charset_collate;";
 
+		$intel_actions = 'CREATE TABLE ' . self::intelligence_actions_table() . " (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			workflow_key varchar(64) NOT NULL DEFAULT '',
+			recommendation_id bigint(20) unsigned NULL,
+			action_type varchar(64) NOT NULL DEFAULT '',
+			label varchar(255) NOT NULL DEFAULT '',
+			action_json longtext NOT NULL,
+			entity_type varchar(50) NULL,
+			entity_id varchar(64) NULL,
+			page_id bigint(20) unsigned NULL,
+			snapshot_hash varchar(64) NULL,
+			status varchar(20) NOT NULL DEFAULT 'pending',
+			requires_approval tinyint(1) NOT NULL DEFAULT 1,
+			approved_by bigint(20) unsigned NULL,
+			approved_at datetime NULL,
+			applied_at datetime NULL,
+			apply_result_json longtext NULL,
+			created_by bigint(20) unsigned NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY workflow_key (workflow_key),
+			KEY status (status),
+			KEY recommendation_id (recommendation_id),
+			KEY created_at (created_at)
+		) $charset_collate;";
+
 		dbDelta( $runs );
 		dbDelta( $findings );
 		dbDelta( $recs );
@@ -297,6 +332,7 @@ class RWGA_DB {
 		dbDelta( $auto );
 		dbDelta( $mem );
 		dbDelta( $out );
+		dbDelta( $intel_actions );
 
 		update_option( self::VERSION_OPTION, self::SCHEMA_VERSION, false );
 	}

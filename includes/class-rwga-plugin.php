@@ -121,6 +121,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-analysis-findings.php';
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-recommendations.php';
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-implementation-drafts.php';
+		require_once RWGA_PATH . 'includes/db/class-rwga-db-intelligence-actions.php';
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-competitor-research.php';
 		require_once RWGA_PATH . 'includes/db/class-rwga-db-automation-rules.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-memory-service.php';
@@ -132,6 +133,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-engine.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-remote-client.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-response.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-action-applier.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-ai-usage-guard.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-snapshot-client.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-sync.php';

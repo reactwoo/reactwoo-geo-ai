@@ -300,6 +300,64 @@ class RWGA_REST {
 				'args'                => array(),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/actions',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_intelligence_actions_list' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+				'args'                => array(
+					'page'         => array(
+						'default'           => 1,
+						'sanitize_callback' => 'absint',
+					),
+					'per_page'     => array(
+						'default'           => 20,
+						'sanitize_callback' => 'absint',
+					),
+					'workflow_key' => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'status'       => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_key',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/actions/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_intelligence_action_get' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/actions/(?P<id>\\d+)/apply',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_intelligence_action_apply' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/actions/(?P<id>\\d+)/dismiss',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_intelligence_action_dismiss' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+			)
+		);
 	}
 
 	/**
@@ -878,6 +936,108 @@ class RWGA_REST {
 				$row['rule_config'] = $dec;
 			}
 		}
+		return $row;
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/actions
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_intelligence_actions_list( $request ) {
+		$page         = max( 1, (int) $request->get_param( 'page' ) );
+		$per_page     = max( 1, min( 100, (int) $request->get_param( 'per_page' ) ) );
+		$workflow_key = (string) $request->get_param( 'workflow_key' );
+		$status       = (string) $request->get_param( 'status' );
+		$filters      = array();
+		if ( '' !== $status ) {
+			$filters['status'] = $status;
+		}
+		$total = RWGA_DB_Intelligence_Actions::count_rows( $workflow_key, $filters );
+		$pages = max( 1, (int) ceil( $total / $per_page ) );
+		$rows  = RWGA_DB_Intelligence_Actions::list_paged( $per_page, $page, $workflow_key, $filters );
+
+		return rest_ensure_response(
+			array(
+				'total'    => $total,
+				'pages'    => $pages,
+				'page'     => $page,
+				'per_page' => $per_page,
+				'actions'  => array_map( array( __CLASS__, 'decode_intelligence_action_row' ), $rows ),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/actions/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_intelligence_action_get( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid action id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		$row = RWGA_DB_Intelligence_Actions::get( $id );
+		if ( ! is_array( $row ) ) {
+			return new WP_Error( 'rwga_not_found', __( 'Action not found.', 'reactwoo-geo-ai' ), array( 'status' => 404 ) );
+		}
+		return rest_ensure_response( array( 'action' => self::decode_intelligence_action_row( $row ) ) );
+	}
+
+	/**
+	 * POST /geo-ai/v1/intelligence/actions/(?P<id>\\d+)/apply
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_intelligence_action_apply( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid action id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		$out = RWGA_Intelligence_Action_Applier::apply( $id );
+		if ( is_wp_error( $out ) ) {
+			return $out;
+		}
+		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * POST /geo-ai/v1/intelligence/actions/(?P<id>\\d+)/dismiss
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_intelligence_action_dismiss( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid action id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		$out = RWGA_Intelligence_Action_Applier::dismiss( $id );
+		if ( is_wp_error( $out ) ) {
+			return $out;
+		}
+		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * @param array<string, mixed> $row DB row.
+	 * @return array<string, mixed>
+	 */
+	private static function decode_intelligence_action_row( array $row ) {
+		foreach ( array( 'action_json', 'apply_result_json' ) as $k ) {
+			if ( ! isset( $row[ $k ] ) || ! is_string( $row[ $k ] ) || '' === $row[ $k ] ) {
+				continue;
+			}
+			$dec = json_decode( $row[ $k ], true );
+			if ( JSON_ERROR_NONE === json_last_error() && is_array( $dec ) ) {
+				$row[ $k ] = $dec;
+			}
+		}
+		$row['requires_approval'] = ! empty( $row['requires_approval'] );
 		return $row;
 	}
 }
