@@ -68,13 +68,16 @@ $sync_url = wp_nonce_url(
 				<?php
 				printf(
 					/* translators: 1: snapshot hash prefix, 2: node count, 3: edge count */
-					esc_html__( 'From snapshot %1$s — %2$d nodes, %3$d edges (rules: %4$d, variants: %5$d, popups: %6$d).', 'reactwoo-geo-ai' ),
+					esc_html__( 'From snapshot %1$s — %2$d nodes, %3$d edges (rules: %4$d, variants: %5$d, popups: %6$d, campaigns: %7$d, audiences: %8$d, profiles: %9$d).', 'reactwoo-geo-ai' ),
 					esc_html( isset( $graph['snapshot_hash'] ) ? substr( (string) $graph['snapshot_hash'], 0, 12 ) . '…' : '—' ),
 					(int) ( $counts['nodes'] ?? count( $nodes ) ),
 					(int) ( $counts['edges'] ?? count( $edges ) ),
 					(int) ( $counts['rules'] ?? 0 ),
 					(int) ( $counts['variants'] ?? 0 ),
-					(int) ( $counts['popups'] ?? 0 )
+					(int) ( $counts['popups'] ?? 0 ),
+					(int) ( $counts['campaigns'] ?? 0 ),
+					(int) ( $counts['audiences'] ?? 0 ),
+					(int) ( $counts['profiles'] ?? 0 )
 				);
 				?>
 			</p>
