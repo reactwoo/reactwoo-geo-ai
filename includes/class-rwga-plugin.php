@@ -131,6 +131,10 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-implementation-router.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-engine.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-remote-client.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-ai-usage-guard.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-site-snapshot-client.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-sync.php';
+		RWGA_Site_Intelligence_Sync::init();
 		require_once RWGA_PATH . 'includes/services/class-rwga-page-context.php';
 		require_once RWGA_PATH . 'includes/workflows/interface-rwga-workflow.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-base.php';

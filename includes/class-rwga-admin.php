@@ -249,7 +249,44 @@ class RWGA_Admin {
 	 *
 	 * @return void
 	 */
+	public static function render_snapshot_sync_notices() {
+		if ( empty( $_GET['rwga_snapshot_sync'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$flag = sanitize_key( wp_unslash( $_GET['rwga_snapshot_sync'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$uid  = get_current_user_id();
+		$tkey = 'rwga_snapshot_sync_flash_' . $uid;
+
+		if ( 'synced' === $flag ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Site intelligence snapshot synced to the cloud.', 'reactwoo-geo-ai' ) . '</p></div>';
+			return;
+		}
+		if ( 'skipped' === $flag ) {
+			echo '<div class="notice notice-info is-dismissible"><p>' . esc_html__( 'Snapshot unchanged — cloud copy is already up to date.', 'reactwoo-geo-ai' ) . '</p></div>';
+			return;
+		}
+		if ( 'blocked' === $flag ) {
+			$msg = get_transient( $tkey );
+			delete_transient( $tkey );
+			if ( ! is_string( $msg ) || '' === $msg ) {
+				$msg = __( 'Site intelligence sync is not available for this site or plan.', 'reactwoo-geo-ai' );
+			}
+			echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+			return;
+		}
+		if ( 'error' === $flag ) {
+			$msg = get_transient( $tkey );
+			delete_transient( $tkey );
+			if ( ! is_string( $msg ) || '' === $msg ) {
+				$msg = __( 'Site intelligence sync failed. The API endpoint may not be live yet — try again after ReactWoo API Phase 5 ships.', 'reactwoo-geo-ai' );
+			}
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
+		}
+	}
+
 	public static function render_usage_refresh_notices() {
+		self::render_snapshot_sync_notices();
+
 		if ( empty( $_GET['rwga_usage'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return;
 		}
@@ -463,13 +500,13 @@ class RWGA_Admin {
 		}
 		$action = isset( $_GET['rwga_action'] ) ? sanitize_key( wp_unslash( $_GET['rwga_action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$allowed_pages = array( 'rwga-dashboard', 'rwga-advanced' );
-		if ( 'ai_usage' === $action ) {
+		if ( in_array( $action, array( 'ai_usage', 'snapshot_sync' ), true ) ) {
 			$allowed_pages[] = 'rwga-license';
 		}
 		if ( ! in_array( $page, $allowed_pages, true ) ) {
 			return;
 		}
-		if ( ! in_array( $action, array( 'ai_health', 'ai_usage', 'rest_post_smoke' ), true ) ) {
+		if ( ! in_array( $action, array( 'ai_health', 'ai_usage', 'snapshot_sync', 'rest_post_smoke' ), true ) ) {
 			return;
 		}
 		if ( ! wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'rwga_dash_' . $action ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -569,6 +606,26 @@ class RWGA_Admin {
 				}
 			}
 			wp_safe_redirect( add_query_arg( 'rwga_usage', $flag, admin_url( 'admin.php?page=' . $page ) ) );
+			exit;
+		}
+		if ( 'snapshot_sync' === $action ) {
+			$flag = 'error';
+			if ( ! class_exists( 'RWGA_Site_Intelligence_Sync', false ) ) {
+				set_transient( 'rwga_snapshot_sync_flash_' . get_current_user_id(), __( 'Site intelligence sync is not available.', 'reactwoo-geo-ai' ), 120 );
+			} else {
+				$force  = ! empty( $_GET['rwga_force'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$result = RWGA_Site_Intelligence_Sync::sync( $force );
+				if ( is_wp_error( $result ) ) {
+					set_transient( 'rwga_snapshot_sync_flash_' . get_current_user_id(), $result->get_error_message(), 120 );
+					$flag = 'blocked' === RWGA_Site_Intelligence_Sync::get_status()['last_sync_status'] ? 'blocked' : 'error';
+				} elseif ( is_array( $result ) && isset( $result['status'] ) ) {
+					$flag = sanitize_key( (string) $result['status'] );
+					if ( ! in_array( $flag, array( 'synced', 'skipped' ), true ) ) {
+						$flag = 'error';
+					}
+				}
+			}
+			wp_safe_redirect( add_query_arg( 'rwga_snapshot_sync', $flag, admin_url( 'admin.php?page=' . $page ) ) );
 			exit;
 		}
 		if ( 'rest_post_smoke' === $action ) {

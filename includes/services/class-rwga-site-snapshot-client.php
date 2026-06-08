@@ -1,0 +1,160 @@
+<?php
+/**
+ * Cloud API client for Geo AI site registration and intelligence snapshots.
+ *
+ * @package ReactWoo_Geo_AI
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * POST site intelligence payloads to api.reactwoo.com (Phase 5 API contract).
+ */
+class RWGA_Site_Snapshot_Client {
+
+	const REGISTER_PATH_TEMPLATE = '/api/v5/geo-ai/sites/register';
+	const SNAPSHOT_PATH_TEMPLATE = '/api/v5/geo-ai/sites/%s/snapshot';
+
+	/**
+	 * Register or resolve a cloud site id for this WordPress install.
+	 *
+	 * @return array{site_id:string}|\WP_Error
+	 */
+	public static function register_site() {
+		if ( ! class_exists( 'RWGA_Platform_Client', false ) ) {
+			return new WP_Error( 'rwga_no_platform', __( 'Platform client unavailable.', 'reactwoo-geo-ai' ) );
+		}
+
+		$site_uuid = function_exists( 'rwga_get_site_uuid' ) ? (string) rwga_get_site_uuid() : '';
+
+		$body = array(
+			'site' => array(
+				'uuid' => $site_uuid,
+				'url'  => home_url( '/' ),
+				'name' => get_bloginfo( 'name' ),
+			),
+			'product_slug' => RWGA_Platform_Client::PRODUCT_SLUG,
+		);
+
+		$path = apply_filters( 'rwga_site_snapshot_register_path', self::REGISTER_PATH_TEMPLATE );
+		$path = is_string( $path ) ? trim( $path ) : self::REGISTER_PATH_TEMPLATE;
+
+		/**
+		 * @param array<string, mixed> $body Register request JSON.
+		 */
+		$body = apply_filters( 'rwga_site_snapshot_register_body', $body );
+		if ( ! is_array( $body ) ) {
+			$body = array();
+		}
+
+		$result = RWGA_Platform_Client::request( 'POST', $path, $body, true );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$code = isset( $result['code'] ) ? (int) $result['code'] : 0;
+		$data = isset( $result['data'] ) && is_array( $result['data'] ) ? $result['data'] : null;
+
+		if ( $code < 200 || $code >= 300 || ! is_array( $data ) ) {
+			$msg = is_array( $data ) && isset( $data['message'] ) ? (string) $data['message'] : __( 'Site registration failed.', 'reactwoo-geo-ai' );
+			return new WP_Error( 'rwga_register_failed', $msg, array( 'status' => $code ) );
+		}
+
+		$inner = isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : $data;
+		$site_id = '';
+		if ( isset( $inner['site_id'] ) ) {
+			$site_id = sanitize_text_field( (string) $inner['site_id'] );
+		} elseif ( isset( $inner['id'] ) ) {
+			$site_id = sanitize_text_field( (string) $inner['id'] );
+		} elseif ( '' !== $site_uuid ) {
+			$site_id = $site_uuid;
+		}
+
+		if ( '' === $site_id ) {
+			return new WP_Error( 'rwga_register_shape', __( 'Registration response did not include a site id.', 'reactwoo-geo-ai' ) );
+		}
+
+		/**
+		 * @param array{site_id:string} $parsed Parsed registration response.
+		 * @param array<string, mixed>  $data   Raw API JSON.
+		 */
+		$parsed = apply_filters(
+			'rwga_site_snapshot_register_response',
+			array( 'site_id' => $site_id ),
+			$data
+		);
+
+		return is_array( $parsed ) && ! empty( $parsed['site_id'] )
+			? array( 'site_id' => (string) $parsed['site_id'] )
+			: array( 'site_id' => $site_id );
+	}
+
+	/**
+	 * Upload a normalized snapshot payload.
+	 *
+	 * @param string               $site_id  Cloud site id.
+	 * @param array<string, mixed> $snapshot Snapshot from {@see rwgc_build_ai_snapshot()}.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	public static function upload_snapshot( $site_id, array $snapshot ) {
+		$site_id = sanitize_text_field( (string) $site_id );
+		if ( '' === $site_id ) {
+			return new WP_Error( 'rwga_bad_site', __( 'Invalid cloud site id.', 'reactwoo-geo-ai' ) );
+		}
+
+		if ( ! class_exists( 'RWGA_Platform_Client', false ) ) {
+			return new WP_Error( 'rwga_no_platform', __( 'Platform client unavailable.', 'reactwoo-geo-ai' ) );
+		}
+
+		$path = sprintf( self::SNAPSHOT_PATH_TEMPLATE, rawurlencode( $site_id ) );
+		$path = apply_filters( 'rwga_site_snapshot_upload_path', $path, $site_id, $snapshot );
+		$path = is_string( $path ) ? $path : sprintf( self::SNAPSHOT_PATH_TEMPLATE, rawurlencode( $site_id ) );
+
+		$body = array(
+			'site_id'        => $site_id,
+			'snapshot'       => $snapshot,
+			'snapshot_hash'  => isset( $snapshot['snapshot_hash'] ) ? (string) $snapshot['snapshot_hash'] : '',
+			'schema_version' => isset( $snapshot['schema_version'] ) ? (int) $snapshot['schema_version'] : 1,
+		);
+
+		/**
+		 * @param array<string, mixed> $body     Upload request JSON.
+		 * @param string               $site_id  Cloud site id.
+		 * @param array<string, mixed> $snapshot Snapshot payload.
+		 */
+		$body = apply_filters( 'rwga_site_snapshot_upload_body', $body, $site_id, $snapshot );
+		if ( ! is_array( $body ) ) {
+			$body = array();
+		}
+
+		$result = RWGA_Platform_Client::request( 'POST', $path, $body, true );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$code = isset( $result['code'] ) ? (int) $result['code'] : 0;
+		$data = isset( $result['data'] ) && is_array( $result['data'] ) ? $result['data'] : null;
+
+		if ( $code < 200 || $code >= 300 ) {
+			$msg = is_array( $data ) && isset( $data['message'] ) ? (string) $data['message'] : __( 'Snapshot upload failed.', 'reactwoo-geo-ai' );
+			return new WP_Error( 'rwga_upload_failed', $msg, array( 'status' => $code, 'data' => $data ) );
+		}
+
+		$parsed = array(
+			'http_code'      => $code,
+			'site_id'        => $site_id,
+			'snapshot_hash'  => isset( $snapshot['snapshot_hash'] ) ? (string) $snapshot['snapshot_hash'] : '',
+			'response'       => is_array( $data ) ? $data : array(),
+		);
+
+		/**
+		 * @param array<string, mixed> $parsed   Normalised upload response.
+		 * @param array<string, mixed> $data     Raw API JSON.
+		 * @param string               $site_id  Cloud site id.
+		 */
+		$parsed = apply_filters( 'rwga_site_snapshot_upload_response', $parsed, $data, $site_id );
+		return is_array( $parsed ) ? $parsed : array();
+	}
+}
