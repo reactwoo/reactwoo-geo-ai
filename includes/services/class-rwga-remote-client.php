@@ -49,13 +49,21 @@ class RWGA_Remote_Client {
 		}
 
 		$site_uuid = function_exists( 'rwga_get_site_uuid' ) ? (string) rwga_get_site_uuid() : '';
+		$cloud_site_id = '';
+		if ( class_exists( 'RWGA_Site_Intelligence_Sync', false ) ) {
+			$sync_status = RWGA_Site_Intelligence_Sync::get_status();
+			if ( is_array( $sync_status ) && ! empty( $sync_status['cloud_site_id'] ) ) {
+				$cloud_site_id = sanitize_text_field( (string) $sync_status['cloud_site_id'] );
+			}
+		}
 
 		$body = array(
 			'workflow_key' => $workflow_key,
 			'payload'      => $payload,
 			'site'         => array(
-				'uuid' => $site_uuid,
-				'url'  => home_url( '/' ),
+				'uuid'    => $site_uuid,
+				'url'     => home_url( '/' ),
+				'site_id' => $cloud_site_id,
 			),
 		);
 

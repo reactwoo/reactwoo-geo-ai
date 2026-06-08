@@ -2,7 +2,7 @@
 
 WordPress-side implementation for cloud **site intelligence sync**, **remote audit workflows**, and **approval-gated actions**.
 
-**Requires:** Geo Core (snapshot builder), react-license JWT, reactwoo-api **v0.1.38+** (sync), **v0.1.39+** (cost controls).
+**Requires:** Geo Core (snapshot builder), react-license JWT, reactwoo-api **v0.1.38+** (sync), **v0.1.39+** (cost controls), **v0.1.41+** (run history + graph).
 
 Master plan: `reactwoo-api/docs/PLAN-GEO-AI-INTELLIGENCE.md`
 
@@ -16,6 +16,18 @@ Master plan: `reactwoo-api/docs/PLAN-GEO-AI-INTELLIGENCE.md`
 | `RWGA_Intelligence_Response` | Parses API JSON; persists findings and pending actions |
 | `RWGA_DB_Intelligence_Actions` | Custom table `rwga_intelligence_actions` |
 | `RWGA_Intelligence_Action_Applier` | Allowlisted apply handlers after admin approval |
+
+## Cloud run history and graph (API)
+
+When a site is registered via sync, intelligence workflow runs are stored in Redis and exposed at:
+
+| Method | Route |
+|--------|-------|
+| GET | `/api/v5/geo-ai/sites/{site_id}/intelligence/runs` |
+| GET | `/api/v5/geo-ai/sites/{site_id}/intelligence/runs/{run_id}` |
+| GET | `/api/v5/geo-ai/sites/{site_id}/intelligence/graph` |
+
+`RWGA_Remote_Client` includes `site.site_id` (cloud id from sync status) so runs link to the correct site. Workflow responses may include `cloud_run_id`.
 
 ## Sync flow
 
@@ -156,7 +168,7 @@ Intelligence workflows expect **remote** mode for cloud analysis. Local stub eng
 |-----------|---------|
 | Geo AI | **0.4.66** |
 | Geo Core | Snapshot builder shipped (1.8.x line) |
-| reactwoo-api | **0.1.40** for LLM intelligence workflows |
+| reactwoo-api | **0.1.41** for run history, graph, LLM workflows |
 
 ## Related
 
