@@ -58,8 +58,8 @@ class RWGA_Site_Snapshot_Client {
 		$data = isset( $result['data'] ) && is_array( $result['data'] ) ? $result['data'] : null;
 
 		if ( $code < 200 || $code >= 300 || ! is_array( $data ) ) {
-			$msg = is_array( $data ) && isset( $data['message'] ) ? (string) $data['message'] : __( 'Site registration failed.', 'reactwoo-geo-ai' );
-			return new WP_Error( 'rwga_register_failed', $msg, array( 'status' => $code ) );
+			$msg = self::extract_api_message( $data, __( 'Site registration failed.', 'reactwoo-geo-ai' ) );
+			return new WP_Error( 'rwga_register_failed', $msg, array( 'status' => $code, 'data' => $data ) );
 		}
 
 		$inner = isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : $data;
@@ -138,7 +138,7 @@ class RWGA_Site_Snapshot_Client {
 		$data = isset( $result['data'] ) && is_array( $result['data'] ) ? $result['data'] : null;
 
 		if ( $code < 200 || $code >= 300 ) {
-			$msg = is_array( $data ) && isset( $data['message'] ) ? (string) $data['message'] : __( 'Snapshot upload failed.', 'reactwoo-geo-ai' );
+			$msg = self::extract_api_message( is_array( $data ) ? $data : null, __( 'Snapshot upload failed.', 'reactwoo-geo-ai' ) );
 			return new WP_Error( 'rwga_upload_failed', $msg, array( 'status' => $code, 'data' => $data ) );
 		}
 
@@ -156,5 +156,33 @@ class RWGA_Site_Snapshot_Client {
 		 */
 		$parsed = apply_filters( 'rwga_site_snapshot_upload_response', $parsed, $data, $site_id );
 		return is_array( $parsed ) ? $parsed : array();
+	}
+
+	/**
+	 * @param array<string, mixed>|null $data API JSON body.
+	 * @param string                    $fallback Default message.
+	 * @return string
+	 */
+	private static function extract_api_message( $data, $fallback ) {
+		if ( ! is_array( $data ) ) {
+			return $fallback;
+		}
+		if ( ! empty( $data['message'] ) && is_string( $data['message'] ) ) {
+			return (string) $data['message'];
+		}
+		if ( isset( $data['data']['message'] ) && is_string( $data['data']['message'] ) ) {
+			return (string) $data['data']['message'];
+		}
+		$code = isset( $data['code'] ) ? sanitize_key( (string) $data['code'] ) : '';
+		if ( 'SNAPSHOT_QUOTA_EXCEEDED' === $code ) {
+			return __( 'Monthly site intelligence upload limit reached for this license.', 'reactwoo-geo-ai' );
+		}
+		if ( 'RATE_LIMIT_EXCEEDED' === $code ) {
+			return __( 'Site intelligence sync rate limit reached. Try again later.', 'reactwoo-geo-ai' );
+		}
+		if ( 'TIER_REQUIRED' === $code ) {
+			return __( 'Site intelligence sync requires a Pro plan or higher.', 'reactwoo-geo-ai' );
+		}
+		return $fallback;
 	}
 }
