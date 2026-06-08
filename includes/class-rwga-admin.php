@@ -122,6 +122,7 @@ class RWGA_Admin {
 			'rwga-recommendations'       => __( 'Recommendations', 'reactwoo-geo-ai' ),
 			'rwga-implementation-drafts' => __( 'Drafts', 'reactwoo-geo-ai' ),
 			'rwga-intelligence-actions'  => __( 'Intelligence actions', 'reactwoo-geo-ai' ),
+			'rwga-intelligence-cloud'    => __( 'Cloud intelligence', 'reactwoo-geo-ai' ),
 			'rwga-competitors'           => __( 'Competitors', 'reactwoo-geo-ai' ),
 			'rwga-automation'            => __( 'Automation', 'reactwoo-geo-ai' ),
 			'rwga-license'               => __( 'Settings', 'reactwoo-geo-ai' ),
@@ -1798,6 +1799,15 @@ class RWGA_Admin {
 				'capability' => $cap_view,
 			),
 			array(
+				'menu_slug'  => 'rwga-intelligence-cloud',
+				'route'      => 'intelligence-cloud',
+				'label'      => __( 'Cloud intelligence', 'reactwoo-geo-ai' ),
+				'order'      => 46,
+				'is_section_nav' => false,
+				'callback'   => array( __CLASS__, 'render_intelligence_cloud' ),
+				'capability' => $cap_view,
+			),
+			array(
 				'menu_slug'  => 'rwga-competitors',
 				'route'      => 'competitors',
 				'label'      => __( 'Competitors', 'reactwoo-geo-ai' ),
@@ -2119,6 +2129,58 @@ class RWGA_Admin {
 	 *
 	 * @return void
 	 */
+	/**
+	 * Cloud intelligence run history and relationship graph (API Phase 8).
+	 *
+	 * @return void
+	 */
+	public static function render_intelligence_cloud() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
+			return;
+		}
+
+		$rwga_cloud_site_id = class_exists( 'RWGA_Intelligence_Cloud_Client', false )
+			? RWGA_Intelligence_Cloud_Client::get_cloud_site_id()
+			: '';
+		$rwga_cloud_error   = '';
+		$rwga_runs          = array();
+		$rwga_graph         = null;
+		$rwga_run_detail    = null;
+		$rwga_selected_run  = isset( $_GET['run_id'] ) ? sanitize_text_field( wp_unslash( $_GET['run_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		if ( '' === $rwga_cloud_site_id ) {
+			$rwga_cloud_error = __( 'Sync site intelligence under Settings to register this site with the cloud API.', 'reactwoo-geo-ai' );
+		} elseif ( class_exists( 'RWGA_Intelligence_Cloud_Client', false ) ) {
+			$list = RWGA_Intelligence_Cloud_Client::list_runs( $rwga_cloud_site_id, 25 );
+			if ( is_wp_error( $list ) ) {
+				$rwga_cloud_error = $list->get_error_message();
+			} elseif ( isset( $list['runs'] ) && is_array( $list['runs'] ) ) {
+				$rwga_runs = $list['runs'];
+			}
+
+			$graph = RWGA_Intelligence_Cloud_Client::get_graph( $rwga_cloud_site_id );
+			if ( is_wp_error( $graph ) ) {
+				if ( '' === $rwga_cloud_error ) {
+					$rwga_cloud_error = $graph->get_error_message();
+				}
+			} else {
+				$rwga_graph = $graph;
+			}
+
+			if ( '' !== $rwga_selected_run ) {
+				$detail = RWGA_Intelligence_Cloud_Client::get_run( $rwga_cloud_site_id, $rwga_selected_run );
+				if ( is_wp_error( $detail ) ) {
+					$rwga_cloud_error = $detail->get_error_message();
+				} else {
+					$rwga_run_detail = $detail;
+				}
+			}
+		}
+
+		$rwgc_nav_current = 'rwga-intelligence-cloud';
+		include RWGA_PATH . 'admin/views/intelligence-cloud-page.php';
+	}
+
 	public static function render_intelligence_actions() {
 		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
 			return;

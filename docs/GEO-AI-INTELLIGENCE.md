@@ -17,6 +17,17 @@ Master plan: `reactwoo-api/docs/PLAN-GEO-AI-INTELLIGENCE.md`
 | `RWGA_DB_Intelligence_Actions` | Custom table `rwga_intelligence_actions` |
 | `RWGA_Intelligence_Action_Applier` | Allowlisted apply handlers after admin approval |
 
+## Cloud intelligence admin (WordPress)
+
+**Geo → Geo AI → Cloud intelligence** (`?page=rwga-intelligence-cloud`)
+
+- Lists recent cloud runs (workflow, provider, findings/actions counts)
+- Drill-down run summary (findings + recommendations)
+- Relationship graph table from latest synced snapshot
+- Links to sync, pending actions, and Geo Optimise when installed
+
+Requires `RWGA_Intelligence_Cloud_Client` and API **v0.1.41+**.
+
 ## Cloud run history and graph (API)
 
 When a site is registered via sync, intelligence workflow runs are stored in Redis and exposed at:

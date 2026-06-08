@@ -1,0 +1,188 @@
+<?php
+/**
+ * Cloud intelligence run history and relationship graph preview.
+ *
+ * @package ReactWoo_Geo_AI
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+$rwgc_nav_current    = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-intelligence-cloud';
+$rwga_cloud_site_id  = isset( $rwga_cloud_site_id ) ? (string) $rwga_cloud_site_id : '';
+$rwga_runs           = isset( $rwga_runs ) && is_array( $rwga_runs ) ? $rwga_runs : array();
+$rwga_run_detail     = isset( $rwga_run_detail ) && is_array( $rwga_run_detail ) ? $rwga_run_detail : null;
+$rwga_graph          = isset( $rwga_graph ) && is_array( $rwga_graph ) ? $rwga_graph : null;
+$rwga_cloud_error    = isset( $rwga_cloud_error ) ? (string) $rwga_cloud_error : '';
+$rwga_selected_run   = isset( $rwga_selected_run ) ? sanitize_text_field( (string) $rwga_selected_run ) : '';
+
+$base_url = admin_url( 'admin.php?page=rwga-intelligence-cloud' );
+$sync_url = wp_nonce_url(
+	admin_url( 'admin.php?page=rwga-license&rwga_action=sync_snapshot' ),
+	'rwga_sync_snapshot'
+);
+?>
+<div class="wrap rwgc-wrap rwgc-suite rwga-wrap rwga-wrap--intelligence-cloud">
+	<?php if ( class_exists( 'RWGC_Admin_UI', false ) ) : ?>
+		<?php
+		RWGC_Admin_UI::render_page_header(
+			__( 'Cloud intelligence', 'reactwoo-geo-ai' ),
+			__( 'Recent intelligence workflow runs and a relationship graph from your synced site snapshot.', 'reactwoo-geo-ai' )
+		);
+		?>
+	<?php else : ?>
+		<h1><?php esc_html_e( 'Cloud intelligence', 'reactwoo-geo-ai' ); ?></h1>
+	<?php endif; ?>
+
+	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+
+	<?php if ( '' !== $rwga_cloud_error ) : ?>
+		<div class="notice notice-error"><p><?php echo esc_html( $rwga_cloud_error ); ?></p></div>
+	<?php endif; ?>
+
+	<div class="rwgc-card" style="max-width: 720px; margin-bottom: 1.5rem;">
+		<p>
+			<strong><?php esc_html_e( 'Cloud site id', 'reactwoo-geo-ai' ); ?>:</strong>
+			<?php echo $rwga_cloud_site_id ? '<code>' . esc_html( $rwga_cloud_site_id ) . '</code>' : esc_html__( 'Not registered yet', 'reactwoo-geo-ai' ); ?>
+		</p>
+		<p class="rwgc-actions">
+			<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $sync_url ); ?>"><?php esc_html_e( 'Sync site intelligence', 'reactwoo-geo-ai' ); ?></a>
+			<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-actions' ) ); ?>"><?php esc_html_e( 'Pending actions', 'reactwoo-geo-ai' ); ?></a>
+			<?php if ( class_exists( 'RWGC_Admin_UI', false ) && RWGC_Admin_UI::is_plugin_active( 'reactwoo-geo-optimise/reactwoo-geo-optimise.php' ) ) : ?>
+				<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwgo-dashboard' ) ); ?>"><?php esc_html_e( 'Geo Optimise', 'reactwoo-geo-ai' ); ?></a>
+			<?php endif; ?>
+		</p>
+	</div>
+
+	<?php if ( $rwga_graph && isset( $rwga_graph['graph'] ) && is_array( $rwga_graph['graph'] ) ) : ?>
+		<?php
+		$graph = $rwga_graph['graph'];
+		$counts = isset( $graph['counts'] ) && is_array( $graph['counts'] ) ? $graph['counts'] : array();
+		$nodes  = isset( $graph['nodes'] ) && is_array( $graph['nodes'] ) ? $graph['nodes'] : array();
+		$edges  = isset( $graph['edges'] ) && is_array( $graph['edges'] ) ? $graph['edges'] : array();
+		?>
+		<div class="rwgc-card rwga-intel-graph-card" style="margin-bottom: 1.5rem;">
+			<h2><?php esc_html_e( 'Relationship graph', 'reactwoo-geo-ai' ); ?></h2>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: 1: snapshot hash prefix, 2: node count, 3: edge count */
+					esc_html__( 'From snapshot %1$s — %2$d nodes, %3$d edges (rules: %4$d, variants: %5$d, popups: %6$d).', 'reactwoo-geo-ai' ),
+					esc_html( isset( $graph['snapshot_hash'] ) ? substr( (string) $graph['snapshot_hash'], 0, 12 ) . '…' : '—' ),
+					(int) ( $counts['nodes'] ?? count( $nodes ) ),
+					(int) ( $counts['edges'] ?? count( $edges ) ),
+					(int) ( $counts['rules'] ?? 0 ),
+					(int) ( $counts['variants'] ?? 0 ),
+					(int) ( $counts['popups'] ?? 0 )
+				);
+				?>
+			</p>
+			<?php if ( ! empty( $edges ) ) : ?>
+				<table class="widefat striped rwga-intel-graph-table">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Type', 'reactwoo-geo-ai' ); ?></th>
+							<th><?php esc_html_e( 'From', 'reactwoo-geo-ai' ); ?></th>
+							<th><?php esc_html_e( 'To', 'reactwoo-geo-ai' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( array_slice( $edges, 0, 40 ) as $edge ) : ?>
+							<?php if ( ! is_array( $edge ) ) { continue; } ?>
+							<tr>
+								<td><code><?php echo esc_html( isset( $edge['type'] ) ? (string) $edge['type'] : '' ); ?></code></td>
+								<td><?php echo esc_html( isset( $edge['from'] ) ? (string) $edge['from'] : '' ); ?></td>
+								<td><?php echo esc_html( isset( $edge['to'] ) ? (string) $edge['to'] : '' ); ?></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<?php if ( count( $edges ) > 40 ) : ?>
+					<p class="description"><?php esc_html_e( 'Showing first 40 relationships.', 'reactwoo-geo-ai' ); ?></p>
+				<?php endif; ?>
+			<?php else : ?>
+				<p><?php esc_html_e( 'No relationship edges in the latest snapshot.', 'reactwoo-geo-ai' ); ?></p>
+			<?php endif; ?>
+		</div>
+	<?php endif; ?>
+
+	<div class="rwgc-card">
+		<h2><?php esc_html_e( 'Recent cloud runs', 'reactwoo-geo-ai' ); ?></h2>
+		<?php if ( empty( $rwga_runs ) ) : ?>
+			<p><?php esc_html_e( 'No intelligence runs stored yet. Run a site intelligence workflow (remote mode) after syncing.', 'reactwoo-geo-ai' ); ?></p>
+		<?php else : ?>
+			<table class="widefat striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'When', 'reactwoo-geo-ai' ); ?></th>
+						<th><?php esc_html_e( 'Workflow', 'reactwoo-geo-ai' ); ?></th>
+						<th><?php esc_html_e( 'Provider', 'reactwoo-geo-ai' ); ?></th>
+						<th><?php esc_html_e( 'Findings', 'reactwoo-geo-ai' ); ?></th>
+						<th><?php esc_html_e( 'Actions', 'reactwoo-geo-ai' ); ?></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $rwga_runs as $run ) : ?>
+						<?php
+						if ( ! is_array( $run ) ) {
+							continue;
+						}
+						$run_id = isset( $run['run_id'] ) ? (string) $run['run_id'] : '';
+						$detail_url = add_query_arg( 'run_id', rawurlencode( $run_id ), $base_url );
+						?>
+						<tr<?php echo $run_id && $run_id === $rwga_selected_run ? ' class="rwga-row--selected"' : ''; ?>>
+							<td><?php echo esc_html( isset( $run['created_at'] ) ? (string) $run['created_at'] : '' ); ?></td>
+							<td><code><?php echo esc_html( isset( $run['workflow_key'] ) ? (string) $run['workflow_key'] : '' ); ?></code></td>
+							<td><?php echo esc_html( isset( $run['provider'] ) ? (string) $run['provider'] : '' ); ?><?php echo ! empty( $run['cache_hit'] ) ? ' <span class="description">(' . esc_html__( 'cached', 'reactwoo-geo-ai' ) . ')</span>' : ''; ?></td>
+							<td><?php echo esc_html( (string) (int) ( $run['findings_count'] ?? 0 ) ); ?></td>
+							<td><?php echo esc_html( (string) (int) ( $run['actions_count'] ?? 0 ) ); ?></td>
+							<td><a href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( 'View', 'reactwoo-geo-ai' ); ?></a></td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
+	</div>
+
+	<?php if ( $rwga_run_detail ) : ?>
+		<div class="rwgc-card" style="margin-top: 1.5rem;">
+			<h2><?php esc_html_e( 'Run detail', 'reactwoo-geo-ai' ); ?></h2>
+			<?php if ( ! empty( $rwga_run_detail['summary'] ) ) : ?>
+				<p><strong><?php esc_html_e( 'Summary', 'reactwoo-geo-ai' ); ?>:</strong> <?php echo esc_html( (string) $rwga_run_detail['summary'] ); ?></p>
+			<?php endif; ?>
+			<?php
+			$result = isset( $rwga_run_detail['result'] ) && is_array( $rwga_run_detail['result'] )
+				? $rwga_run_detail['result']
+				: $rwga_run_detail;
+			$findings = isset( $result['findings'] ) && is_array( $result['findings'] ) ? $result['findings'] : array();
+			$recs     = isset( $result['recommendations'] ) && is_array( $result['recommendations'] ) ? $result['recommendations'] : array();
+			?>
+			<?php if ( ! empty( $findings ) ) : ?>
+				<h3><?php esc_html_e( 'Findings', 'reactwoo-geo-ai' ); ?></h3>
+				<ul class="rwga-intel-findings-list">
+					<?php foreach ( $findings as $finding ) : ?>
+						<?php if ( ! is_array( $finding ) ) { continue; } ?>
+						<li>
+							<strong><?php echo esc_html( isset( $finding['title'] ) ? (string) $finding['title'] : '' ); ?></strong>
+							<?php if ( ! empty( $finding['detail'] ) ) : ?>
+								— <?php echo esc_html( (string) $finding['detail'] ); ?>
+							<?php endif; ?>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
+			<?php if ( ! empty( $recs ) ) : ?>
+				<h3><?php esc_html_e( 'Recommendations', 'reactwoo-geo-ai' ); ?></h3>
+				<ul>
+					<?php foreach ( $recs as $rec ) : ?>
+						<?php if ( ! is_array( $rec ) ) { continue; } ?>
+						<li><?php echo esc_html( isset( $rec['title'] ) ? (string) $rec['title'] : '' ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
+			<p><a href="<?php echo esc_url( $base_url ); ?>"><?php esc_html_e( 'Back to list', 'reactwoo-geo-ai' ); ?></a></p>
+		</div>
+	<?php endif; ?>
+</div>
