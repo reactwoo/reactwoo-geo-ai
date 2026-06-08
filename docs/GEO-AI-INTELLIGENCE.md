@@ -117,6 +117,25 @@ API returns:
 
 `RWGA_Intelligence_Response` stores findings and creates **pending** action rows.
 
+## Geo Optimise handoff (Phase 10)
+
+When **Geo Optimise** is active, intelligence runs for `optimisation_recommendation`, `variant_relationship_audit`, and `tracking_gap_audit` expose a **Create Geo Optimise test** action.
+
+| Surface | Behaviour |
+|---------|-----------|
+| **Cloud intelligence** run detail | Primary button → `rwgo-create-test` with prefilled name, source, variant B, test type |
+| **Intelligence actions** list | Secondary link per supported workflow row |
+| **Geo Optimise Create Test** | Reads `rwgo_prefill_*` query args when `rwgc_handoff=1` and `rwgc_from=geo_ai` |
+
+Service: `RWGA_Intelligence_Optimise_Handoff` (also via `RWGA_Implementation_Router::send_intelligence_to_geo_optimise()`).
+
+Filters:
+
+- `rwga_intelligence_optimise_handoff_args`
+- `rwgo_create_test_prefill_from_request` (Geo Optimise)
+
+No experiment is created automatically — admin still publishes the test manually.
+
 ## Approval-gated actions
 
 ### Allowlisted action types

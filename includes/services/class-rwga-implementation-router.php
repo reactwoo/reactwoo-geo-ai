@@ -74,6 +74,27 @@ class RWGA_Implementation_Router {
 	 * @param array<string, mixed> $context Context.
 	 * @return string|\WP_Error
 	 */
+	/**
+	 * Hand off an intelligence optimisation recommendation to Geo Optimise Create Test.
+	 *
+	 * @param array<string, mixed> $run_or_context Cloud run row or handoff context.
+	 * @return string|\WP_Error
+	 */
+	public static function send_intelligence_to_geo_optimise( array $run_or_context ) {
+		if ( ! class_exists( 'RWGA_Intelligence_Optimise_Handoff', false ) ) {
+			return new WP_Error( 'rwga_handoff_missing', __( 'Intelligence optimise handoff is unavailable.', 'reactwoo-geo-ai' ) );
+		}
+		if ( isset( $run_or_context['workflow_key'] ) && ( isset( $run_or_context['result'] ) || isset( $run_or_context['run_id'] ) ) ) {
+			return RWGA_Intelligence_Optimise_Handoff::build_from_cloud_run( $run_or_context );
+		}
+		return RWGA_Intelligence_Optimise_Handoff::build_create_test_url( $run_or_context );
+	}
+
+	/**
+	 * @param int                  $variant_page_id Variant id.
+	 * @param array<string, mixed> $context Context.
+	 * @return string|\WP_Error
+	 */
 	public static function send_variant_to_geo_optimise( $variant_page_id, array $context = array() ) {
 		$variant_page_id = (int) $variant_page_id;
 		if ( $variant_page_id <= 0 ) {

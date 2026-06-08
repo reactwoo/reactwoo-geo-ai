@@ -111,6 +111,20 @@ $can_run  = current_user_can( RWGA_Capabilities::CAP_RUN_AI )
 						<td><?php echo esc_html( $status ); ?></td>
 						<td><?php echo esc_html( $created ); ?></td>
 						<td>
+							<?php
+							$rwga_opt_url = '';
+							if ( class_exists( 'RWGA_Intelligence_Optimise_Handoff', false )
+								&& RWGA_Intelligence_Optimise_Handoff::is_available()
+								&& RWGA_Intelligence_Optimise_Handoff::supports_workflow( $wk ) ) {
+								$opt_handoff = RWGA_Intelligence_Optimise_Handoff::build_from_action_row( $row );
+								if ( ! is_wp_error( $opt_handoff ) ) {
+									$rwga_opt_url = (string) $opt_handoff;
+								}
+							}
+							?>
+							<?php if ( '' !== $rwga_opt_url ) : ?>
+								<a class="button button-secondary" href="<?php echo esc_url( $rwga_opt_url ); ?>"><?php esc_html_e( 'Create Optimise test', 'reactwoo-geo-ai' ); ?></a>
+							<?php endif; ?>
 							<?php if ( 'pending' === $status && $can_run ) : ?>
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
 									<input type="hidden" name="action" value="rwga_intelligence_action_apply" />

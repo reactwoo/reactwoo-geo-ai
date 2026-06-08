@@ -147,10 +147,28 @@ $sync_url = wp_nonce_url(
 	</div>
 
 	<?php if ( $rwga_run_detail ) : ?>
+		<?php
+		$rwga_run_workflow = isset( $rwga_run_detail['workflow_key'] ) ? sanitize_key( (string) $rwga_run_detail['workflow_key'] ) : '';
+		$rwga_optimise_url = '';
+		if ( class_exists( 'RWGA_Intelligence_Optimise_Handoff', false )
+			&& RWGA_Intelligence_Optimise_Handoff::is_available()
+			&& RWGA_Intelligence_Optimise_Handoff::supports_workflow( $rwga_run_workflow ) ) {
+			$handoff = RWGA_Intelligence_Optimise_Handoff::build_from_cloud_run( $rwga_run_detail );
+			if ( ! is_wp_error( $handoff ) ) {
+				$rwga_optimise_url = (string) $handoff;
+			}
+		}
+		?>
 		<div class="rwgc-card" style="margin-top: 1.5rem;">
 			<h2><?php esc_html_e( 'Run detail', 'reactwoo-geo-ai' ); ?></h2>
 			<?php if ( ! empty( $rwga_run_detail['summary'] ) ) : ?>
 				<p><strong><?php esc_html_e( 'Summary', 'reactwoo-geo-ai' ); ?>:</strong> <?php echo esc_html( (string) $rwga_run_detail['summary'] ); ?></p>
+			<?php endif; ?>
+			<?php if ( '' !== $rwga_optimise_url ) : ?>
+				<p class="rwgc-actions">
+					<a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( $rwga_optimise_url ); ?>"><?php esc_html_e( 'Create Geo Optimise test', 'reactwoo-geo-ai' ); ?></a>
+					<span class="description"><?php esc_html_e( 'Opens Create Test with fields prefilled from this intelligence run. You still publish the experiment manually.', 'reactwoo-geo-ai' ); ?></span>
+				</p>
 			<?php endif; ?>
 			<?php
 			$result = isset( $rwga_run_detail['result'] ) && is_array( $rwga_run_detail['result'] )
