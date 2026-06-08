@@ -68,6 +68,66 @@ class RWGA_AI_Usage_Guard {
 	}
 
 	/**
+	 * Intelligence workflow keys that consume remote AI.
+	 *
+	 * @return string[]
+	 */
+	public static function intelligence_workflow_keys() {
+		if ( ! class_exists( 'RWGA_Workflow_Intelligence_Definitions', false ) ) {
+			return array();
+		}
+		return array_keys( RWGA_Workflow_Intelligence_Definitions::get_definitions() );
+	}
+
+	/**
+	 * Whether a remote intelligence workflow may run.
+	 *
+	 * @param string $workflow_key Workflow key.
+	 * @return array{allowed:bool,reason:string}
+	 */
+	public static function can_run_workflow( $workflow_key ) {
+		$workflow_key = sanitize_key( (string) $workflow_key );
+		if ( '' === $workflow_key ) {
+			return array(
+				'allowed' => false,
+				'reason'  => __( 'Invalid workflow key.', 'reactwoo-geo-ai' ),
+			);
+		}
+
+		$sync = self::can_sync_snapshot();
+		if ( empty( $sync['allowed'] ) ) {
+			return $sync;
+		}
+
+		$keys = self::intelligence_workflow_keys();
+		if ( ! empty( $keys ) && ! in_array( $workflow_key, $keys, true ) ) {
+			return array(
+				'allowed' => true,
+				'reason'  => '',
+			);
+		}
+
+		/**
+		 * Gate intelligence workflow execution (plan entitlements).
+		 *
+		 * @param bool   $allowed      Default true when licence and usage checks passed.
+		 * @param string $workflow_key Workflow key.
+		 */
+		$allowed = (bool) apply_filters( 'rwga_ai_can_run_intelligence_workflow', true, $workflow_key );
+		if ( ! $allowed ) {
+			return array(
+				'allowed' => false,
+				'reason'  => __( 'This intelligence workflow is not included in your plan.', 'reactwoo-geo-ai' ),
+			);
+		}
+
+		return array(
+			'allowed' => true,
+			'reason'  => '',
+		);
+	}
+
+	/**
 	 * @return true|\WP_Error
 	 */
 	public static function check_license() {

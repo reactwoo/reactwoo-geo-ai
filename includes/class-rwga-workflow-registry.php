@@ -29,6 +29,12 @@ class RWGA_Workflow_Registry {
 		self::$workflows['seo_implement']    = new RWGA_Workflow_SEO_Implement();
 		self::$workflows['competitor_research'] = new RWGA_Workflow_Competitor_Research();
 
+		if ( class_exists( 'RWGA_Workflow_Intelligence_Definitions', false ) ) {
+			foreach ( RWGA_Workflow_Intelligence_Definitions::build_workflows() as $key => $wf ) {
+				self::$workflows[ $key ] = $wf;
+			}
+		}
+
 		/**
 		 * Register additional Geo AI workflows.
 		 *

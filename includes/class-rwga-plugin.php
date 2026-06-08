@@ -131,6 +131,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-implementation-router.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-engine.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-remote-client.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-response.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-ai-usage-guard.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-snapshot-client.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-sync.php';
@@ -143,6 +144,8 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-copy-implement.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-seo-implement.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-competitor-research.php';
+		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-intelligence.php';
+		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-intelligence-definitions.php';
 		require_once RWGA_PATH . 'includes/class-rwga-workflow-registry.php';
 		RWGA_Workflow_Registry::init();
 
