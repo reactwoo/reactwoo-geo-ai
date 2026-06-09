@@ -57,6 +57,7 @@ class RWGA_Admin {
 		add_action( 'admin_post_rwga_send_variant_to_geo_optimise', array( __CLASS__, 'handle_send_variant_to_geo_optimise' ) );
 		add_action( 'admin_post_rwga_intelligence_action_apply', array( __CLASS__, 'handle_intelligence_action_apply' ) );
 		add_action( 'admin_post_rwga_intelligence_action_dismiss', array( __CLASS__, 'handle_intelligence_action_dismiss' ) );
+		add_action( 'admin_post_rwga_run_intelligence_workflow', array( __CLASS__, 'handle_run_intelligence_workflow' ) );
 		add_action( 'admin_post_rwga_clear_geo_ai_license', array( __CLASS__, 'handle_clear_license_post' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 	}
@@ -1311,6 +1312,85 @@ class RWGA_Admin {
 	}
 
 	/**
+	 * Run a remote site intelligence workflow (e.g. site_audit).
+	 *
+	 * @return void
+	 */
+	public static function handle_run_intelligence_workflow() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to run intelligence workflows.', 'reactwoo-geo-ai' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'rwga_run_intelligence_workflow' );
+		$workflow_key = isset( $_POST['workflow_key'] ) ? sanitize_key( wp_unslash( $_POST['workflow_key'] ) ) : 'site_audit'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$redirect_page = isset( $_POST['redirect_page'] ) ? sanitize_key( wp_unslash( $_POST['redirect_page'] ) ) : 'rwga-intelligence-cloud'; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( ! in_array( $redirect_page, array( 'rwga-intelligence-cloud', 'rwga-intelligence-actions' ), true ) ) {
+			$redirect_page = 'rwga-intelligence-cloud';
+		}
+
+		$allowed = class_exists( 'RWGA_AI_Usage_Guard', false )
+			? RWGA_AI_Usage_Guard::intelligence_workflow_keys()
+			: array( 'site_audit' );
+		if ( ! in_array( $workflow_key, $allowed, true ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'     => $redirect_page,
+						'rwga_intel' => 'error',
+						'rwga_err' => rawurlencode( __( 'Unknown intelligence workflow.', 'reactwoo-geo-ai' ) ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		$wf = class_exists( 'RWGA_Workflow_Registry', false ) ? RWGA_Workflow_Registry::get( $workflow_key ) : null;
+		if ( ! $wf ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'       => $redirect_page,
+						'rwga_intel' => 'error',
+						'rwga_err'   => rawurlencode( __( 'Intelligence workflow is not available.', 'reactwoo-geo-ai' ) ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		$out = $wf->execute( array() );
+		if ( is_wp_error( $out ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'       => $redirect_page,
+						'rwga_intel' => 'error',
+						'rwga_err'   => rawurlencode( $out->get_error_message() ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		$action_count = isset( $out['action_ids'] ) && is_array( $out['action_ids'] ) ? count( $out['action_ids'] ) : 0;
+		$target_page  = $action_count > 0 ? 'rwga-intelligence-actions' : $redirect_page;
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'       => $target_page,
+					'rwga_intel' => 'ran',
+					'rwga_wf'    => $workflow_key,
+					'rwga_actions' => $action_count,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
 	 * Dismiss a pending intelligence action.
 	 *
 	 * @return void
@@ -1807,7 +1887,6 @@ class RWGA_Admin {
 				'route'      => 'intelligence-actions',
 				'label'      => __( 'Intelligence actions', 'reactwoo-geo-ai' ),
 				'order'      => 45,
-				'is_section_nav' => false,
 				'callback'   => array( __CLASS__, 'render_intelligence_actions' ),
 				'capability' => $cap_view,
 			),
@@ -1816,7 +1895,6 @@ class RWGA_Admin {
 				'route'      => 'intelligence-cloud',
 				'label'      => __( 'Cloud intelligence', 'reactwoo-geo-ai' ),
 				'order'      => 46,
-				'is_section_nav' => false,
 				'callback'   => array( __CLASS__, 'render_intelligence_cloud' ),
 				'capability' => $cap_view,
 			),

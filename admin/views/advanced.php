@@ -63,7 +63,7 @@ if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 		if ( class_exists( 'RWGC_Admin_UI', false ) ) {
 			RWGC_Admin_UI::render_section_header(
 				__( 'Workflow engine', 'reactwoo-geo-ai' ),
-				__( 'Choose how analyses run: local preview, remote API, or remote with local fallback if the API errors.', 'reactwoo-geo-ai' )
+				__( 'Choose how page UX analyses run: local preview, remote API, or remote with local fallback. Site intelligence audits (Cloud intelligence) always use the remote API when execution mode is Remote or Remote with fallback.', 'reactwoo-geo-ai' )
 			);
 		} else {
 			echo '<h2>' . esc_html__( 'Workflow engine', 'reactwoo-geo-ai' ) . '</h2>';

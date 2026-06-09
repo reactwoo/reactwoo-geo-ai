@@ -40,7 +40,26 @@ $can_run  = current_user_can( RWGA_Capabilities::CAP_RUN_AI )
 
 	<?php
 	$flash = isset( $_GET['rwga_act'] ) ? sanitize_key( wp_unslash( $_GET['rwga_act'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( 'applied' === $flash ) {
+	$intel_flash = isset( $_GET['rwga_intel'] ) ? sanitize_key( wp_unslash( $_GET['rwga_intel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'ran' === $intel_flash ) {
+		$wf_key = isset( $_GET['rwga_wf'] ) ? sanitize_key( wp_unslash( $_GET['rwga_wf'] ) ) : 'site_audit'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$n      = isset( $_GET['rwga_actions'] ) ? (int) $_GET['rwga_actions'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-success is-dismissible"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: 1: workflow key, 2: number of pending actions */
+				_n(
+					'Intelligence workflow “%1$s” completed. %2$d pending action is ready for review below.',
+					'Intelligence workflow “%1$s” completed. %2$d pending actions are ready for review below.',
+					$n,
+					'reactwoo-geo-ai'
+				),
+				$wf_key,
+				$n
+			)
+		);
+		echo '</p></div>';
+	} elseif ( 'applied' === $flash ) {
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Intelligence action applied.', 'reactwoo-geo-ai' ) . '</p></div>';
 	} elseif ( 'dismissed' === $flash ) {
 		echo '<div class="notice notice-info is-dismissible"><p>' . esc_html__( 'Intelligence action dismissed.', 'reactwoo-geo-ai' ) . '</p></div>';

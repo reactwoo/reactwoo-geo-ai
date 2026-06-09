@@ -37,6 +37,37 @@ $sync_url = wp_nonce_url(
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
+	<?php
+	$intel_flash = isset( $_GET['rwga_intel'] ) ? sanitize_key( wp_unslash( $_GET['rwga_intel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( 'ran' === $intel_flash ) {
+		$wf_key = isset( $_GET['rwga_wf'] ) ? sanitize_key( wp_unslash( $_GET['rwga_wf'] ) ) : 'site_audit'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$n      = isset( $_GET['rwga_actions'] ) ? (int) $_GET['rwga_actions'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-success is-dismissible"><p>';
+		if ( $n > 0 ) {
+			echo esc_html(
+				sprintf(
+					/* translators: 1: workflow key, 2: number of pending actions */
+					__( 'Intelligence workflow “%1$s” completed. %2$d pending action(s) are ready for review.', 'reactwoo-geo-ai' ),
+					$wf_key,
+					$n
+				)
+			);
+		} else {
+			echo esc_html(
+				sprintf(
+					/* translators: %s: workflow key */
+					__( 'Intelligence workflow “%s” completed. No approval-gated actions were suggested this run.', 'reactwoo-geo-ai' ),
+					$wf_key
+				)
+			);
+		}
+		echo '</p></div>';
+	} elseif ( 'error' === $intel_flash ) {
+		$err = isset( $_GET['rwga_err'] ) ? sanitize_text_field( wp_unslash( rawurldecode( (string) $_GET['rwga_err'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $err ? $err : __( 'Intelligence workflow failed.', 'reactwoo-geo-ai' ) ) . '</p></div>';
+	}
+	?>
+
 	<?php if ( '' !== $rwga_cloud_error ) : ?>
 		<div class="notice notice-error"><p><?php echo esc_html( $rwga_cloud_error ); ?></p></div>
 	<?php endif; ?>
@@ -48,6 +79,15 @@ $sync_url = wp_nonce_url(
 		</p>
 		<p class="rwgc-actions">
 			<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $sync_url ); ?>"><?php esc_html_e( 'Sync site intelligence', 'reactwoo-geo-ai' ); ?></a>
+			<?php if ( '' !== $rwga_cloud_site_id ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+					<input type="hidden" name="action" value="rwga_run_intelligence_workflow" />
+					<input type="hidden" name="workflow_key" value="site_audit" />
+					<input type="hidden" name="redirect_page" value="rwga-intelligence-cloud" />
+					<?php wp_nonce_field( 'rwga_run_intelligence_workflow' ); ?>
+					<button type="submit" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Run site audit', 'reactwoo-geo-ai' ); ?></button>
+				</form>
+			<?php endif; ?>
 			<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-actions' ) ); ?>"><?php esc_html_e( 'Pending actions', 'reactwoo-geo-ai' ); ?></a>
 			<?php if ( class_exists( 'RWGC_Admin_UI', false ) && RWGC_Admin_UI::is_plugin_active( 'reactwoo-geo-optimise/reactwoo-geo-optimise.php' ) ) : ?>
 				<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwgo-dashboard' ) ); ?>"><?php esc_html_e( 'Geo Optimise', 'reactwoo-geo-ai' ); ?></a>
