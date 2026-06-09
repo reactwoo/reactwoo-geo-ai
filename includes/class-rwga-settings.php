@@ -437,6 +437,9 @@ class RWGA_Settings {
 		if ( class_exists( 'RWGA_License_State', false ) ) {
 			RWGA_License_State::log_debug( 'license_key_change_refresh_after', RWGA_License_State::get_snapshot() );
 		}
+		if ( class_exists( 'RWGA_Site_Intelligence_Sync', false ) ) {
+			RWGA_Site_Intelligence_Sync::maybe_retry_sync_when_ready();
+		}
 	}
 
 	/**

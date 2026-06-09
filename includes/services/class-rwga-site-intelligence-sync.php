@@ -220,16 +220,102 @@ class RWGA_Site_Intelligence_Sync {
 		if ( ! is_array( $rows ) ) {
 			$rows = array();
 		}
-		$st = self::get_status();
-		$rows[ __( 'Site intelligence sync', 'reactwoo-geo-ai' ) ] = self::format_status_label( $st );
-		if ( ! empty( $st['last_synced_at_gmt'] ) ) {
-			$rows[ __( 'Last intelligence sync (GMT)', 'reactwoo-geo-ai' ) ] = (string) $st['last_synced_at_gmt'];
+		$page   = self::get_license_page_status();
+		$status = isset( $page['status'] ) && is_array( $page['status'] ) ? $page['status'] : self::get_status();
+		$rows[ __( 'Site intelligence sync', 'reactwoo-geo-ai' ) ] = isset( $page['label'] ) ? (string) $page['label'] : self::format_status_label( $status );
+		if ( ! empty( $status['last_synced_at_gmt'] ) ) {
+			$rows[ __( 'Last intelligence sync (GMT)', 'reactwoo-geo-ai' ) ] = (string) $status['last_synced_at_gmt'];
 		}
-		if ( ! empty( $st['last_snapshot_hash'] ) ) {
-			$hash = (string) $st['last_snapshot_hash'];
+		if ( ! empty( $status['last_snapshot_hash'] ) ) {
+			$hash = (string) $status['last_snapshot_hash'];
 			$rows[ __( 'Snapshot hash', 'reactwoo-geo-ai' ) ] = substr( $hash, 0, 12 ) . '…';
 		}
 		return $rows;
+	}
+
+	/**
+	 * License page status: merges stored sync state with a live pre-flight check.
+	 *
+	 * Refresh usage does not upload snapshots; a stale "blocked" row can linger after the license is fixed.
+	 *
+	 * @return array{
+	 *   label:string,
+	 *   hint:string,
+	 *   error:string,
+	 *   live_allowed:bool,
+	 *   geocore_ready:bool,
+	 *   status:array<string, mixed>
+	 * }
+	 */
+	public static function get_license_page_status() {
+		$status = self::get_status();
+		$stored = isset( $status['last_sync_status'] ) ? sanitize_key( (string) $status['last_sync_status'] ) : '';
+
+		$guard = class_exists( 'RWGA_AI_Usage_Guard', false )
+			? RWGA_AI_Usage_Guard::can_sync_snapshot()
+			: array(
+				'allowed' => false,
+				'reason'  => __( 'Site intelligence sync is not loaded.', 'reactwoo-geo-ai' ),
+			);
+
+		$live_allowed   = ! empty( $guard['allowed'] );
+		$geocore_ready  = function_exists( 'rwgc_build_ai_snapshot' );
+		$live_reason    = isset( $guard['reason'] ) ? trim( (string) $guard['reason'] ) : '';
+		$stored_error   = isset( $status['last_sync_error'] ) ? trim( (string) $status['last_sync_error'] ) : '';
+		$label          = self::format_status_label( $status );
+		$hint           = '';
+		$error          = '';
+
+		if ( ! $geocore_ready ) {
+			$label = __( 'Blocked', 'reactwoo-geo-ai' );
+			$error = __( 'Geo Core site intelligence snapshot is not available. Update ReactWoo Geo Core.', 'reactwoo-geo-ai' );
+		} elseif ( ! $live_allowed ) {
+			$label = __( 'Blocked', 'reactwoo-geo-ai' );
+			$error = '' !== $live_reason ? $live_reason : $stored_error;
+		} elseif ( 'blocked' === $stored ) {
+			$label = __( 'Ready to sync', 'reactwoo-geo-ai' );
+			if ( '' !== $stored_error ) {
+				$hint = sprintf(
+					/* translators: %s: prior block reason */
+					__( 'Previously blocked: %s', 'reactwoo-geo-ai' ),
+					$stored_error
+				);
+			}
+		} elseif ( 'error' === $stored && '' !== $stored_error ) {
+			$error = $stored_error;
+		}
+
+		return array(
+			'label'          => $label,
+			'hint'           => $hint,
+			'error'          => $error,
+			'live_allowed'   => $live_allowed && $geocore_ready,
+			'geocore_ready'  => $geocore_ready,
+			'status'         => $status,
+		);
+	}
+
+	/**
+	 * Retry cloud sync when the license is valid but the stored row is still blocked/error.
+	 *
+	 * @return array<string, mixed>|\WP_Error|null Null when retry was not attempted.
+	 */
+	public static function maybe_retry_sync_when_ready() {
+		if ( ! class_exists( 'RWGA_License', false ) || ! RWGA_License::is_configured() ) {
+			return null;
+		}
+
+		$guard = RWGA_AI_Usage_Guard::can_sync_snapshot();
+		if ( empty( $guard['allowed'] ) ) {
+			return null;
+		}
+
+		$stored = sanitize_key( (string) ( self::get_status()['last_sync_status'] ?? '' ) );
+		if ( in_array( $stored, array( 'synced', 'skipped' ), true ) ) {
+			return null;
+		}
+
+		return self::sync( false );
 	}
 
 	/**

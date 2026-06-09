@@ -16,10 +16,15 @@ $last_refresh = ( null !== $cache && ! empty( $cache['refreshed_at_gmt'] ) ) ? (
 $refresh_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=ai_usage' ), 'rwga_dash_ai_usage' );
 $snapshot_sync_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=snapshot_sync' ), 'rwga_dash_snapshot_sync' );
 $snapshot_force_url = wp_nonce_url( admin_url( 'admin.php?page=rwga-license&rwga_action=snapshot_sync&rwga_force=1' ), 'rwga_dash_snapshot_sync' );
-$intel_status = class_exists( 'RWGA_Site_Intelligence_Sync', false ) ? RWGA_Site_Intelligence_Sync::get_status() : array();
-$intel_label  = class_exists( 'RWGA_Site_Intelligence_Sync', false )
-	? RWGA_Site_Intelligence_Sync::format_status_label( $intel_status )
-	: __( 'Not available', 'reactwoo-geo-ai' );
+$intel_page   = class_exists( 'RWGA_Site_Intelligence_Sync', false )
+	? RWGA_Site_Intelligence_Sync::get_license_page_status()
+	: array();
+$intel_status = isset( $intel_page['status'] ) && is_array( $intel_page['status'] ) ? $intel_page['status'] : array();
+$intel_label  = isset( $intel_page['label'] ) ? (string) $intel_page['label'] : __( 'Not available', 'reactwoo-geo-ai' );
+$intel_hint   = isset( $intel_page['hint'] ) ? (string) $intel_page['hint'] : '';
+$intel_error  = isset( $intel_page['error'] ) ? (string) $intel_page['error'] : '';
+$intel_can_sync = ! empty( $intel_page['live_allowed'] );
+$geocore_ready  = ! empty( $intel_page['geocore_ready'] );
 $connect_hint = __( 'Connect your ReactWoo plan here. Usage and tokens are tied to this key on this site.', 'reactwoo-geo-ai' );
 
 $site_host    = class_exists( 'RWGA_Platform_Client', false ) ? RWGA_Platform_Client::get_site_domain() : '';
@@ -136,9 +141,13 @@ $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) :
 					<dt><?php esc_html_e( 'Last intelligence sync (GMT)', 'reactwoo-geo-ai' ); ?></dt>
 					<dd><?php echo esc_html( (string) $intel_status['last_synced_at_gmt'] ); ?></dd>
 				<?php endif; ?>
-				<?php if ( ! empty( $intel_status['last_sync_error'] ) && 'error' === ( $intel_status['last_sync_status'] ?? '' ) ) : ?>
-					<dt><?php esc_html_e( 'Last sync error', 'reactwoo-geo-ai' ); ?></dt>
-					<dd><span class="description"><?php echo esc_html( (string) $intel_status['last_sync_error'] ); ?></span></dd>
+				<?php if ( '' !== $intel_error ) : ?>
+					<dt><?php esc_html_e( 'Sync status detail', 'reactwoo-geo-ai' ); ?></dt>
+					<dd><span class="description"><?php echo esc_html( $intel_error ); ?></span></dd>
+				<?php endif; ?>
+				<?php if ( '' !== $intel_hint ) : ?>
+					<dt><?php esc_html_e( 'Sync note', 'reactwoo-geo-ai' ); ?></dt>
+					<dd><span class="description"><?php echo esc_html( $intel_hint ); ?></span></dd>
 				<?php endif; ?>
 				<dt><?php esc_html_e( 'Last usage refresh', 'reactwoo-geo-ai' ); ?></dt>
 				<dd><?php echo esc_html( $last_refresh ); ?></dd>
@@ -314,12 +323,17 @@ $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) :
 
 			<p class="rwgc-actions rwga-license-actions">
 				<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( 'Refresh usage', 'reactwoo-geo-ai' ); ?></a>
-				<?php if ( $lic_ok && function_exists( 'rwgc_build_ai_snapshot' ) ) : ?>
+				<?php if ( $lic_ok && $intel_can_sync ) : ?>
 					<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $snapshot_sync_url ); ?>"><?php esc_html_e( 'Sync site intelligence', 'reactwoo-geo-ai' ); ?></a>
 					<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $snapshot_force_url ); ?>"><?php esc_html_e( 'Force sync', 'reactwoo-geo-ai' ); ?></a>
 				<?php endif; ?>
 			</p>
 			<p class="description"><?php esc_html_e( 'Site intelligence uploads a compact Geo Core snapshot (rules, variants, relationships) — not page content. Preview it under Geo Core → Settings → AI Data Snapshot.', 'reactwoo-geo-ai' ); ?></p>
+			<?php if ( $lic_ok && ! $geocore_ready ) : ?>
+				<p class="description" style="color:#b45309;"><strong><?php esc_html_e( 'Geo Core update required:', 'reactwoo-geo-ai' ); ?></strong> <?php esc_html_e( 'Install or update ReactWoo Geo Core so the AI Data Snapshot builder is available, then use Sync site intelligence.', 'reactwoo-geo-ai' ); ?></p>
+			<?php elseif ( $lic_ok && $geocore_ready && ! $intel_can_sync && '' === $intel_error ) : ?>
+				<p class="description"><?php esc_html_e( 'Refresh usage does not upload site intelligence. Use Sync site intelligence when the status shows Ready to sync.', 'reactwoo-geo-ai' ); ?></p>
+			<?php endif; ?>
 			<p class="description"><?php esc_html_e( 'Subscription and billing are managed in your ReactWoo account.', 'reactwoo-geo-ai' ); ?></p>
 		</div>
 	</div>

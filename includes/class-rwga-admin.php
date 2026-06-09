@@ -607,6 +607,19 @@ class RWGA_Admin {
 					if ( in_array( $flag, array( 'ok', 'parse' ), true ) && class_exists( 'RWGA_Updates_Diagnostics', false ) ) {
 						RWGA_Updates_Diagnostics::maybe_clear_stale_no_bearer_record();
 					}
+					if ( 'ok' === $flag && class_exists( 'RWGA_Site_Intelligence_Sync', false ) ) {
+						$retry = RWGA_Site_Intelligence_Sync::maybe_retry_sync_when_ready();
+						if ( is_wp_error( $retry ) ) {
+							set_transient( 'rwga_snapshot_sync_flash_' . get_current_user_id(), $retry->get_error_message(), 120 );
+						} elseif ( is_array( $retry ) && ! empty( $retry['status'] ) ) {
+							$sync_flag = sanitize_key( (string) $retry['status'] );
+							if ( in_array( $sync_flag, array( 'synced', 'skipped' ), true ) ) {
+								$redirect = add_query_arg( 'rwga_snapshot_sync', $sync_flag, admin_url( 'admin.php?page=' . $page ) );
+								wp_safe_redirect( add_query_arg( 'rwga_usage', $flag, $redirect ) );
+								exit;
+							}
+						}
+					}
 				}
 			}
 			wp_safe_redirect( add_query_arg( 'rwga_usage', $flag, admin_url( 'admin.php?page=' . $page ) ) );
