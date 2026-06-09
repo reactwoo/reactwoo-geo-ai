@@ -41,7 +41,22 @@ $can_run  = current_user_can( RWGA_Capabilities::CAP_RUN_AI )
 	<?php
 	$flash = isset( $_GET['rwga_act'] ) ? sanitize_key( wp_unslash( $_GET['rwga_act'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$intel_flash = isset( $_GET['rwga_intel'] ) ? sanitize_key( wp_unslash( $_GET['rwga_intel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( 'ran' === $intel_flash ) {
+	$wizard_flash = isset( $_GET['rwga_wizard'] ) ? sanitize_key( wp_unslash( $_GET['rwga_wizard'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( in_array( $wizard_flash, array( 'setup_ok', 'audit_ok' ), true ) ) {
+		$n = isset( $_GET['rwga_pending'] ) ? (int) $_GET['rwga_pending'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		echo '<div class="notice notice-success is-dismissible"><p>';
+		echo esc_html(
+			$n > 0
+				? sprintf(
+					/* translators: %d: pending suggestions */
+					_n( '%d suggestion below needs your approve or dismiss decision.', '%d suggestions below need your approve or dismiss decision.', $n, 'reactwoo-geo-ai' ),
+					$n
+				)
+				: __( 'Audit complete. No pending suggestions right now.', 'reactwoo-geo-ai' )
+		);
+		echo ' <a href="' . esc_url( admin_url( 'admin.php?page=rwga-intelligence-wizard' ) ) . '">' . esc_html__( 'Back to site intelligence guide', 'reactwoo-geo-ai' ) . '</a>';
+		echo '</p></div>';
+	} elseif ( 'ran' === $intel_flash ) {
 		$wf_key = isset( $_GET['rwga_wf'] ) ? sanitize_key( wp_unslash( $_GET['rwga_wf'] ) ) : 'site_audit'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$n      = isset( $_GET['rwga_actions'] ) ? (int) $_GET['rwga_actions'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		echo '<div class="notice notice-success is-dismissible"><p>';

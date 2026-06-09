@@ -37,6 +37,13 @@ $sync_url = wp_nonce_url(
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
 
+	<div class="rwgc-card" style="max-width:720px;margin-bottom:1rem;">
+		<p class="description">
+			<?php esc_html_e( 'New to site intelligence?', 'reactwoo-geo-ai' ); ?>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-wizard' ) ); ?>"><?php esc_html_e( 'Open the step-by-step guide', 'reactwoo-geo-ai' ); ?></a>
+		</p>
+	</div>
+
 	<?php
 	$intel_flash = isset( $_GET['rwga_intel'] ) ? sanitize_key( wp_unslash( $_GET['rwga_intel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( 'ran' === $intel_flash ) {

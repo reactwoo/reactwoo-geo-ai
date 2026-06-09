@@ -331,10 +331,9 @@ $force_updates_url = is_admin() ? admin_url( 'update-core.php?force-check=1' ) :
 			<p class="description"><?php esc_html_e( 'Site intelligence uploads a compact Geo Core snapshot (rules, variants, relationships) — not page content. Preview it under Geo Core → Settings → AI Data Snapshot.', 'reactwoo-geo-ai' ); ?></p>
 			<?php if ( $lic_ok && ! empty( $intel_status['last_synced_at_gmt'] ) ) : ?>
 				<p class="rwgc-actions rwga-license-actions" style="margin-top:12px;">
-					<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-cloud' ) ); ?>"><?php esc_html_e( 'Cloud intelligence', 'reactwoo-geo-ai' ); ?></a>
-					<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-actions' ) ); ?>"><?php esc_html_e( 'Intelligence actions', 'reactwoo-geo-ai' ); ?></a>
+					<a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-wizard' ) ); ?>"><?php esc_html_e( 'Open site intelligence guide', 'reactwoo-geo-ai' ); ?></a>
 				</p>
-				<p class="description"><?php esc_html_e( 'After sync, open Cloud intelligence to run a site audit, then review approve/dismiss suggestions under Intelligence actions.', 'reactwoo-geo-ai' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Use the guided wizard to sync, run audits, and review suggestions in order.', 'reactwoo-geo-ai' ); ?></p>
 			<?php endif; ?>
 			<?php if ( $lic_ok && ! $geocore_ready ) : ?>
 				<p class="description" style="color:#b45309;"><strong><?php esc_html_e( 'Geo Core update required:', 'reactwoo-geo-ai' ); ?></strong> <?php esc_html_e( 'Install or update ReactWoo Geo Core so the AI Data Snapshot builder is available, then use Sync site intelligence.', 'reactwoo-geo-ai' ); ?></p>

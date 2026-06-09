@@ -139,7 +139,9 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-cloud-client.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-optimise-handoff.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-sync.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-journey.php';
 		RWGA_Site_Intelligence_Sync::init();
+		RWGA_Site_Intelligence_Journey::init();
 		require_once RWGA_PATH . 'includes/services/class-rwga-page-context.php';
 		require_once RWGA_PATH . 'includes/workflows/interface-rwga-workflow.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-base.php';

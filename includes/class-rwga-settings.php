@@ -630,6 +630,7 @@ class RWGA_Settings {
 			'workflow_engine'                        => 'local',
 			'ux_analysis_focus'                      => 'messaging',
 			'guided_mode_enabled'                    => true,
+			'auto_site_audit_after_sync'             => true,
 		);
 	}
 }

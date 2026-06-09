@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.73
+Stable tag: 0.4.74
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,10 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.74 =
+* **Site intelligence wizard:** New guided hub under **Insights → Site intelligence** with progress bar, step-by-step checklist, **Run automated setup** (sync + site audit), and optional **auto-audit after sync**.
+* **Navigation:** Cloud intelligence and Intelligence actions remain as detail screens linked from the wizard.
 
 = 0.4.73 =
 * **Navigation:** Cloud intelligence and Intelligence actions appear under **Insights** in the Geo platform shell (were registered but hidden with `is_section_nav = false`).
