@@ -10,7 +10,7 @@ Geo AI is a **Geo Core satellite** (AI-assisted variant drafts and product workf
 ## Build and release (parity with Geo Optimise / Geo Commerce)
 
 - **`package.json`** defines `reactwooBuild.pluginFolder`, `reactwooBuild.zipFile`, and `reactwooBuild.geoCoreDependencySlug` (`reactwoo-geocore`).
-- **Distribution zip:** `npm run package:zip` → `python scripts/package_zip.py` (includes `admin/`, `assets/`, `includes/`, main PHP, `readme.txt`).
+- **Distribution zip:** `npm run package:zip` → `python scripts/package_zip.py` (includes `admin/`, `assets/`, `includes/`, main PHP, `readme.txt`). **Always build the local zip** after implementation (version-suffixed filename) for Local/staging install — even when CI publishes on tag.
 - **CI:** `.github/workflows/publish-update.yml` runs the same packager on tag / dispatch.
 - **Git:** do not commit `*.zip` (see `.gitignore`).
 - **Cursor:** shared rules live under **`.cursor/rules/`** (committed).
