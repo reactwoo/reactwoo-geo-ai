@@ -441,9 +441,10 @@ class RWGA_Admin {
 		if ( empty( $ctx['active'] ) ) {
 			return;
 		}
-		$clean_url = remove_query_arg( array( 'rwgc_handoff', 'rwgc_from', 'rwgc_launcher', 'rwgc_variant_page_id' ) );
+		$clean_url = remove_query_arg( array( 'rwgc_handoff', 'rwgc_from', 'rwgc_launcher', 'rwgc_variant_page_id', 'rwgc_master_page_id', 'rwga_geo_target' ) );
 		$launcher_labels = array(
 			'ai_draft'       => __( 'Generate a localised draft (AI)', 'reactwoo-geo-ai' ),
+			'ai_adapt'       => __( 'Adapt variant copy (AI)', 'reactwoo-geo-ai' ),
 			'create_variant' => __( 'Create page version', 'reactwoo-geo-ai' ),
 			'experiment'     => __( 'Split test', 'reactwoo-geo-ai' ),
 			'commerce_rule'  => __( 'Commerce rule', 'reactwoo-geo-ai' ),
@@ -454,6 +455,8 @@ class RWGA_Admin {
 			$launcher_note = isset( $launcher_labels[ $launcher ] ) ? $launcher_labels[ $launcher ] : $launcher;
 		}
 		$vid = isset( $ctx['variant_page_id'] ) ? (int) $ctx['variant_page_id'] : 0;
+		$mid = isset( $ctx['master_page_id'] ) ? (int) $ctx['master_page_id'] : 0;
+		$geo = isset( $ctx['geo_target'] ) ? (string) $ctx['geo_target'] : '';
 		$page = null;
 		if ( $vid > 0 ) {
 			$p = get_post( $vid );
@@ -494,7 +497,36 @@ class RWGA_Admin {
 					}
 					?>
 				</p>
-				<p class="description"><?php esc_html_e( 'Use the Geo AI tools in the block sidebar to run variant drafts for this page.', 'reactwoo-geo-ai' ); ?></p>
+				<?php if ( 'ai_adapt' === $launcher ) : ?>
+					<p class="description">
+						<?php
+						if ( '' !== $geo ) {
+							echo esc_html(
+								sprintf(
+									/* translators: %s: ISO country code */
+									__( 'Generate adapted copy drafts for country %s, then review before publishing.', 'reactwoo-geo-ai' ),
+									$geo
+								)
+							);
+						} else {
+							esc_html_e( 'Generate adapted copy drafts for this variant, then review before publishing.', 'reactwoo-geo-ai' );
+						}
+						?>
+					</p>
+					<?php
+					$drafts_url = add_query_arg(
+						array(
+							'page'    => 'rwga-implementation-drafts',
+							'page_id' => $page->ID,
+							'geo_target' => $geo,
+						),
+						admin_url( 'admin.php' )
+					);
+					?>
+					<p><a class="button" href="<?php echo esc_url( $drafts_url ); ?>"><?php esc_html_e( 'Open copy drafts', 'reactwoo-geo-ai' ); ?></a></p>
+				<?php else : ?>
+					<p class="description"><?php esc_html_e( 'Use the Geo AI tools in the block sidebar to run variant drafts for this page.', 'reactwoo-geo-ai' ); ?></p>
+				<?php endif; ?>
 			<?php elseif ( $vid > 0 ) : ?>
 				<p class="description"><?php esc_html_e( 'The linked page could not be loaded or you do not have permission to edit it.', 'reactwoo-geo-ai' ); ?></p>
 			<?php endif; ?>
@@ -2463,6 +2495,22 @@ class RWGA_Admin {
 		$rwga_filters               = $filters;
 		$rwgc_nav_current           = 'rwga-implementation-drafts';
 		$rwga_recommendation_rows   = self::get_recommendation_rows_for_select();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$rwga_prefill_page_id = isset( $_GET['page_id'] ) ? absint( wp_unslash( $_GET['page_id'] ) ) : 0;
+		if ( $rwga_prefill_page_id <= 0 && function_exists( 'rwgc_get_suite_handoff_request_context' ) ) {
+			$handoff = rwgc_get_suite_handoff_request_context();
+			if ( ! empty( $handoff['variant_page_id'] ) ) {
+				$rwga_prefill_page_id = (int) $handoff['variant_page_id'];
+			}
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$rwga_prefill_geo = isset( $_GET['geo_target'] ) ? strtoupper( substr( sanitize_text_field( wp_unslash( (string) $_GET['geo_target'] ) ), 0, 2 ) ) : '';
+		if ( '' === $rwga_prefill_geo && function_exists( 'rwgc_get_suite_handoff_request_context' ) ) {
+			$handoff = isset( $handoff ) && is_array( $handoff ) ? $handoff : rwgc_get_suite_handoff_request_context();
+			if ( ! empty( $handoff['geo_target'] ) ) {
+				$rwga_prefill_geo = (string) $handoff['geo_target'];
+			}
+		}
 		include RWGA_PATH . 'admin/views/implementation-drafts-list.php';
 	}
 

@@ -20,6 +20,8 @@ $rwga_filter_workflow         = isset( $rwga_filter_workflow ) ? (string) $rwga_
 $rwgc_nav_current             = isset( $rwgc_nav_current ) ? $rwgc_nav_current : 'rwga-implementation-drafts';
 $rwga_recommendation_rows     = isset( $rwga_recommendation_rows ) && is_array( $rwga_recommendation_rows ) ? $rwga_recommendation_rows : array();
 $rwga_filters                 = isset( $rwga_filters ) && is_array( $rwga_filters ) ? $rwga_filters : array();
+$rwga_prefill_page_id         = isset( $rwga_prefill_page_id ) ? (int) $rwga_prefill_page_id : 0;
+$rwga_prefill_geo             = isset( $rwga_prefill_geo ) ? (string) $rwga_prefill_geo : '';
 
 $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 ?>
@@ -134,6 +136,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 						'show_option_none'  => __( '— Select page —', 'reactwoo-geo-ai' ),
 						'option_none_value' => '0',
 						'class'             => 'rwgc-select rwgc-input',
+						'selected'          => $rwga_prefill_page_id,
 					)
 				);
 				?>
@@ -145,7 +148,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 				if ( class_exists( 'RWGC_Admin', false ) ) {
 					RWGC_Admin::render_country_select(
 						'geo_target',
-						'',
+						$rwga_prefill_geo,
 						array(
 							'id'                => 'rwga_copy_geo',
 							'class'             => 'rwgc-select rwgc-input regular-text',
@@ -154,7 +157,7 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 						)
 					);
 				} else {
-					echo '<input type="text" maxlength="2" class="rwgc-input" name="geo_target" id="rwga_copy_geo" value="" />';
+					echo '<input type="text" maxlength="2" class="rwgc-input" name="geo_target" id="rwga_copy_geo" value="' . esc_attr( $rwga_prefill_geo ) . '" />';
 				}
 				?>
 			</div>
