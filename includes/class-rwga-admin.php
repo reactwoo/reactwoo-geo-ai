@@ -441,7 +441,7 @@ class RWGA_Admin {
 		if ( empty( $ctx['active'] ) ) {
 			return;
 		}
-		$clean_url = remove_query_arg( array( 'rwgc_handoff', 'rwgc_from', 'rwgc_launcher', 'rwgc_variant_page_id', 'rwgc_master_page_id', 'rwga_geo_target' ) );
+		$clean_url = remove_query_arg( array( 'rwgc_handoff', 'rwgc_from', 'rwgc_launcher', 'rwgc_variant_page_id', 'rwgc_master_page_id', 'rwga_geo_target', 'rwgc_visibility_rule_id' ) );
 		$launcher_labels = array(
 			'ai_draft'       => __( 'Generate a localised draft (AI)', 'reactwoo-geo-ai' ),
 			'ai_adapt'       => __( 'Adapt variant copy (AI)', 'reactwoo-geo-ai' ),
@@ -498,18 +498,40 @@ class RWGA_Admin {
 					?>
 				</p>
 				<?php if ( 'ai_adapt' === $launcher ) : ?>
+					<?php
+					$targeting_summary = isset( $ctx['targeting_summary'] ) ? (string) $ctx['targeting_summary'] : '';
+					if ( '' === $targeting_summary && ! empty( $ctx['visibility_rule_id'] ) && function_exists( 'rwgc_get_visibility_rule_copy_context' ) ) {
+						$tc = rwgc_get_visibility_rule_copy_context( (int) $ctx['visibility_rule_id'] );
+						if ( is_array( $tc ) && ! empty( $tc['summary'] ) ) {
+							$targeting_summary = (string) $tc['summary'];
+						}
+					}
+					?>
+					<?php if ( '' !== $targeting_summary ) : ?>
+						<p class="description">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %s: targeting rule summary */
+									__( 'Targeting: %s', 'reactwoo-geo-ai' ),
+									$targeting_summary
+								)
+							);
+							?>
+						</p>
+					<?php endif; ?>
 					<p class="description">
 						<?php
 						if ( '' !== $geo ) {
 							echo esc_html(
 								sprintf(
 									/* translators: %s: ISO country code */
-									__( 'Generate adapted copy drafts for country %s, then review before publishing.', 'reactwoo-geo-ai' ),
+									__( 'Copy drafts adapt the duplicated page for country %s using your targeting rule. Review before publishing.', 'reactwoo-geo-ai' ),
 									$geo
 								)
 							);
 						} else {
-							esc_html_e( 'Generate adapted copy drafts for this variant, then review before publishing.', 'reactwoo-geo-ai' );
+							esc_html_e( 'Copy drafts adapt the duplicated page for your targeting rule. Review before publishing.', 'reactwoo-geo-ai' );
 						}
 						?>
 					</p>
@@ -1783,9 +1805,10 @@ class RWGA_Admin {
 			exit;
 		}
 
-		$recommendation_id = isset( $_POST['recommendation_id'] ) ? (int) wp_unslash( $_POST['recommendation_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$page_id           = isset( $_POST['page_id'] ) ? (int) wp_unslash( $_POST['page_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$geo               = isset( $_POST['geo_target'] ) ? sanitize_text_field( wp_unslash( $_POST['geo_target'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$recommendation_id  = isset( $_POST['recommendation_id'] ) ? (int) wp_unslash( $_POST['recommendation_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$page_id            = isset( $_POST['page_id'] ) ? (int) wp_unslash( $_POST['page_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$geo                = isset( $_POST['geo_target'] ) ? sanitize_text_field( wp_unslash( $_POST['geo_target'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$visibility_rule_id = isset( $_POST['visibility_rule_id'] ) ? absint( wp_unslash( $_POST['visibility_rule_id'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		if ( $recommendation_id <= 0 && $page_id <= 0 ) {
 			wp_safe_redirect( admin_url( 'admin.php?page=rwga-implementation-drafts&rwga_copy=bad' ) );
@@ -1807,6 +1830,15 @@ class RWGA_Admin {
 		}
 		if ( '' !== $geo ) {
 			$payload['geo_target'] = $geo;
+		}
+		if ( $visibility_rule_id <= 0 && $page_id > 0 && function_exists( 'rwgc_get_page_experience_copy_context' ) ) {
+			$tc = rwgc_get_page_experience_copy_context( $page_id );
+			if ( is_array( $tc ) && ! empty( $tc['rule_id'] ) ) {
+				$visibility_rule_id = (int) $tc['rule_id'];
+			}
+		}
+		if ( $visibility_rule_id > 0 ) {
+			$payload['visibility_rule_id'] = $visibility_rule_id;
 		}
 
 		$out = $wf->execute( $payload );
@@ -2509,6 +2541,17 @@ class RWGA_Admin {
 			$handoff = isset( $handoff ) && is_array( $handoff ) ? $handoff : rwgc_get_suite_handoff_request_context();
 			if ( ! empty( $handoff['geo_target'] ) ) {
 				$rwga_prefill_geo = (string) $handoff['geo_target'];
+			}
+		}
+		$rwga_prefill_visibility_rule = 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['visibility_rule_id'] ) ) {
+			$rwga_prefill_visibility_rule = absint( wp_unslash( $_GET['visibility_rule_id'] ) );
+		}
+		if ( $rwga_prefill_visibility_rule <= 0 && function_exists( 'rwgc_get_suite_handoff_request_context' ) ) {
+			$handoff = isset( $handoff ) && is_array( $handoff ) ? $handoff : rwgc_get_suite_handoff_request_context();
+			if ( ! empty( $handoff['visibility_rule_id'] ) ) {
+				$rwga_prefill_visibility_rule = (int) $handoff['visibility_rule_id'];
 			}
 		}
 		include RWGA_PATH . 'admin/views/implementation-drafts-list.php';

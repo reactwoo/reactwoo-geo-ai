@@ -143,6 +143,7 @@ class RWGA_Plugin {
 		RWGA_Site_Intelligence_Sync::init();
 		RWGA_Site_Intelligence_Journey::init();
 		require_once RWGA_PATH . 'includes/services/class-rwga-page-context.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-targeting-context-bridge.php';
 		require_once RWGA_PATH . 'includes/workflows/interface-rwga-workflow.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-base.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-ux-analysis.php';

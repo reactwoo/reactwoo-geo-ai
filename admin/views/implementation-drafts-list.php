@@ -22,6 +22,7 @@ $rwga_recommendation_rows     = isset( $rwga_recommendation_rows ) && is_array( 
 $rwga_filters                 = isset( $rwga_filters ) && is_array( $rwga_filters ) ? $rwga_filters : array();
 $rwga_prefill_page_id         = isset( $rwga_prefill_page_id ) ? (int) $rwga_prefill_page_id : 0;
 $rwga_prefill_geo             = isset( $rwga_prefill_geo ) ? (string) $rwga_prefill_geo : '';
+$rwga_prefill_visibility_rule = isset( $rwga_prefill_visibility_rule ) ? (int) $rwga_prefill_visibility_rule : 0;
 
 $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 ?>
@@ -99,6 +100,9 @@ $list_url = admin_url( 'admin.php?page=rwga-implementation-drafts' );
 		<p class="description"><?php esc_html_e( 'Use a recommendation for full context, or choose a page on its own.', 'reactwoo-geo-ai' ); ?></p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rwgc-form-grid">
 			<input type="hidden" name="action" value="rwga_copy_implement" />
+			<?php if ( $rwga_prefill_visibility_rule > 0 ) : ?>
+				<input type="hidden" name="visibility_rule_id" value="<?php echo (int) $rwga_prefill_visibility_rule; ?>" />
+			<?php endif; ?>
 			<?php wp_nonce_field( 'rwga_copy_implement' ); ?>
 			<div class="rwgc-field">
 				<label class="rwgc-field__label" for="rwga_copy_rec_id"><?php esc_html_e( 'Select recommendation (optional)', 'reactwoo-geo-ai' ); ?></label>
