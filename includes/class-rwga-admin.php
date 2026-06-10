@@ -190,6 +190,7 @@ class RWGA_Admin {
 			'rwga-license'               => __( 'Settings', 'reactwoo-geo-ai' ),
 			'rwga-drafts'                => __( 'Queue', 'reactwoo-geo-ai' ),
 			'rwga-advanced'              => __( 'Advanced', 'reactwoo-geo-ai' ),
+			'rwga-page-context-debug'    => __( 'Page context', 'reactwoo-geo-ai' ),
 			'rwga-help'                  => __( 'Help', 'reactwoo-geo-ai' ),
 		);
 
@@ -2268,6 +2269,16 @@ class RWGA_Admin {
 				'callback'   => array( __CLASS__, 'render_advanced' ),
 				'capability' => 'manage_options',
 			),
+			array(
+				'menu_slug'      => 'rwga-page-context-debug',
+				'section'        => 'settings',
+				'route'          => 'ai-page-context-debug',
+				'label'          => __( 'Page context inspector', 'reactwoo-geo-ai' ),
+				'order'          => 105,
+				'is_section_nav' => false,
+				'callback'       => array( __CLASS__, 'render_page_context_debug' ),
+				'capability'     => 'manage_options',
+			),
 		);
 
 		foreach ( $routes as $route ) {
@@ -2930,5 +2941,56 @@ class RWGA_Admin {
 		}
 		$rwgc_nav_current = 'rwga-advanced';
 		include RWGA_PATH . 'admin/views/advanced.php';
+	}
+
+	/**
+	 * Developer view: builder parse output and AI payload preview.
+	 *
+	 * @return void
+	 */
+	public static function render_page_context_debug() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$post_id = isset( $_GET['post_id'] ) ? (int) $_GET['post_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$builder_context   = array();
+		$ai_payload        = array();
+		$api_bundle        = array();
+		$recommendations   = array();
+		$elementor_actions = array();
+		$detected_builder  = '';
+
+		if ( $post_id > 0 && class_exists( 'RWGA_Builder_Registry', false ) ) {
+			$detected_builder  = RWGA_Builder_Registry::detect_builder_name( $post_id );
+			$builder_context   = RWGA_Builder_Registry::get_page_context( $post_id );
+			if ( class_exists( 'RWGA_Section_Classifier', false ) && ! empty( $builder_context ) ) {
+				$builder_context['sections'] = RWGA_Section_Classifier::classify( $builder_context );
+			}
+			if ( class_exists( 'RWGA_Page_Context_Builder', false ) ) {
+				$ai_payload  = RWGA_Page_Context_Builder::build( $post_id );
+				$api_bundle  = RWGA_Page_Context_Builder::compact_for_api( $ai_payload );
+			}
+			if ( class_exists( 'RWGA_Builder_Recommendations', false ) && ! empty( $ai_payload ) ) {
+				$recommendations = RWGA_Builder_Recommendations::from_context( $ai_payload );
+			}
+			if ( class_exists( 'RWGA_Elementor_Action_Planner', false ) && 'elementor' === $detected_builder ) {
+				$elementor_actions = RWGA_Elementor_Action_Planner::plan( $post_id, $recommendations );
+			}
+		}
+
+		$pages = get_posts(
+			array(
+				'post_type'      => array( 'page', 'post' ),
+				'post_status'    => array( 'publish', 'draft', 'private' ),
+				'posts_per_page' => 50,
+				'orderby'        => 'modified',
+				'order'          => 'DESC',
+			)
+		);
+
+		$rwgc_nav_current = 'rwga-page-context-debug';
+		include RWGA_PATH . 'admin/views/page-context-debug.php';
 	}
 }

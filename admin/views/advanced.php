@@ -59,6 +59,15 @@ if ( class_exists( 'RWGA_Platform_Client', false ) ) {
 	?>
 
 	<div class="rwgc-card" style="max-width: 720px;">
+		<p>
+			<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-page-context-debug' ) ); ?>">
+				<?php esc_html_e( 'Open page context inspector', 'reactwoo-geo-ai' ); ?>
+			</a>
+			<span class="description" style="display:block;margin-top:8px;"><?php esc_html_e( 'Debug Elementor/Gutenberg parsing, UX scores, and the AI payload sent to workflows.', 'reactwoo-geo-ai' ); ?></span>
+		</p>
+	</div>
+
+	<div class="rwgc-card" style="max-width: 720px;">
 		<?php
 		if ( class_exists( 'RWGC_Admin_UI', false ) ) {
 			RWGC_Admin_UI::render_section_header(

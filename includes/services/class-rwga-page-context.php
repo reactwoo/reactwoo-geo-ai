@@ -43,7 +43,10 @@ class RWGA_Page_Context {
 		if ( $readable && function_exists( 'rwga_extract_text_for_ai_with_source' ) ) {
 			$pack = rwga_extract_text_for_ai_with_source(
 				(string) $post->post_content,
-				array( 'max_chars' => $max_chars )
+				array(
+					'max_chars' => $max_chars,
+					'post_id'   => $post_id,
+				)
 			);
 			$plain_src = isset( $pack['extraction'] ) ? (string) $pack['extraction'] : '';
 			$plain     = isset( $pack['text'] ) ? (string) $pack['text'] : '';
@@ -62,12 +65,14 @@ class RWGA_Page_Context {
 			$word_count = is_array( $parts ) ? count( $parts ) : 0;
 		}
 
-		$builder  = 'classic';
-		$blocks   = array();
-		$has_blk  = function_exists( 'has_blocks' ) && has_blocks( $post->post_content );
+		$builder = 'classic';
+		$blocks  = array();
+		if ( class_exists( 'RWGA_Builder_Registry', false ) ) {
+			$builder = RWGA_Builder_Registry::detect_builder_name( $post_id );
+		}
+		$has_blk = function_exists( 'has_blocks' ) && has_blocks( $post->post_content );
 		if ( $has_blk && function_exists( 'parse_blocks' ) ) {
-			$builder = 'gutenberg';
-			$parsed  = parse_blocks( $post->post_content );
+			$parsed = parse_blocks( $post->post_content );
 			if ( is_array( $parsed ) ) {
 				$n = 0;
 				foreach ( $parsed as $b ) {
@@ -87,6 +92,11 @@ class RWGA_Page_Context {
 			}
 		}
 
+		$builder_context = array();
+		if ( class_exists( 'RWGA_Page_Context_Builder', false ) ) {
+			$builder_context = RWGA_Page_Context_Builder::build( $post_id );
+		}
+
 		$permalink = get_permalink( $post );
 		if ( ! is_string( $permalink ) ) {
 			$permalink = '';
@@ -95,6 +105,25 @@ class RWGA_Page_Context {
 		$thumb = false;
 		if ( $readable && has_post_thumbnail( $post_id ) ) {
 			$thumb = true;
+		}
+
+		if ( $readable && 'elementor' === $builder && class_exists( 'RWGA_Builder_Registry', false ) ) {
+			$el_ctx = RWGA_Builder_Registry::get_page_context( $post_id );
+			if ( ! empty( $el_ctx['widgets'] ) && is_array( $el_ctx['widgets'] ) ) {
+				$parts = array();
+				foreach ( $el_ctx['widgets'] as $w ) {
+					if ( ! is_array( $w ) || '' === trim( (string) ( $w['content'] ?? '' ) ) ) {
+						continue;
+					}
+					$parts[] = (string) $w['content'];
+				}
+				if ( ! empty( $parts ) ) {
+					$plain     = RWGA_Builder_Normalize::trim_text( implode( ' ', $parts ), $max_chars );
+					$plain_src = 'elementor_widgets';
+					$parts_wc  = preg_split( '/\s+/u', trim( $plain ), -1, PREG_SPLIT_NO_EMPTY );
+					$word_count = is_array( $parts_wc ) ? count( $parts_wc ) : 0;
+				}
+			}
 		}
 
 		$ctx = array(
@@ -111,6 +140,7 @@ class RWGA_Page_Context {
 			'blocks'                 => $blocks,
 			'has_featured_image'     => $thumb,
 			'accessible'             => $readable,
+			'builder_context'        => $builder_context,
 		);
 
 		if ( function_exists( 'rwgc_get_context_snapshot' ) ) {

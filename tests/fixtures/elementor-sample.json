@@ -1,0 +1,79 @@
+[
+  {
+    "id": "sec1",
+    "elType": "section",
+    "settings": {},
+    "elements": [
+      {
+        "id": "col1",
+        "elType": "column",
+        "elements": [
+          {
+            "id": "head1",
+            "elType": "widget",
+            "widgetType": "heading",
+            "settings": {
+              "title": "Welcome to our product",
+              "header_size": "h1"
+            }
+          },
+          {
+            "id": "btn1",
+            "elType": "widget",
+            "widgetType": "button",
+            "settings": {
+              "text": "Get started",
+              "link": { "url": "https://example.com/start" }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sec2",
+    "elType": "section",
+    "elements": [
+      {
+        "id": "col2",
+        "elType": "column",
+        "elements": [
+          {
+            "id": "faq1",
+            "elType": "widget",
+            "widgetType": "accordion",
+            "settings": {
+              "tabs": [
+                { "tab_title": "What is included?" },
+                { "tab_title": "How do I cancel?" }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "container1",
+    "elType": "container",
+    "elements": [
+      {
+        "id": "form1",
+        "elType": "widget",
+        "widgetType": "form",
+        "settings": {
+          "form_name": "Contact",
+          "button_text": "Send message"
+        }
+      },
+      {
+        "id": "img1",
+        "elType": "widget",
+        "widgetType": "image",
+        "settings": {
+          "image": { "url": "https://example.com/logo.png", "alt": "Logo" }
+        }
+      }
+    ]
+  }
+]

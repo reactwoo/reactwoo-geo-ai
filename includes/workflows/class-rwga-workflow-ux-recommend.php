@@ -93,6 +93,19 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 		$cats     = isset( $input['selected_categories'] ) && is_array( $input['selected_categories'] ) ? array_values( array_filter( array_map( 'sanitize_key', $input['selected_categories'] ) ) ) : array();
 		$mode     = class_exists( 'RWGA_Engine', false ) ? RWGA_Engine::get_mode() : 'local';
 
+		$page_id = isset( $run['page_id'] ) ? (int) $run['page_id'] : 0;
+		$builder_recs = array();
+		$builder_ctx  = array();
+		if ( $page_id > 0 && class_exists( 'RWGA_Page_Context_Builder', false ) ) {
+			$ai_ctx = RWGA_Page_Context_Builder::build( $page_id );
+			if ( ! empty( $ai_ctx ) ) {
+				$builder_ctx = RWGA_Page_Context_Builder::compact_for_api( $ai_ctx );
+				if ( class_exists( 'RWGA_Builder_Recommendations', false ) ) {
+					$builder_recs = RWGA_Builder_Recommendations::from_context( $ai_ctx );
+				}
+			}
+		}
+
 		$remote_payload = array(
 			'analysis_run_id'  => $analysis_run_id,
 			'business_goal'    => $goal,
@@ -100,6 +113,8 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 			'analysis_summary' => isset( $run['summary'] ) ? (string) $run['summary'] : '',
 			'findings'         => is_array( $findings ) ? $findings : array(),
 			'selected_categories' => $cats,
+			'builder_context'  => $builder_ctx,
+			'builder_recommendations' => $builder_recs,
 		);
 		$remote = class_exists( 'RWGA_Engine', false ) && RWGA_Engine::should_try_remote()
 			? RWGA_Remote_Client::dispatch( $this->get_key(), $remote_payload )

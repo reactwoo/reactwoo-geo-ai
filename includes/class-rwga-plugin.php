@@ -107,6 +107,8 @@ class RWGA_Plugin {
 	private function load_workflow_engine() {
 		require_once RWGA_PATH . 'includes/helpers/rwga-site.php';
 		require_once RWGA_PATH . 'includes/helpers/rwga-builder-text.php';
+		require_once RWGA_PATH . 'includes/builders/class-rwga-builder-loader.php';
+		RWGA_Builder_Loader::load();
 		require_once RWGA_PATH . 'includes/class-rwga-platform-client.php';
 		require_once RWGA_PATH . 'includes/class-rwga-settings.php';
 		require_once RWGA_PATH . 'includes/db/class-rwga-db.php';

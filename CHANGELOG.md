@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.78] - 2026-06-10
+
+### Added
+- **Builder-aware page analysis:** `RWGA_Builder_Registry` with Elementor, Gutenberg, and classic adapters under `includes/builders/`.
+- **Elementor parser:** Reads `_elementor_data` JSON (sections, containers, columns, nested widgets) without requiring Elementor active.
+- **Section classification:** `RWGA_Section_Classifier` (hero, FAQ, pricing, testimonials, etc.) with confidence scores.
+- **UX structure scoring:** `RWGA_UX_Structure_Scorer` for hero/CTA/trust/form/hierarchy scores and detected issues.
+- **AI context:** `RWGA_Page_Context_Builder` — single trimmed payload for workflows/API (`builder_context` in remote UX payloads).
+- **Builder recommendations:** `RWGA_Builder_Recommendations` with widget/section targets; `RWGA_Elementor_Action_Planner` dry-run plans.
+- **Blueprints:** `RWGA_Page_Blueprint`, `RWGA_Section_Blueprint`, `RWGA_Widget_Blueprint` intent models.
+- **Admin:** Page context inspector (`rwga-page-context-debug`) under Advanced settings.
+- **Tests:** PHPUnit suite for Elementor/Gutenberg parsers, classifier, and UX scorer.
+- **Docs:** `PLAN.md` architecture and phase tracker.
+
+### Changed
+- `RWGA_Page_Context` detects Elementor via builder registry; Elementor widget text feeds `content_plain`.
+- UX analysis/recommend workflows send compact `builder_context` to the remote API.
+
 ## [0.4.64] - 2026-06-06
 
 ### Fixed

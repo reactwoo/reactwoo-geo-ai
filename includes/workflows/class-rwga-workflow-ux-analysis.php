@@ -78,12 +78,22 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 		if ( $in['page_id'] > 0 && class_exists( 'RWGA_Page_Context', false ) ) {
 			$in['page_context'] = RWGA_Page_Context::collect( $in['page_id'] );
 		}
+		if ( $in['page_id'] > 0 && class_exists( 'RWGA_Page_Context_Builder', false ) ) {
+			$in['ai_page_context'] = RWGA_Page_Context_Builder::build( $in['page_id'] );
+			if ( class_exists( 'RWGA_Builder_Recommendations', false ) && ! empty( $in['ai_page_context'] ) ) {
+				$in['builder_recommendations'] = RWGA_Builder_Recommendations::from_context( $in['ai_page_context'] );
+			}
+		}
 
 		$mode = RWGA_Engine::get_mode();
 		$remote_payload = $in;
 		if ( RWGA_Engine::should_try_remote() && isset( $remote_payload['page_context'] ) && is_array( $remote_payload['page_context'] ) && function_exists( 'rwga_ai_reading_bundle_from_page_context' ) ) {
 			$remote_payload['reading_context'] = rwga_ai_reading_bundle_from_page_context( $remote_payload['page_context'] );
 			unset( $remote_payload['page_context'] );
+		}
+		if ( RWGA_Engine::should_try_remote() && ! empty( $remote_payload['ai_page_context'] ) && class_exists( 'RWGA_Page_Context_Builder', false ) ) {
+			$remote_payload['builder_context'] = RWGA_Page_Context_Builder::compact_for_api( $remote_payload['ai_page_context'] );
+			unset( $remote_payload['ai_page_context'] );
 		}
 		$remote = RWGA_Engine::should_try_remote() ? RWGA_Remote_Client::dispatch( $this->get_key(), $remote_payload ) : null;
 		$use_api = ! is_wp_error( $remote ) && is_array( $remote ) && ! empty( $remote['engine_response'] );

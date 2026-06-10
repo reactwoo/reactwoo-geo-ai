@@ -71,6 +71,29 @@ function rwga_classic_text_for_ai( $content ) {
 function rwga_extract_text_for_ai_with_source( $raw, array $args = array() ) {
 	$raw       = (string) $raw;
 	$max_chars = isset( $args['max_chars'] ) ? max( 200, min( 50000, (int) $args['max_chars'] ) ) : 8000;
+	$post_id   = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
+
+	if ( $post_id > 0 && class_exists( 'RWGA_Elementor_Adapter', false ) && RWGA_Elementor_Adapter::post_has_elementor_data( $post_id ) ) {
+		$adapter = new RWGA_Elementor_Adapter();
+		$widgets = $adapter->extract_widgets( $post_id );
+		$parts   = array();
+		foreach ( $widgets as $w ) {
+			if ( ! is_array( $w ) || '' === trim( (string) ( $w['content'] ?? '' ) ) ) {
+				continue;
+			}
+			$parts[] = (string) $w['content'];
+		}
+		$plain = implode( ' ', $parts );
+		$plain = is_string( $plain ) ? preg_replace( '/\s+/u', ' ', $plain ) : '';
+		$plain = trim( (string) $plain );
+		if ( strlen( $plain ) > $max_chars ) {
+			$plain = substr( $plain, 0, $max_chars );
+		}
+		return array(
+			'text'       => $plain,
+			'extraction' => 'elementor_widgets',
+		);
+	}
 
 	$plain       = '';
 	$used_blocks = false;
@@ -151,6 +174,10 @@ function rwga_ai_reading_bundle_from_page_context( array $ctx ) {
 		'content_plain_source' => isset( $ctx['content_plain_source'] ) ? sanitize_key( (string) $ctx['content_plain_source'] ) : '',
 		'block_names'          => $blocks,
 	);
+
+	if ( ! empty( $ctx['builder_context'] ) && is_array( $ctx['builder_context'] ) && class_exists( 'RWGA_Page_Context_Builder', false ) ) {
+		$bundle['builder_context'] = RWGA_Page_Context_Builder::compact_for_api( $ctx['builder_context'] );
+	}
 
 	/**
 	 * @param array<string, mixed> $bundle Compact reading bundle for the API.
