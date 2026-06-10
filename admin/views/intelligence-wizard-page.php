@@ -26,6 +26,8 @@ $rwga_audit_only_url = wp_nonce_url(
 	admin_url( 'admin-post.php?action=rwga_intelligence_wizard_audit' ),
 	'rwga_intelligence_wizard_audit'
 );
+$rwga_targeted_audits = isset( $rwga_targeted_audits ) && is_array( $rwga_targeted_audits ) ? $rwga_targeted_audits : array();
+$rwga_pending_count   = isset( $rwga_pending_count ) ? (int) $rwga_pending_count : 0;
 $rwga_toggle_auto_url = wp_nonce_url(
 	admin_url( 'admin-post.php?action=rwga_intelligence_wizard_toggle_auto' ),
 	'rwga_intelligence_wizard_toggle_auto'
@@ -45,6 +47,28 @@ $can_run = current_user_can( RWGA_Capabilities::CAP_RUN_AI );
 	<?php endif; ?>
 
 	<?php RWGA_Admin::render_inner_nav( $rwgc_nav_current ); ?>
+
+	<?php if ( $rwga_pending_count > 0 ) : ?>
+		<div class="notice notice-warning" style="max-width:820px;">
+			<p>
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: %d: pending count */
+						_n(
+							'%d intelligence suggestion is waiting for approve or dismiss.',
+							'%d intelligence suggestions are waiting for approve or dismiss.',
+							$rwga_pending_count,
+							'reactwoo-geo-ai'
+						),
+						$rwga_pending_count
+					)
+				);
+				?>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-actions&status=pending' ) ); ?>"><?php esc_html_e( 'Review pending actions', 'reactwoo-geo-ai' ); ?></a>
+			</p>
+		</div>
+	<?php endif; ?>
 
 	<?php
 	$flash = isset( $_GET['rwga_wizard'] ) ? sanitize_key( wp_unslash( $_GET['rwga_wizard'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -71,16 +95,29 @@ $can_run = current_user_can( RWGA_Capabilities::CAP_RUN_AI );
 	} elseif ( 'sync_ok' === $flash ) {
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Site snapshot synced. Continue with Run site audit.', 'reactwoo-geo-ai' ) . '</p></div>';
 	} elseif ( 'audit_ok' === $flash ) {
-		$n = isset( $_GET['rwga_pending'] ) ? (int) $_GET['rwga_pending'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$n  = isset( $_GET['rwga_pending'] ) ? (int) $_GET['rwga_pending'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$wk = isset( $_GET['rwga_wk'] ) ? sanitize_key( wp_unslash( (string) $_GET['rwga_wk'] ) ) : 'site_audit'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$label = __( 'Site audit', 'reactwoo-geo-ai' );
+		if ( class_exists( 'RWGA_Workflow_Intelligence_Definitions', false ) ) {
+			$defs = RWGA_Workflow_Intelligence_Definitions::get_definitions();
+			if ( isset( $defs[ $wk ]['label'] ) ) {
+				$label = (string) $defs[ $wk ]['label'];
+			}
+		}
 		echo '<div class="notice notice-success is-dismissible"><p>';
 		echo esc_html(
 			$n > 0
 				? sprintf(
-					/* translators: %d: pending count */
-					_n( 'Site audit complete. %d suggestion to review below.', 'Site audit complete. %d suggestions to review below.', $n, 'reactwoo-geo-ai' ),
+					/* translators: 1: audit label, 2: pending count */
+					_n( '%1$s complete. %2$d suggestion to review below.', '%1$s complete. %2$d suggestions to review below.', $n, 'reactwoo-geo-ai' ),
+					$label,
 					$n
 				)
-				: __( 'Site audit complete. No pending suggestions this run.', 'reactwoo-geo-ai' )
+				: sprintf(
+					/* translators: %s: audit label */
+					__( '%s complete. No pending suggestions this run.', 'reactwoo-geo-ai' ),
+					$label
+				)
 		);
 		echo '</p></div>';
 	} elseif ( 'auto_on' === $flash || 'auto_off' === $flash ) {
@@ -134,6 +171,32 @@ $can_run = current_user_can( RWGA_Capabilities::CAP_RUN_AI );
 		</p>
 	</div>
 
+	<?php if ( ! empty( $rwga_targeted_audits ) ) : ?>
+	<div class="rwgc-card" style="max-width:820px;margin-bottom:1.5rem;">
+		<h2><?php esc_html_e( 'Targeted audits', 'reactwoo-geo-ai' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Run focused intelligence workflows after your snapshot is synced. Each audit may create approval-gated suggestions.', 'reactwoo-geo-ai' ); ?></p>
+		<ul class="rwga-intel-wizard-targeted">
+			<?php foreach ( $rwga_targeted_audits as $audit_key => $audit_row ) : ?>
+				<?php
+				$audit_url = wp_nonce_url(
+					admin_url( 'admin-post.php?action=rwga_intelligence_wizard_audit&workflow_key=' . rawurlencode( (string) $audit_key ) ),
+					'rwga_intelligence_wizard_audit'
+				);
+				?>
+				<li class="rwga-intel-wizard-targeted__item">
+					<strong><?php echo esc_html( (string) ( $audit_row['label'] ?? $audit_key ) ); ?></strong>
+					<?php if ( ! empty( $audit_row['hint'] ) ) : ?>
+						<p class="description"><?php echo esc_html( (string) $audit_row['hint'] ); ?></p>
+					<?php endif; ?>
+					<?php if ( $can_run ) : ?>
+						<p><a class="button button-secondary" href="<?php echo esc_url( $audit_url ); ?>"><?php echo esc_html( sprintf( __( 'Run %s', 'reactwoo-geo-ai' ), (string) ( $audit_row['label'] ?? $audit_key ) ) ); ?></a></p>
+					<?php endif; ?>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+	</div>
+	<?php endif; ?>
+
 	<div class="rwgc-card" style="max-width:820px;">
 		<h2><?php esc_html_e( 'Step by step', 'reactwoo-geo-ai' ); ?></h2>
 		<ol class="rwga-intel-wizard-steps">
@@ -176,4 +239,7 @@ $can_run = current_user_can( RWGA_Capabilities::CAP_RUN_AI );
 .rwga-intel-wizard-step.is-done .rwga-intel-wizard-step__mark { background:#dcfce7; color:#166534; }
 .rwga-intel-wizard-step.is-current .rwga-intel-wizard-step__mark { background:#dbeafe; color:#1d4ed8; }
 .rwga-intel-wizard-step__body { flex:1; min-width:0; }
+.rwga-intel-wizard-targeted { list-style:none; margin:0; padding:0; }
+.rwga-intel-wizard-targeted__item { padding:12px 0; border-bottom:1px solid #e2e8f0; }
+.rwga-intel-wizard-targeted__item:last-child { border-bottom:0; }
 </style>

@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.74
+Stable tag: 0.4.75
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,12 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.75 =
+
+* **Site intelligence (Phase 14):** Admin notice on Geo Core / Geo AI screens when pending suggestions exist; Geo Core dashboard card links to the wizard and pending count.
+* **Targeted audits:** Wizard section for variant relationship, tracking gap, and optimisation recommendation workflows (Optimise required for the latter).
+* **Automation:** Site-wide intelligence workflow keys (`site_audit`, `variant_relationship_audit`, `tracking_gap_audit`, `optimisation_recommendation`) run on schedule with empty input; audit runs recorded in journey state.
 
 = 0.4.74 =
 * **Site intelligence wizard:** New guided hub under **Insights → Site intelligence** with progress bar, step-by-step checklist, **Run automated setup** (sync + site audit), and optional **auto-audit after sync**.

@@ -63,6 +63,7 @@ class RWGA_Admin {
 		add_action( 'admin_post_rwga_intelligence_wizard_toggle_auto', array( __CLASS__, 'handle_intelligence_wizard_toggle_auto' ) );
 		add_action( 'admin_post_rwga_clear_geo_ai_license', array( __CLASS__, 'handle_clear_license_post' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'render_intelligence_pending_admin_notice' ) );
 	}
 
 	/**
@@ -102,11 +103,67 @@ class RWGA_Admin {
 			</div>
 			<?php endif; ?>
 			<div class="rwgc-addon-card__actions">
-				<a href="<?php echo esc_url( $url ); ?>" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Open Geo AI', 'reactwoo-geo-ai' ); ?></a>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-license' ) ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Settings', 'reactwoo-geo-ai' ); ?></a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-wizard' ) ); ?>" class="rwgc-btn rwgc-btn--primary"><?php esc_html_e( 'Site intelligence', 'reactwoo-geo-ai' ); ?></a>
+				<a href="<?php echo esc_url( $url ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Open Geo AI', 'reactwoo-geo-ai' ); ?></a>
+				<?php
+				$pending = class_exists( 'RWGA_Site_Intelligence_Journey', false )
+					? RWGA_Site_Intelligence_Journey::count_all_pending_actions()
+					: 0;
+				if ( $pending > 0 ) :
+					?>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-actions&status=pending' ) ); ?>" class="rwgc-btn rwgc-btn--secondary"><?php echo esc_html( sprintf( _n( '%d suggestion', '%d suggestions', $pending, 'reactwoo-geo-ai' ), $pending ) ); ?></a>
+				<?php endif; ?>
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Admin notice when intelligence suggestions are waiting for review.
+	 *
+	 * @return void
+	 */
+	public static function render_intelligence_pending_admin_notice() {
+		if ( ! is_admin() || ! current_user_can( RWGA_Capabilities::CAP_RUN_AI ) ) {
+			return;
+		}
+		if ( ! class_exists( 'RWGA_Site_Intelligence_Journey', false ) ) {
+			return;
+		}
+		$pending = RWGA_Site_Intelligence_Journey::count_all_pending_actions();
+		if ( $pending <= 0 ) {
+			return;
+		}
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( in_array( $page, array( 'rwga-intelligence-actions', 'rwga-intelligence-wizard' ), true ) ) {
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || ! is_object( $screen ) ) {
+			return;
+		}
+		$screen_id = isset( $screen->id ) ? (string) $screen->id : '';
+		if ( false === strpos( $screen_id, 'rwga' ) && false === strpos( $screen_id, 'rwgc' ) ) {
+			return;
+		}
+		$actions_url = admin_url( 'admin.php?page=rwga-intelligence-actions&status=pending' );
+		$wizard_url  = admin_url( 'admin.php?page=rwga-intelligence-wizard' );
+		echo '<div class="notice notice-warning"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: %d: pending suggestion count */
+				_n(
+					'Geo AI site intelligence: %d suggestion is waiting for your review.',
+					'Geo AI site intelligence: %d suggestions are waiting for your review.',
+					$pending,
+					'reactwoo-geo-ai'
+				),
+				$pending
+			)
+		);
+		echo ' <a href="' . esc_url( $actions_url ) . '">' . esc_html__( 'Review now', 'reactwoo-geo-ai' ) . '</a>';
+		echo ' · <a href="' . esc_url( $wizard_url ) . '">' . esc_html__( 'Site intelligence guide', 'reactwoo-geo-ai' ) . '</a>';
+		echo '</p></div>';
 	}
 
 	/**
@@ -1491,9 +1548,12 @@ class RWGA_Admin {
 		}
 		check_admin_referer( 'rwga_intelligence_wizard_audit' );
 		$redirect = admin_url( 'admin.php?page=rwga-intelligence-wizard' );
-		$result   = class_exists( 'RWGA_Site_Intelligence_Journey', false )
-			? RWGA_Site_Intelligence_Journey::run_site_audit_if_allowed()
-			: null;
+		$wk       = isset( $_GET['workflow_key'] ) ? sanitize_key( wp_unslash( (string) $_GET['workflow_key'] ) ) : 'site_audit'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! class_exists( 'RWGA_Site_Intelligence_Journey', false )
+			|| ! in_array( $wk, RWGA_Site_Intelligence_Journey::get_site_wide_audit_keys(), true ) ) {
+			$wk = 'site_audit';
+		}
+		$result = RWGA_Site_Intelligence_Journey::run_site_wide_audit( $wk, false );
 		if ( null === $result ) {
 			wp_safe_redirect(
 				add_query_arg(
@@ -1529,13 +1589,23 @@ class RWGA_Admin {
 						'status'       => 'pending',
 						'rwga_wizard'  => 'audit_ok',
 						'rwga_pending' => $pending,
+						'rwga_wk'      => $wk,
 					),
 					admin_url( 'admin.php' )
 				)
 			);
 			exit;
 		}
-		wp_safe_redirect( add_query_arg( array( 'rwga_wizard' => 'audit_ok', 'rwga_pending' => 0 ), $redirect ) );
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'rwga_wizard'  => 'audit_ok',
+					'rwga_pending' => 0,
+					'rwga_wk'      => $wk,
+				),
+				$redirect
+			)
+		);
 		exit;
 	}
 
@@ -2408,6 +2478,12 @@ class RWGA_Admin {
 		$rwga_steps    = class_exists( 'RWGA_Site_Intelligence_Journey', false ) ? RWGA_Site_Intelligence_Journey::get_steps() : array();
 		$rwga_progress = class_exists( 'RWGA_Site_Intelligence_Journey', false ) ? RWGA_Site_Intelligence_Journey::get_progress() : array();
 		$rwga_auto_audit = class_exists( 'RWGA_Site_Intelligence_Journey', false ) && RWGA_Site_Intelligence_Journey::is_auto_audit_enabled();
+		$rwga_targeted_audits = class_exists( 'RWGA_Site_Intelligence_Journey', false )
+			? RWGA_Site_Intelligence_Journey::get_wizard_targeted_audits()
+			: array();
+		$rwga_pending_count = class_exists( 'RWGA_Site_Intelligence_Journey', false )
+			? RWGA_Site_Intelligence_Journey::count_all_pending_actions()
+			: 0;
 		$rwgc_nav_current = 'rwga-intelligence-wizard';
 		include RWGA_PATH . 'admin/views/intelligence-wizard-page.php';
 	}

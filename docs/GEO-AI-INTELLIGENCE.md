@@ -28,6 +28,20 @@ Master plan: `reactwoo-api/docs/PLAN-GEO-AI-INTELLIGENCE.md`
 
 Requires `RWGA_Intelligence_Cloud_Client` and API **v0.1.41+**.
 
+## Site intelligence wizard (Geo AI 0.4.74+)
+
+**Geo → Insights → Site intelligence** (`?page=rwga-intelligence-wizard`)
+
+Guided path: license → remote execution mode → snapshot sync → site audit → review pending actions → optional cloud explorer.
+
+| Feature | Class / handler |
+|---------|-----------------|
+| Step state + progress | `RWGA_Site_Intelligence_Journey` |
+| Automated setup (sync + audit) | `admin_post_rwga_intelligence_wizard_setup` |
+| Auto-audit after sync | Option `auto_site_audit_after_sync`; hook `rwga_site_intelligence_synced` |
+| Targeted audits (0.4.75+) | Variant/tracking/optimisation workflows on wizard |
+| Pending notice (0.4.75+) | `RWGA_Admin::render_intelligence_pending_admin_notice` |
+
 ## Cloud run history and graph (API)
 
 When a site is registered via sync, intelligence workflow runs are stored in Redis and exposed at:

@@ -71,6 +71,14 @@ class RWGA_Automation_Runner {
 							$dispatch['message'] = $workflow_result->get_error_message();
 						} else {
 							$dispatch['success'] = true;
+							if ( class_exists( 'RWGA_Site_Intelligence_Journey', false )
+								&& in_array( $wf_key, RWGA_Site_Intelligence_Journey::get_site_wide_audit_keys(), true )
+								&& is_array( $workflow_result ) ) {
+								$action_count = isset( $workflow_result['action_ids'] ) && is_array( $workflow_result['action_ids'] )
+									? count( $workflow_result['action_ids'] )
+									: 0;
+								RWGA_Site_Intelligence_Journey::record_audit_run( $wf_key, $action_count );
+							}
 						}
 					} else {
 						$dispatch['code']    = $input->get_error_code();
@@ -236,6 +244,11 @@ class RWGA_Automation_Runner {
 					'page_type'      => 'page',
 				)
 			);
+		}
+
+		if ( class_exists( 'RWGA_Site_Intelligence_Journey', false )
+			&& in_array( $wk, RWGA_Site_Intelligence_Journey::get_site_wide_audit_keys(), true ) ) {
+			return array();
 		}
 
 		/**

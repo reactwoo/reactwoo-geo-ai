@@ -69,6 +69,60 @@ class RWGA_Site_Intelligence_Journey {
 	}
 
 	/**
+	 * Intelligence workflow keys that run site-wide with empty input (automation + wizard).
+	 *
+	 * @return string[]
+	 */
+	public static function get_site_wide_audit_keys() {
+		$keys = array(
+			'site_audit',
+			'variant_relationship_audit',
+			'tracking_gap_audit',
+			'optimisation_recommendation',
+		);
+
+		/**
+		 * @param string[] $keys Site-wide intelligence workflow keys.
+		 */
+		return apply_filters( 'rwga_site_wide_intelligence_workflow_keys', $keys );
+	}
+
+	/**
+	 * Targeted site-wide audits for the wizard (excludes primary site_audit).
+	 *
+	 * @return array<string, array{label:string,agent:string,hint:string}>
+	 */
+	public static function get_wizard_targeted_audits() {
+		$defs = class_exists( 'RWGA_Workflow_Intelligence_Definitions', false )
+			? RWGA_Workflow_Intelligence_Definitions::get_definitions()
+			: array();
+		$hints = array(
+			'variant_relationship_audit'  => __( 'Checks variant and page relationships in your synced snapshot.', 'reactwoo-geo-ai' ),
+			'tracking_gap_audit'          => __( 'Finds tracking or attribution gaps across geo rules and goals.', 'reactwoo-geo-ai' ),
+			'optimisation_recommendation' => __( 'Suggests experiments and CRO improvements when Geo Optimise is active.', 'reactwoo-geo-ai' ),
+		);
+		$out   = array();
+		foreach ( self::get_site_wide_audit_keys() as $key ) {
+			if ( 'site_audit' === $key ) {
+				continue;
+			}
+			if ( 'optimisation_recommendation' === $key && ! class_exists( 'RWGO_Admin', false ) ) {
+				continue;
+			}
+			if ( ! isset( $defs[ $key ] ) || ! is_array( $defs[ $key ] ) ) {
+				continue;
+			}
+			$row         = $defs[ $key ];
+			$out[ $key ] = array(
+				'label' => isset( $row['label'] ) ? (string) $row['label'] : $key,
+				'agent' => isset( $row['agent'] ) ? (string) $row['agent'] : 'intelligence',
+				'hint'  => isset( $hints[ $key ] ) ? (string) $hints[ $key ] : '',
+			);
+		}
+		return $out;
+	}
+
+	/**
 	 * @return int
 	 */
 	public static function count_all_pending_actions() {
@@ -258,23 +312,54 @@ class RWGA_Site_Intelligence_Journey {
 			}
 		}
 
-		$wf = class_exists( 'RWGA_Workflow_Registry', false ) ? RWGA_Workflow_Registry::get( 'site_audit' ) : null;
-		if ( ! $wf ) {
+		$audit_result = self::run_site_wide_audit( 'site_audit', false );
+		if ( is_wp_error( $audit_result ) ) {
+			return $audit_result;
+		}
+		if ( null === $audit_result ) {
 			return new WP_Error( 'rwga_wizard_no_workflow', __( 'Site audit workflow is not available.', 'reactwoo-geo-ai' ) );
 		}
 
+		return array(
+			'sync'          => $sync_result,
+			'audit'         => isset( $audit_result['audit'] ) ? $audit_result['audit'] : array(),
+			'action_count'  => isset( $audit_result['action_count'] ) ? (int) $audit_result['action_count'] : 0,
+			'pending_total' => self::count_all_pending_actions(),
+		);
+	}
+
+	/**
+	 * Run a site-wide intelligence workflow (empty input).
+	 *
+	 * @param string $workflow_key   Workflow key.
+	 * @param bool   $require_remote When true, skip if remote engine is off.
+	 * @return array<string, mixed>|\WP_Error|null Null when skipped.
+	 */
+	public static function run_site_wide_audit( $workflow_key, $require_remote = true ) {
+		$workflow_key = sanitize_key( (string) $workflow_key );
+		if ( ! in_array( $workflow_key, self::get_site_wide_audit_keys(), true ) ) {
+			return new WP_Error( 'rwga_bad_workflow', __( 'Unknown site intelligence workflow.', 'reactwoo-geo-ai' ) );
+		}
+		if ( $require_remote && ! self::is_remote_engine_ready() ) {
+			return null;
+		}
+		if ( ! class_exists( 'RWGA_Settings', false ) || ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
+			return null;
+		}
+		$wf = class_exists( 'RWGA_Workflow_Registry', false ) ? RWGA_Workflow_Registry::get( $workflow_key ) : null;
+		if ( ! $wf ) {
+			return null;
+		}
 		$out = $wf->execute( array() );
 		if ( is_wp_error( $out ) ) {
 			return $out;
 		}
-
 		$action_count = isset( $out['action_ids'] ) && is_array( $out['action_ids'] ) ? count( $out['action_ids'] ) : 0;
-		self::record_audit_run( 'site_audit', $action_count );
-
+		self::record_audit_run( $workflow_key, $action_count );
 		return array(
-			'sync'          => $sync_result,
 			'audit'         => $out,
 			'action_count'  => $action_count,
+			'workflow_key'  => $workflow_key,
 			'pending_total' => self::count_all_pending_actions(),
 		);
 	}
@@ -285,26 +370,7 @@ class RWGA_Site_Intelligence_Journey {
 	 * @return array<string, mixed>|\WP_Error|null Null when skipped.
 	 */
 	public static function run_site_audit_if_allowed() {
-		if ( ! self::is_remote_engine_ready() ) {
-			return null;
-		}
-		if ( ! class_exists( 'RWGA_Settings', false ) || ! RWGA_Settings::is_license_configured_for_geo_ai_ui() ) {
-			return null;
-		}
-		$wf = class_exists( 'RWGA_Workflow_Registry', false ) ? RWGA_Workflow_Registry::get( 'site_audit' ) : null;
-		if ( ! $wf ) {
-			return null;
-		}
-		$out = $wf->execute( array() );
-		if ( is_wp_error( $out ) ) {
-			return $out;
-		}
-		$action_count = isset( $out['action_ids'] ) && is_array( $out['action_ids'] ) ? count( $out['action_ids'] ) : 0;
-		self::record_audit_run( 'site_audit', $action_count );
-		return array(
-			'audit'        => $out,
-			'action_count' => $action_count,
-		);
+		return self::run_site_wide_audit( 'site_audit' );
 	}
 
 	/**
