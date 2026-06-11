@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.89] - 2026-06-11
+
+### Added
+- **Intelligence Centre admin (v3 Phase 16):** `rwga-intelligence-centre` — site context, local graph counts, UX knowledge preview, workflow context inspector with payload audit, recent `rwga_ai_runs`.
+- **Insight memory (v3 Phase 14):** `RWGA_Insight_Memory` — option-backed cache checked before `RWGA_Remote_Client::dispatch()`; telemetry `cache_hit` on `rwga_ai_runs`.
+- **Model router (v3 Phase 13):** `RWGA_Model_Router` — task-class tier hints (`premium`, `light`, `deterministic`) attached as `model_routing` on remote payloads.
+- **Cloud snapshot extension (v3 Phase 10):** `RWGA_AI_Snapshot` appends compact `geo_ai_intelligence` block (page summaries, scores, graph counts) via `rwgc_ai_snapshot_payload`.
+- **UX knowledge graph (v3 Phase 9):** `RWGA_Knowledge_Graph` — seeded anonymous benchmarks, optional remote refresh, `benchmark_context` in `RWGA_Context_Builder`.
+- **REST:** `GET /wp-json/geo-ai/v1/intelligence/local/knowledge`.
+
+## [0.4.85] - 2026-06-11
+
+### Added
+- **Task context builder (v3 Phase 8):** `RWGA_Context_Builder` — workflow-specific intelligence bundles (messaging, UX, visual, semantics, insights, relationship counts) instead of ad-hoc payload assembly.
+- **`RWGA_Payload_Guard`** — strips forbidden keys (`_elementor_data`, `post_content`, `ai_page_context`, etc.) before remote AI calls; includes exclusion audit metadata.
+- UX analysis, UX recommend, and intelligence workflows now dispatch via context builder.
+- **REST:** `GET /wp-json/geo-ai/v1/intelligence/local/context/{workflow}?page_id=` — preview bundle + `remote_ready` payload.
+- Local intelligence version **1.6.0**.
+
+## [0.4.84] - 2026-06-11
+
+### Added
+- **Local relationship graph (v3 Phase 7):** `RWGA_Relationship_Graph` — builds config graph from Geo Core snapshot (rules, variants, popups, experiments, Pro/commerce edges) and enriches with local page intelligence + UX insight nodes.
+- Persisted in `rwga_site_context.context_json.relationship_graph`; rebuilt on site sync and page intelligence refresh.
+- **REST:** `GET /wp-json/geo-ai/v1/intelligence/local/graph`; site context endpoint includes `relationship_graph`.
+- Local intelligence version **1.5.0**.
+
+## [0.4.83] - 2026-06-11
+
+### Added
+- **Builder context extractors (v3 Phase 6):** `RWGA_Elementor_Context_Extractor`, `RWGA_Gutenberg_Context_Extractor`, `RWGA_Classic_Context_Extractor` via `RWGA_Context_Extractor_Registry` — narrative beats, persuasion summary, trust signals, conversion path, and structure gaps (meaning, not widget inventory).
+- `RWGA_Page_Context_Builder` now attaches `builder_semantics`; compact API payloads include `builder_semantics`.
+- Persists to `context_json.builder_semantics` in local intelligence.
+- **REST:** `GET /wp-json/geo-ai/v1/intelligence/local/semantics/{page_id}`; page context includes `builder_semantics`.
+- Local intelligence version **1.4.0**.
+
+## [0.4.82] - 2026-06-11
+
+### Added
+- **Visual emphasis intelligence (v3 Phase 5):** `RWGA_Visual_Analyzer` — attention flow, CTA emphasis, focus conflicts, and colour role meaning (deterministic).
+- Elementor button `public_settings` now exposes normalized colours and interpreted roles.
+- Persists to `context_json.visual_intelligence` and `rwga_ux_insights` (source `visual_analyzer`).
+- **REST:** `GET /wp-json/geo-ai/v1/intelligence/local/visual/{page_id}`; page context includes `visual_intelligence`.
+- Local intelligence version **1.3.0**.
+
+## [0.4.81] - 2026-06-11
+
+### Added
+- **UX intelligence (v3 Phase 4):** `RWGA_UX_Insight_Builder` — messaging hierarchy, CTA effectiveness, trust gaps, friction, and mobile heuristics (deterministic).
+- Persists to `context_json.ux_intelligence` and `rwga_ux_insights` (source `ux_insight_builder`).
+- **REST:** `GET /wp-json/geo-ai/v1/intelligence/local/ux/{page_id}`; page context includes `ux_intelligence`.
+- Local intelligence version **1.2.0**.
+
+## [0.4.80] - 2026-06-11
+
+### Added
+- **Messaging intelligence (v3 Phase 3):** `RWGA_Messaging_Analyzer` — deterministic promise, UVP, audience, emotional drivers, objections, and clarity scores from builder context (no AI call).
+- Persists messaging into `rwga_page_context.context_json.messaging` and `rwga_ux_insights` (source `messaging_analyzer`).
+- **REST:** `GET /wp-json/geo-ai/v1/intelligence/local/messaging/{page_id}`; page context endpoint now includes `messaging` block.
+- Local intelligence version **1.1.0**.
+
+## [0.4.79] - 2026-06-11
+
+### Added
+- **Geo AI Intelligence Platform v3 — Phase 1 audit docs:**
+  - `docs/AI-INTELLIGENCE-ARCHITECTURE.md` — repository inventory and gap analysis
+  - `docs/AI-PAYLOAD-STRATEGY.md` — current vs target payload pipeline
+  - `docs/AI-UX-INSIGHT-CONTRACT.md` — insight schemas (shipped + planned)
+  - `docs/AI-KNOWLEDGE-GRAPH.md` — relationship graph (shipped) vs UX knowledge graph (planned)
+  - `docs/AI-MODEL-ROUTING.md` — current model selection and v3 routing target
+- **Local intelligence layer (v3 Phase 2):** `RWGA_Local_Intelligence` orchestrates site, page, and entity context persistence.
+- **Tables (DB 1.4.0):** `rwga_site_context`, `rwga_page_context`, `rwga_entity_context`, `rwga_ux_insights`, `rwga_ai_runs`.
+- **Hooks:** `save_post` and `rwga_site_intelligence_synced` refresh local intelligence; `rwga_workflow_persisted` records AI runs and ingests findings.
+- **REST:** `GET/POST /wp-json/geo-ai/v1/intelligence/local/*` — site context, page context + insights, runs, manual refresh.
+
 ## [0.4.78] - 2026-06-10
 
 ### Added

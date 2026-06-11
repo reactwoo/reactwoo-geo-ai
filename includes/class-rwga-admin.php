@@ -185,6 +185,7 @@ class RWGA_Admin {
 			'rwga-intelligence-actions'  => __( 'Intelligence actions', 'reactwoo-geo-ai' ),
 			'rwga-intelligence-wizard'   => __( 'Site intelligence', 'reactwoo-geo-ai' ),
 			'rwga-intelligence-cloud'    => __( 'Cloud intelligence', 'reactwoo-geo-ai' ),
+			'rwga-intelligence-centre'   => __( 'Intelligence Centre', 'reactwoo-geo-ai' ),
 			'rwga-competitors'           => __( 'Competitors', 'reactwoo-geo-ai' ),
 			'rwga-automation'            => __( 'Automation', 'reactwoo-geo-ai' ),
 			'rwga-license'               => __( 'Settings', 'reactwoo-geo-ai' ),
@@ -2215,6 +2216,15 @@ class RWGA_Admin {
 				'capability' => $cap_view,
 			),
 			array(
+				'menu_slug'  => 'rwga-intelligence-centre',
+				'route'      => 'intelligence-centre',
+				'label'      => __( 'Intelligence Centre', 'reactwoo-geo-ai' ),
+				'order'      => 47,
+				'is_section_nav' => false,
+				'callback'   => array( __CLASS__, 'render_intelligence_centre' ),
+				'capability' => $cap_view,
+			),
+			array(
 				'menu_slug'  => 'rwga-competitors',
 				'route'      => 'competitors',
 				'label'      => __( 'Competitors', 'reactwoo-geo-ai' ),
@@ -2640,6 +2650,64 @@ class RWGA_Admin {
 
 		$rwgc_nav_current = 'rwga-intelligence-cloud';
 		include RWGA_PATH . 'admin/views/intelligence-cloud-page.php';
+	}
+
+	/**
+	 * Intelligence Centre — local graph, knowledge, context preview.
+	 *
+	 * @return void
+	 */
+	public static function render_intelligence_centre() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
+			return;
+		}
+
+		$rwga_preview_workflow = isset( $_GET['rwga_preview_workflow'] ) ? sanitize_key( wp_unslash( $_GET['rwga_preview_workflow'] ) ) : 'ux_analysis'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$rwga_preview_page_id  = isset( $_GET['rwga_preview_page_id'] ) ? max( 0, (int) $_GET['rwga_preview_page_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$rwga_site_context = class_exists( 'RWGA_Local_Intelligence', false )
+			? RWGA_Local_Intelligence::get_site_context()
+			: array();
+		if ( ! is_array( $rwga_site_context ) ) {
+			$rwga_site_context = array();
+		}
+
+		$rwga_graph = array();
+		if ( class_exists( 'RWGA_Relationship_Graph', false ) ) {
+			$rwga_graph = RWGA_Relationship_Graph::get_graph();
+			if ( ! is_array( $rwga_graph ) || empty( $rwga_graph ) ) {
+				$rwga_graph = RWGA_Relationship_Graph::refresh();
+			}
+		}
+
+		$rwga_knowledge = class_exists( 'RWGA_Knowledge_Graph', false )
+			? RWGA_Knowledge_Graph::benchmark_context(
+				array(
+					'page_id' => $rwga_preview_page_id,
+				)
+			)
+			: array();
+
+		$rwga_context_preview = array();
+		if ( class_exists( 'RWGA_Context_Builder', false ) && '' !== $rwga_preview_workflow ) {
+			$bundle = RWGA_Context_Builder::build(
+				$rwga_preview_workflow,
+				array(
+					'page_id' => $rwga_preview_page_id,
+				)
+			);
+			$rwga_context_preview = array(
+				'remote_ready'    => RWGA_Context_Builder::for_remote_api( $bundle ),
+				'_payload_audit'  => isset( $bundle['_payload_audit'] ) ? $bundle['_payload_audit'] : array(),
+			);
+		}
+
+		$rwga_recent_runs = class_exists( 'RWGA_DB_AI_Runs', false )
+			? RWGA_DB_AI_Runs::list_recent( 10 )
+			: array();
+
+		$rwgc_nav_current = 'rwga-intelligence-centre';
+		include RWGA_PATH . 'admin/views/intelligence-centre-page.php';
 	}
 
 	public static function render_intelligence_actions() {

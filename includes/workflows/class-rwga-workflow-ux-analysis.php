@@ -73,28 +73,24 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 		if ( is_wp_error( $v ) ) {
 			return $v;
 		}
-		$in                     = $this->sanitise_common( $input );
-		$in['analysis_focus']   = $this->normalise_analysis_focus( $input );
-		if ( $in['page_id'] > 0 && class_exists( 'RWGA_Page_Context', false ) ) {
-			$in['page_context'] = RWGA_Page_Context::collect( $in['page_id'] );
-		}
-		if ( $in['page_id'] > 0 && class_exists( 'RWGA_Page_Context_Builder', false ) ) {
-			$in['ai_page_context'] = RWGA_Page_Context_Builder::build( $in['page_id'] );
-			if ( class_exists( 'RWGA_Builder_Recommendations', false ) && ! empty( $in['ai_page_context'] ) ) {
-				$in['builder_recommendations'] = RWGA_Builder_Recommendations::from_context( $in['ai_page_context'] );
-			}
-		}
+		$in                   = $this->sanitise_common( $input );
+		$in['analysis_focus'] = $this->normalise_analysis_focus( $input );
 
-		$mode = RWGA_Engine::get_mode();
-		$remote_payload = $in;
-		if ( RWGA_Engine::should_try_remote() && isset( $remote_payload['page_context'] ) && is_array( $remote_payload['page_context'] ) && function_exists( 'rwga_ai_reading_bundle_from_page_context' ) ) {
-			$remote_payload['reading_context'] = rwga_ai_reading_bundle_from_page_context( $remote_payload['page_context'] );
-			unset( $remote_payload['page_context'] );
-		}
-		if ( RWGA_Engine::should_try_remote() && ! empty( $remote_payload['ai_page_context'] ) && class_exists( 'RWGA_Page_Context_Builder', false ) ) {
-			$remote_payload['builder_context'] = RWGA_Page_Context_Builder::compact_for_api( $remote_payload['ai_page_context'] );
-			unset( $remote_payload['ai_page_context'] );
-		}
+		$mode           = RWGA_Engine::get_mode();
+		$remote_payload = class_exists( 'RWGA_Context_Builder', false )
+			? RWGA_Context_Builder::for_remote_api(
+				RWGA_Context_Builder::build(
+					$this->get_key(),
+					array_merge(
+						$in,
+						array(
+							'analysis_focus' => $in['analysis_focus'],
+							'user_request'   => isset( $input['user_request'] ) ? (string) $input['user_request'] : '',
+						)
+					)
+				)
+			)
+			: $in;
 		$remote = RWGA_Engine::should_try_remote() ? RWGA_Remote_Client::dispatch( $this->get_key(), $remote_payload ) : null;
 		$use_api = ! is_wp_error( $remote ) && is_array( $remote ) && ! empty( $remote['engine_response'] );
 
@@ -202,6 +198,31 @@ class RWGA_Workflow_UX_Analysis extends RWGA_Workflow_Base {
 			array(
 				'workflow_key' => $this->get_key(),
 				'score'        => isset( $result['score'] ) ? $result['score'] : null,
+			)
+		);
+
+		/**
+		 * Fires after a workflow result is persisted (local intelligence layer).
+		 *
+		 * @param string               $workflow_key Workflow key.
+		 * @param array<string, mixed> $input        Workflow input.
+		 * @param array<string, mixed> $result       Normalised result.
+		 * @param array<string, mixed> $meta         Telemetry metadata.
+		 */
+		$telemetry = class_exists( 'RWGA_Remote_Client', false ) ? RWGA_Remote_Client::telemetry_meta() : array();
+		do_action(
+			'rwga_workflow_persisted',
+			$this->get_key(),
+			$input,
+			$result,
+			array_merge(
+				array(
+					'remote_run_id'   => $remote_run_id,
+					'analysis_run_id' => $run_id,
+					'input_hash'      => $seed,
+					'snapshot_hash'   => class_exists( 'RWGA_Local_Intelligence', false ) ? RWGA_Local_Intelligence::current_snapshot_hash() : '',
+				),
+				$telemetry
 			)
 		);
 

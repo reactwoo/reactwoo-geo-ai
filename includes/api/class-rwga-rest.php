@@ -358,6 +358,172 @@ class RWGA_REST {
 				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/site',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_site' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/page/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_page' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/insights',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_insights' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+				'args'                => array(
+					'entity_type' => array(
+						'default'           => 'page',
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'entity_id'   => array(
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/runs',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_runs' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+				'args'                => array(
+					'limit' => array(
+						'default'           => 20,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/ux/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_ux' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/messaging/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_messaging' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/visual/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_visual' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/context/(?P<workflow>[a-z0-9_]+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_context' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+				'args'                => array(
+					'page_id' => array(
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/graph',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_graph' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/knowledge',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_knowledge' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+				'args'                => array(
+					'industry'  => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'page_type' => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_key',
+					),
+					'region'    => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'page_id'   => array(
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/semantics/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_semantics' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/local/refresh',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_local_intelligence_refresh' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+				'args'                => array(
+					'page_id' => array(
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -1021,6 +1187,336 @@ class RWGA_REST {
 			return $out;
 		}
 		return rest_ensure_response( $out );
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/site
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_local_intelligence_site() {
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return rest_ensure_response( array( 'site_context' => null ) );
+		}
+		$row = RWGA_Local_Intelligence::get_site_context();
+		return rest_ensure_response(
+			array(
+				'site_context'        => is_array( $row ) ? self::decode_local_intelligence_row( $row ) : null,
+				'relationship_graph'  => RWGA_Local_Intelligence::get_relationship_graph(),
+				'version'             => RWGA_Local_Intelligence::VERSION,
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/context/(?P<workflow>[a-z0-9_]+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_local_intelligence_context( $request ) {
+		$workflow = isset( $request['workflow'] ) ? sanitize_key( (string) $request['workflow'] ) : '';
+		if ( '' === $workflow || ! class_exists( 'RWGA_Context_Builder', false ) ) {
+			return new WP_Error( 'rwga_bad_workflow', __( 'Invalid workflow key.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		$page_id = max( 0, (int) $request->get_param( 'page_id' ) );
+		$bundle  = RWGA_Context_Builder::build(
+			$workflow,
+			array(
+				'page_id'         => $page_id,
+				'geo_target'      => (string) $request->get_param( 'geo_target' ),
+				'analysis_focus'  => (string) $request->get_param( 'analysis_focus' ),
+				'user_request'    => (string) $request->get_param( 'user_request' ),
+				'variant_page_id' => (int) $request->get_param( 'variant_page_id' ),
+			)
+		);
+		return rest_ensure_response(
+			array(
+				'workflow'      => $workflow,
+				'page_id'       => $page_id,
+				'context'       => $bundle,
+				'remote_ready'  => RWGA_Context_Builder::for_remote_api( $bundle ),
+				'context_version' => RWGA_Context_Builder::VERSION,
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/graph
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_local_intelligence_graph() {
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return rest_ensure_response( array( 'relationship_graph' => array() ) );
+		}
+		$graph = RWGA_Local_Intelligence::get_relationship_graph();
+		if ( array() === $graph && class_exists( 'RWGA_Relationship_Graph', false ) ) {
+			$graph = RWGA_Relationship_Graph::refresh();
+		}
+		return rest_ensure_response(
+			array(
+				'relationship_graph' => $graph,
+				'compact'            => class_exists( 'RWGA_Relationship_Graph', false )
+					? RWGA_Relationship_Graph::compact_for_api( $graph )
+					: array(),
+				'version'            => RWGA_Local_Intelligence::VERSION,
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/knowledge
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_local_intelligence_knowledge( $request ) {
+		$args = array(
+			'industry'  => isset( $request['industry'] ) ? (string) $request['industry'] : '',
+			'page_type' => isset( $request['page_type'] ) ? (string) $request['page_type'] : '',
+			'region'    => isset( $request['region'] ) ? (string) $request['region'] : '',
+			'page_id'   => isset( $request['page_id'] ) ? (int) $request['page_id'] : 0,
+		);
+		$context = class_exists( 'RWGA_Knowledge_Graph', false )
+			? RWGA_Knowledge_Graph::benchmark_context( $args )
+			: array();
+		return rest_ensure_response(
+			array(
+				'knowledge' => $context,
+				'version'   => class_exists( 'RWGA_Knowledge_Graph', false ) ? RWGA_Knowledge_Graph::VERSION : '',
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/page/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_local_intelligence_page( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid page id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return rest_ensure_response( array( 'page_context' => null, 'insights' => array() ) );
+		}
+		$row = RWGA_Local_Intelligence::get_page_context( $id );
+		$decoded = is_array( $row ) ? self::decode_local_intelligence_row( $row ) : null;
+		$messaging = class_exists( 'RWGA_Local_Intelligence', false ) ? RWGA_Local_Intelligence::get_page_messaging( $id ) : array();
+		$ux_intel  = class_exists( 'RWGA_Local_Intelligence', false ) ? RWGA_Local_Intelligence::get_page_ux_intelligence( $id ) : array();
+		$visual    = class_exists( 'RWGA_Local_Intelligence', false ) ? RWGA_Local_Intelligence::get_page_visual_intelligence( $id ) : array();
+		$semantics = class_exists( 'RWGA_Local_Intelligence', false ) ? RWGA_Local_Intelligence::get_page_builder_semantics( $id ) : array();
+
+		return rest_ensure_response(
+			array(
+				'page_context'         => $decoded,
+				'messaging'            => $messaging,
+				'ux_intelligence'      => $ux_intel,
+				'visual_intelligence'  => $visual,
+				'builder_semantics'    => $semantics,
+				'insights'             => array_map( array( __CLASS__, 'decode_local_intelligence_row' ), RWGA_Local_Intelligence::get_page_insights( $id ) ),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/ux/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_local_intelligence_ux( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid page id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return rest_ensure_response( array( 'ux_intelligence' => array() ) );
+		}
+		return rest_ensure_response(
+			array(
+				'page_id'         => $id,
+				'ux_intelligence' => RWGA_Local_Intelligence::get_page_ux_intelligence( $id ),
+				'insights'        => array_values(
+					array_filter(
+						RWGA_Local_Intelligence::get_page_insights( $id ),
+						static function ( $row ) {
+							return is_array( $row ) && isset( $row['source'] ) && 'ux_insight_builder' === (string) $row['source'];
+						}
+					)
+				),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/semantics/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_local_intelligence_semantics( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid page id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return rest_ensure_response( array( 'builder_semantics' => array() ) );
+		}
+		return rest_ensure_response(
+			array(
+				'page_id'           => $id,
+				'builder_semantics' => RWGA_Local_Intelligence::get_page_builder_semantics( $id ),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/visual/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_local_intelligence_visual( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid page id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return rest_ensure_response( array( 'visual_intelligence' => array() ) );
+		}
+		return rest_ensure_response(
+			array(
+				'page_id'             => $id,
+				'visual_intelligence' => RWGA_Local_Intelligence::get_page_visual_intelligence( $id ),
+				'insights'            => array_values(
+					array_filter(
+						RWGA_Local_Intelligence::get_page_insights( $id ),
+						static function ( $row ) {
+							return is_array( $row ) && isset( $row['source'] ) && 'visual_analyzer' === (string) $row['source'];
+						}
+					)
+				),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/messaging/(?P<id>\\d+)
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_local_intelligence_messaging( $request ) {
+		$id = isset( $request['id'] ) ? (int) $request['id'] : 0;
+		if ( $id <= 0 ) {
+			return new WP_Error( 'rwga_bad_id', __( 'Invalid page id.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return rest_ensure_response( array( 'messaging' => array() ) );
+		}
+		return rest_ensure_response(
+			array(
+				'page_id'   => $id,
+				'messaging' => RWGA_Local_Intelligence::get_page_messaging( $id ),
+				'insights'  => array_values(
+					array_filter(
+						RWGA_Local_Intelligence::get_page_insights( $id ),
+						static function ( $row ) {
+							return is_array( $row ) && isset( $row['source'] ) && 'messaging_analyzer' === (string) $row['source'];
+						}
+					)
+				),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/insights
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_local_intelligence_insights( $request ) {
+		$entity_type = sanitize_key( (string) $request->get_param( 'entity_type' ) );
+		$entity_id   = max( 0, (int) $request->get_param( 'entity_id' ) );
+		if ( '' === $entity_type ) {
+			$entity_type = 'page';
+		}
+		$rows = class_exists( 'RWGA_DB_UX_Insights', false )
+			? RWGA_DB_UX_Insights::list_for_entity( $entity_type, $entity_id, 50 )
+			: array();
+		return rest_ensure_response(
+			array(
+				'entity_type' => $entity_type,
+				'entity_id'   => $entity_id,
+				'insights'    => array_map( array( __CLASS__, 'decode_local_intelligence_row' ), $rows ),
+			)
+		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/local/runs
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_local_intelligence_runs( $request ) {
+		$limit = max( 1, min( 100, (int) $request->get_param( 'limit' ) ) );
+		$rows  = class_exists( 'RWGA_DB_AI_Runs', false ) ? RWGA_DB_AI_Runs::list_recent( $limit ) : array();
+		return rest_ensure_response(
+			array(
+				'runs' => array_map(
+					static function ( $row ) {
+						if ( is_array( $row ) ) {
+							$row['cache_hit'] = ! empty( $row['cache_hit'] );
+						}
+						return $row;
+					},
+					$rows
+				),
+			)
+		);
+	}
+
+	/**
+	 * POST /geo-ai/v1/intelligence/local/refresh
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_local_intelligence_refresh( $request ) {
+		if ( ! class_exists( 'RWGA_Local_Intelligence', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Local intelligence layer is not available.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$page_id = max( 0, (int) $request->get_param( 'page_id' ) );
+		$result  = RWGA_Local_Intelligence::refresh_all( $page_id );
+		return rest_ensure_response(
+			array(
+				'refreshed' => $result,
+				'version'   => RWGA_Local_Intelligence::VERSION,
+			)
+		);
+	}
+
+	/**
+	 * @param array<string, mixed> $row DB row.
+	 * @return array<string, mixed>
+	 */
+	private static function decode_local_intelligence_row( array $row ) {
+		foreach ( array( 'context_json', 'installed_satellites', 'scores_json', 'evidence_json' ) as $key ) {
+			if ( ! isset( $row[ $key ] ) || ! is_string( $row[ $key ] ) || '' === $row[ $key ] ) {
+				continue;
+			}
+			$dec = json_decode( $row[ $key ], true );
+			if ( JSON_ERROR_NONE === json_last_error() && is_array( $dec ) ) {
+				$row[ $key ] = $dec;
+			}
+		}
+		return $row;
 	}
 
 	/**

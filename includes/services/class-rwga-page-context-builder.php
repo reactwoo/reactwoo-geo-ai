@@ -61,6 +61,10 @@ class RWGA_Page_Context_Builder {
 			'detected_issues' => isset( $ux_scores['detected_issues'] ) ? $ux_scores['detected_issues'] : array(),
 		);
 
+		if ( class_exists( 'RWGA_Context_Extractor_Registry', false ) ) {
+			$payload['builder_semantics'] = RWGA_Context_Extractor_Registry::extract( $post_id, $payload );
+		}
+
 		/**
 		 * Filter AI page context payload before workflows/API.
 		 *
@@ -110,6 +114,11 @@ class RWGA_Page_Context_Builder {
 
 		$ux = isset( $payload['ux_scores'] ) && is_array( $payload['ux_scores'] ) ? $payload['ux_scores'] : array();
 
+		$semantics = array();
+		if ( class_exists( 'RWGA_Context_Extractor_Base', false ) && ! empty( $payload['builder_semantics'] ) && is_array( $payload['builder_semantics'] ) ) {
+			$semantics = RWGA_Context_Extractor_Base::compact_for_api( $payload['builder_semantics'] );
+		}
+
 		return array(
 			'builder'          => isset( $payload['builder'] ) ? (string) $payload['builder'] : '',
 			'page_type'        => isset( $payload['page_type'] ) ? (string) $payload['page_type'] : '',
@@ -124,6 +133,7 @@ class RWGA_Page_Context_Builder {
 				'trust_score'   => isset( $ux['trust_score'] ) ? (int) $ux['trust_score'] : 0,
 			),
 			'detected_issues'  => array_slice( isset( $payload['detected_issues'] ) ? $payload['detected_issues'] : array(), 0, 8 ),
+			'builder_semantics'=> $semantics,
 		);
 	}
 

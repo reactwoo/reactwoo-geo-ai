@@ -20,6 +20,11 @@ class RWGA_Remote_Client {
 	const DEFAULT_PATH = '/api/v5/geo-ai/workflow';
 
 	/**
+	 * @var array<string, mixed>|null
+	 */
+	private static $last_dispatch_meta = null;
+
+	/**
 	 * Execute a workflow on the remote engine.
 	 *
 	 * On success returns array with keys: remote_run_id (string, may be empty), engine_response (array).
@@ -32,6 +37,20 @@ class RWGA_Remote_Client {
 		$workflow_key = sanitize_key( (string) $workflow_key );
 		if ( '' === $workflow_key ) {
 			return new WP_Error( 'rwga_bad_workflow', __( 'Invalid workflow key.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+
+		self::$last_dispatch_meta = null;
+		$route                  = class_exists( 'RWGA_Model_Router', false ) ? RWGA_Model_Router::resolve( $workflow_key ) : array();
+
+		if ( class_exists( 'RWGA_Insight_Memory', false ) ) {
+			$cached = RWGA_Insight_Memory::lookup( $workflow_key, $payload, $route );
+			if ( is_array( $cached ) ) {
+				self::$last_dispatch_meta = array(
+					'cache_hit'   => true,
+					'model_route' => isset( $cached['model_route'] ) && is_array( $cached['model_route'] ) ? $cached['model_route'] : $route,
+				);
+				return $cached;
+			}
 		}
 
 		if ( ! class_exists( 'RWGA_Platform_Client', false ) ) {
@@ -57,9 +76,14 @@ class RWGA_Remote_Client {
 			}
 		}
 
+		$payload_for_api = $payload;
+		if ( class_exists( 'RWGA_Model_Router', false ) && array() !== $route ) {
+			$payload_for_api['model_routing'] = RWGA_Model_Router::for_api( $route );
+		}
+
 		$body = array(
 			'workflow_key' => $workflow_key,
-			'payload'      => $payload,
+			'payload'      => $payload_for_api,
 			'site'         => array(
 				'uuid'    => $site_uuid,
 				'url'     => home_url( '/' ),
@@ -125,6 +149,50 @@ class RWGA_Remote_Client {
 			return new WP_Error( 'rwga_remote_shape', __( 'Remote response did not include a usable result.', 'reactwoo-geo-ai' ), array( 'status' => 502 ) );
 		}
 
+		if ( class_exists( 'RWGA_Insight_Memory', false ) ) {
+			RWGA_Insight_Memory::store( $workflow_key, $payload, $route, $parsed );
+		}
+
+		$parsed['cache_hit']   = false;
+		$parsed['model_route'] = $route;
+		self::$last_dispatch_meta = array(
+			'cache_hit'   => false,
+			'model_route' => $route,
+		);
+
 		return $parsed;
+	}
+
+	/**
+	 * Metadata from the most recent dispatch (cache hit, model route).
+	 *
+	 * @return array<string, mixed>
+	 */
+	public static function last_dispatch_meta() {
+		return is_array( self::$last_dispatch_meta ) ? self::$last_dispatch_meta : array();
+	}
+
+	/**
+	 * Telemetry fields for rwga_workflow_persisted.
+	 *
+	 * @param array<string, mixed> $usage Optional usage block from engine response.
+	 * @return array<string, mixed>
+	 */
+	public static function telemetry_meta( array $usage = array() ) {
+		$meta  = self::last_dispatch_meta();
+		$route = isset( $meta['model_route'] ) && is_array( $meta['model_route'] ) ? $meta['model_route'] : array();
+
+		return array(
+			'cache_hit'      => ! empty( $meta['cache_hit'] ) || ! empty( $usage['cache_hit'] ),
+			'model'            => ! empty( $usage['model'] )
+				? sanitize_text_field( (string) $usage['model'] )
+				: ( isset( $route['model_hint'] ) ? sanitize_text_field( (string) $route['model_hint'] ) : '' ),
+			'provider'         => ! empty( $usage['provider'] )
+				? sanitize_key( (string) $usage['provider'] )
+				: ( isset( $route['provider_hint'] ) ? sanitize_key( (string) $route['provider_hint'] ) : '' ),
+			'prompt_version'   => isset( $route['prompt_version'] )
+				? sanitize_text_field( (string) $route['prompt_version'] )
+				: ( class_exists( 'RWGA_Local_Intelligence', false ) ? RWGA_Local_Intelligence::PROMPT_VERSION : '1.0.0' ),
+		);
 	}
 }

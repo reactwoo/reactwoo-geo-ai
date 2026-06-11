@@ -102,7 +102,25 @@ class RWGA_Workflow_Intelligence extends RWGA_Workflow_Base {
 			$base['context'] = $input['context'];
 		}
 
-		$base['site_intelligence'] = $this->build_site_intelligence_slice();
+		if ( class_exists( 'RWGA_Context_Builder', false ) ) {
+			$bundle = RWGA_Context_Builder::for_remote_api(
+				RWGA_Context_Builder::build(
+					$this->get_key(),
+					array_merge(
+						$base,
+						array(
+							'rule_id'         => isset( $input['rule_id'] ) ? $input['rule_id'] : '',
+							'popup_id'        => isset( $input['popup_id'] ) ? $input['popup_id'] : 0,
+							'variant_page_id' => isset( $input['variant_page_id'] ) ? $input['variant_page_id'] : 0,
+							'context'         => isset( $input['context'] ) && is_array( $input['context'] ) ? $input['context'] : array(),
+						)
+					)
+				)
+			);
+			$base = array_merge( $base, $bundle );
+		} else {
+			$base['site_intelligence'] = $this->build_site_intelligence_slice();
+		}
 
 		/**
 		 * @param array<string, mixed> $base         Request payload.
@@ -169,7 +187,7 @@ class RWGA_Workflow_Intelligence extends RWGA_Workflow_Base {
 		}
 
 		$norm = $this->normalise_response( $remote['engine_response'] );
-		return $this->persist( $payload, $norm );
+		return $this->persist( $payload, $norm, $remote );
 	}
 
 	/**
@@ -184,11 +202,12 @@ class RWGA_Workflow_Intelligence extends RWGA_Workflow_Base {
 	}
 
 	/**
-	 * @param array<string, mixed> $input  Input used.
-	 * @param array<string, mixed> $result Normalised result.
+	 * @param array<string, mixed>      $input  Input used.
+	 * @param array<string, mixed>      $result Normalised result.
+	 * @param array<string, mixed>|null $remote Remote client response.
 	 * @return array<string, mixed>
 	 */
-	public function persist( array $input, array $result ) {
+	public function persist( array $input, array $result, $remote = null ) {
 		$uid           = get_current_user_id();
 		$page_id       = isset( $input['page_id'] ) ? (int) $input['page_id'] : 0;
 		$geo           = isset( $input['geo_target'] ) ? (string) $input['geo_target'] : '';
@@ -272,6 +291,25 @@ class RWGA_Workflow_Intelligence extends RWGA_Workflow_Base {
 				)
 			);
 		}
+
+		$usage           = isset( $result['usage'] ) && is_array( $result['usage'] ) ? $result['usage'] : array();
+		$remote_run_id   = is_array( $remote ) && isset( $remote['remote_run_id'] ) ? (string) $remote['remote_run_id'] : '';
+		$telemetry       = class_exists( 'RWGA_Remote_Client', false ) ? RWGA_Remote_Client::telemetry_meta( $usage ) : array();
+
+		do_action(
+			'rwga_workflow_persisted',
+			$this->get_key(),
+			$input,
+			$result,
+			array_merge(
+				array(
+					'remote_run_id' => $remote_run_id,
+					'snapshot_hash' => $snapshot_hash,
+					'total_tokens'  => isset( $usage['charged_units'] ) ? (int) $usage['charged_units'] : ( isset( $usage['total_tokens'] ) ? (int) $usage['total_tokens'] : 0 ),
+				),
+				$telemetry
+			)
+		);
 
 		return array(
 			'success'            => true,

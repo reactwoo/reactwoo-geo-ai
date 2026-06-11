@@ -7,6 +7,10 @@ define( 'ABSPATH', dirname( __DIR__ ) . '/' );
 define( 'RWGA_PATH', dirname( __DIR__ ) . '/' );
 define( 'RWGA_VERSION', '0.4.78' );
 
+if ( ! defined( 'ARRAY_A' ) ) {
+	define( 'ARRAY_A', 'ARRAY_A' );
+}
+
 if ( ! class_exists( 'WP_Post' ) ) {
 	/**
 	 * Minimal post stub for builder tests.
@@ -25,6 +29,44 @@ if ( ! class_exists( 'WP_Post' ) ) {
 
 $GLOBALS['rwga_test_posts']      = array();
 $GLOBALS['rwga_test_post_meta']  = array();
+$GLOBALS['rwga_test_options']    = array();
+
+if ( ! isset( $GLOBALS['wpdb'] ) ) {
+	$GLOBALS['wpdb'] = new class() {
+		/** @var string */
+		public $prefix = 'wp_';
+
+		/**
+		 * @param string $query Query.
+		 * @return array<int, array<string, mixed>>
+		 */
+		public function get_results( $query, $output = OBJECT ) {
+			unset( $query, $output );
+			return array();
+		}
+
+		/**
+		 * @param string $query Query.
+		 * @return array<string, mixed>|null
+		 */
+		public function get_row( $query, $output = OBJECT, $y = 0 ) {
+			unset( $query, $output, $y );
+			return null;
+		}
+
+		/**
+		 * @param string $query Query.
+		 * @param mixed  ...$args Args.
+		 * @return string
+		 */
+		public function prepare( $query, ...$args ) {
+			if ( empty( $args ) ) {
+				return (string) $query;
+			}
+			return vsprintf( str_replace( '%s', "'%s'", str_replace( '%d', '%d', (string) $query ) ), $args );
+		}
+	};
+}
 
 if ( ! function_exists( 'sanitize_text_field' ) ) {
 	function sanitize_text_field( $str ) {
@@ -53,6 +95,20 @@ if ( ! function_exists( 'apply_filters' ) ) {
 
 if ( ! function_exists( 'do_action' ) ) {
 	function do_action( $hook, ...$args ) {
+	}
+}
+
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $option, $default = false ) {
+		return $GLOBALS['rwga_test_options'][ $option ] ?? $default;
+	}
+}
+
+if ( ! function_exists( 'update_option' ) ) {
+	function update_option( $option, $value, $autoload = null ) {
+		unset( $autoload );
+		$GLOBALS['rwga_test_options'][ $option ] = $value;
+		return true;
 	}
 }
 

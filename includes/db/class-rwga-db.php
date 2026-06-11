@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_DB {
 
 	const VERSION_OPTION = 'rwga_db_version';
-	const SCHEMA_VERSION = '1.3.0';
+	const SCHEMA_VERSION = '1.4.0';
 
 	/**
 	 * @return string
@@ -87,6 +87,46 @@ class RWGA_DB {
 	public static function intelligence_actions_table() {
 		global $wpdb;
 		return $wpdb->prefix . 'rwga_intelligence_actions';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function site_context_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'rwga_site_context';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function page_context_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'rwga_page_context';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function entity_context_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'rwga_entity_context';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function ux_insights_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'rwga_ux_insights';
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function ai_runs_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'rwga_ai_runs';
 	}
 
 	/**
@@ -333,6 +373,122 @@ class RWGA_DB {
 		dbDelta( $mem );
 		dbDelta( $out );
 		dbDelta( $intel_actions );
+
+		$site_ctx = 'CREATE TABLE ' . self::site_context_table() . " (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			site_uuid varchar(64) NOT NULL DEFAULT '',
+			site_type varchar(50) NOT NULL DEFAULT '',
+			industry varchar(100) NOT NULL DEFAULT '',
+			primary_goal varchar(100) NOT NULL DEFAULT '',
+			conversion_model varchar(100) NOT NULL DEFAULT '',
+			localisation_maturity varchar(20) NOT NULL DEFAULT 'none',
+			optimisation_maturity varchar(20) NOT NULL DEFAULT 'none',
+			installed_satellites longtext NULL,
+			intelligence_version varchar(20) NOT NULL DEFAULT '',
+			context_json longtext NULL,
+			snapshot_hash varchar(64) NULL,
+			refreshed_at datetime NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY site_uuid (site_uuid),
+			KEY snapshot_hash (snapshot_hash)
+		) $charset_collate;";
+
+		$page_ctx = 'CREATE TABLE ' . self::page_context_table() . " (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			page_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			page_type varchar(50) NOT NULL DEFAULT '',
+			funnel_stage varchar(50) NOT NULL DEFAULT '',
+			builder_type varchar(30) NOT NULL DEFAULT '',
+			messaging_summary longtext NULL,
+			ux_summary longtext NULL,
+			conversion_summary longtext NULL,
+			localisation_summary longtext NULL,
+			context_json longtext NULL,
+			entity_hash varchar(64) NULL,
+			intelligence_version varchar(20) NOT NULL DEFAULT '',
+			refreshed_at datetime NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY page_id (page_id),
+			KEY entity_hash (entity_hash)
+		) $charset_collate;";
+
+		$entity_ctx = 'CREATE TABLE ' . self::entity_context_table() . " (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			entity_type varchar(50) NOT NULL DEFAULT '',
+			entity_id varchar(64) NOT NULL DEFAULT '',
+			label varchar(255) NOT NULL DEFAULT '',
+			context_json longtext NULL,
+			snapshot_hash varchar(64) NULL,
+			entity_hash varchar(64) NULL,
+			refreshed_at datetime NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY entity_key (entity_type, entity_id),
+			KEY snapshot_hash (snapshot_hash)
+		) $charset_collate;";
+
+		$ux_insights = 'CREATE TABLE ' . self::ux_insights_table() . " (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			entity_type varchar(50) NOT NULL DEFAULT 'page',
+			entity_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			insight_key varchar(100) NOT NULL DEFAULT '',
+			finding longtext NOT NULL,
+			severity varchar(20) NOT NULL DEFAULT 'medium',
+			category varchar(50) NOT NULL DEFAULT '',
+			insight_type varchar(50) NOT NULL DEFAULT '',
+			scores_json longtext NULL,
+			evidence_json longtext NULL,
+			source varchar(64) NOT NULL DEFAULT '',
+			source_version varchar(20) NOT NULL DEFAULT '',
+			snapshot_hash varchar(64) NULL,
+			entity_hash varchar(64) NULL,
+			status varchar(20) NOT NULL DEFAULT 'active',
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY entity (entity_type, entity_id),
+			KEY insight_key (insight_key),
+			KEY status (status)
+		) $charset_collate;";
+
+		$ai_runs = 'CREATE TABLE ' . self::ai_runs_table() . " (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			workflow_key varchar(64) NOT NULL DEFAULT '',
+			model varchar(80) NOT NULL DEFAULT '',
+			provider varchar(40) NOT NULL DEFAULT '',
+			prompt_version varchar(20) NOT NULL DEFAULT '',
+			duration_ms int(10) unsigned NULL,
+			prompt_tokens int(10) unsigned NULL,
+			completion_tokens int(10) unsigned NULL,
+			total_tokens int(10) unsigned NULL,
+			result_hash varchar(64) NULL,
+			cache_hit tinyint(1) NOT NULL DEFAULT 0,
+			entity_type varchar(50) NULL,
+			entity_id bigint(20) unsigned NULL,
+			page_id bigint(20) unsigned NULL,
+			snapshot_hash varchar(64) NULL,
+			remote_run_id varchar(128) NULL,
+			analysis_run_id bigint(20) unsigned NULL,
+			status varchar(20) NOT NULL DEFAULT 'complete',
+			result_summary text NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY workflow_key (workflow_key),
+			KEY result_hash (result_hash),
+			KEY page_id (page_id),
+			KEY created_at (created_at)
+		) $charset_collate;";
+
+		dbDelta( $site_ctx );
+		dbDelta( $page_ctx );
+		dbDelta( $entity_ctx );
+		dbDelta( $ux_insights );
+		dbDelta( $ai_runs );
 
 		update_option( self::VERSION_OPTION, self::SCHEMA_VERSION, false );
 	}

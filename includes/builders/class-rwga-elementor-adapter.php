@@ -347,6 +347,32 @@ class RWGA_Elementor_Adapter implements RWGA_Builder_Adapter_Interface {
 		}
 		if ( 'button' === $widget_type ) {
 			$out['url'] = isset( $settings['link']['url'] ) ? (string) $settings['link']['url'] : ( isset( $settings['url'] ) ? (string) $settings['url'] : '' );
+			$bg = '';
+			foreach ( array( 'background_color', 'button_background_color', '_background_color' ) as $key ) {
+				if ( ! empty( $settings[ $key ] ) ) {
+					$bg = RWGA_Builder_Normalize::normalize_color_value( (string) $settings[ $key ] );
+					if ( '' !== $bg ) {
+						break;
+					}
+				}
+			}
+			$text = '';
+			foreach ( array( 'button_text_color', 'text_color', 'color' ) as $key ) {
+				if ( ! empty( $settings[ $key ] ) ) {
+					$text = RWGA_Builder_Normalize::normalize_color_value( (string) $settings[ $key ] );
+					if ( '' !== $text ) {
+						break;
+					}
+				}
+			}
+			if ( '' !== $bg ) {
+				$out['background_color'] = $bg;
+				$out['background_role']  = RWGA_Builder_Normalize::interpret_color_role( $bg );
+			}
+			if ( '' !== $text ) {
+				$out['text_color'] = $text;
+				$out['text_role']  = RWGA_Builder_Normalize::interpret_color_role( $text );
+			}
 		}
 		if ( in_array( $widget_type, array( 'image', 'image-gallery' ), true ) ) {
 			$out['url'] = isset( $settings['image']['url'] ) ? (string) $settings['image']['url'] : '';

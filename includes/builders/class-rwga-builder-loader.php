@@ -38,8 +38,15 @@ class RWGA_Builder_Loader {
 		require_once $base . 'class-rwga-section-blueprint.php';
 		require_once $base . 'class-rwga-widget-blueprint.php';
 		require_once $base . 'class-rwga-page-blueprint.php';
+		require_once $base . 'extractors/interface-rwga-context-extractor.php';
+		require_once $base . 'extractors/class-rwga-context-extractor-base.php';
+		require_once $base . 'extractors/class-rwga-elementor-context-extractor.php';
+		require_once $base . 'extractors/class-rwga-gutenberg-context-extractor.php';
+		require_once $base . 'extractors/class-rwga-classic-context-extractor.php';
+		require_once $base . 'extractors/class-rwga-context-extractor-registry.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-page-context-builder.php';
 
 		RWGA_Builder_Registry::boot();
+		RWGA_Context_Extractor_Registry::boot();
 	}
 }

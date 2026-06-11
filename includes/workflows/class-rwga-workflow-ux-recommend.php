@@ -94,28 +94,28 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 		$mode     = class_exists( 'RWGA_Engine', false ) ? RWGA_Engine::get_mode() : 'local';
 
 		$page_id = isset( $run['page_id'] ) ? (int) $run['page_id'] : 0;
-		$builder_recs = array();
-		$builder_ctx  = array();
-		if ( $page_id > 0 && class_exists( 'RWGA_Page_Context_Builder', false ) ) {
-			$ai_ctx = RWGA_Page_Context_Builder::build( $page_id );
-			if ( ! empty( $ai_ctx ) ) {
-				$builder_ctx = RWGA_Page_Context_Builder::compact_for_api( $ai_ctx );
-				if ( class_exists( 'RWGA_Builder_Recommendations', false ) ) {
-					$builder_recs = RWGA_Builder_Recommendations::from_context( $ai_ctx );
-				}
-			}
-		}
 
-		$remote_payload = array(
-			'analysis_run_id'  => $analysis_run_id,
-			'business_goal'    => $goal,
-			'geo_target'       => isset( $input['geo_target'] ) ? sanitize_text_field( (string) $input['geo_target'] ) : ( isset( $run['geo_target'] ) ? (string) $run['geo_target'] : '' ),
-			'analysis_summary' => isset( $run['summary'] ) ? (string) $run['summary'] : '',
-			'findings'         => is_array( $findings ) ? $findings : array(),
-			'selected_categories' => $cats,
-			'builder_context'  => $builder_ctx,
-			'builder_recommendations' => $builder_recs,
-		);
+		$remote_payload = class_exists( 'RWGA_Context_Builder', false )
+			? RWGA_Context_Builder::for_remote_api(
+				RWGA_Context_Builder::build(
+					$this->get_key(),
+					array(
+						'page_id'               => $page_id,
+						'analysis_run_id'       => $analysis_run_id,
+						'business_goal'         => $goal,
+						'geo_target'            => isset( $input['geo_target'] ) ? sanitize_text_field( (string) $input['geo_target'] ) : ( isset( $run['geo_target'] ) ? (string) $run['geo_target'] : '' ),
+						'findings'              => is_array( $findings ) ? $findings : array(),
+						'selected_categories'   => $cats,
+						'user_request'          => $goal,
+						'analysis_summary'      => isset( $run['summary'] ) ? (string) $run['summary'] : '',
+					)
+				)
+			)
+			: array(
+				'analysis_run_id'  => $analysis_run_id,
+				'business_goal'    => $goal,
+				'findings'         => is_array( $findings ) ? $findings : array(),
+			);
 		$remote = class_exists( 'RWGA_Engine', false ) && RWGA_Engine::should_try_remote()
 			? RWGA_Remote_Client::dispatch( $this->get_key(), $remote_payload )
 			: null;
@@ -239,6 +239,21 @@ class RWGA_Workflow_UX_Recommend extends RWGA_Workflow_Base {
 		if ( $analysis_run_id > 0 && class_exists( 'RWGA_DB_Analysis_Runs', false ) ) {
 			RWGA_DB_Analysis_Runs::set_lifecycle_status( $analysis_run_id, 'recommendations_generated' );
 		}
+
+		$telemetry = class_exists( 'RWGA_Remote_Client', false ) ? RWGA_Remote_Client::telemetry_meta() : array();
+		do_action(
+			'rwga_workflow_persisted',
+			$this->get_key(),
+			$input,
+			$result,
+			array_merge(
+				array(
+					'analysis_run_id' => $analysis_run_id,
+					'snapshot_hash'   => class_exists( 'RWGA_Local_Intelligence', false ) ? RWGA_Local_Intelligence::current_snapshot_hash() : '',
+				),
+				$telemetry
+			)
+		);
 
 		return array(
 			'success'            => true,
