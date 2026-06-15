@@ -174,6 +174,11 @@ class RWGA_Plugin {
 		RWGA_Workflow_Registry::init();
 
 		require_once RWGA_PATH . 'includes/class-rwga-agent-registry.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-weather-facet-suggester.php';
+		require_once RWGA_PATH . 'includes/integrations/class-rwga-commerce-weather.php';
+		RWGA_Commerce_Weather::init();
+		require_once RWGA_PATH . 'includes/services/class-rwga-weather-catalog-audit.php';
+		RWGA_Weather_Catalog_Audit::init();
 		require_once RWGA_PATH . 'includes/api/class-rwga-rest.php';
 		RWGA_REST::init();
 	}

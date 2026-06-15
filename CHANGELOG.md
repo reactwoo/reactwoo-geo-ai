@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.90] - 2026-06-11
+
+### Added
+- **Weather merchandising:** `RWGA_Weather_Facet_Suggester`, remote `weather_facet_suggest` workflow integration, catalog audit cron, product suggest REST + admin JS.
+- **Provider-aware suggestions:** Keyword and remote suggest respect active weather provider capabilities (no `poor_air` / `high_pollen` on Open-Meteo).
+
 ## [0.4.89] - 2026-06-11
 
 ### Added

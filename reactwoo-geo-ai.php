@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ReactWoo Geo AI
  * Description: AI-assisted geo variant drafts for WordPress. Requires ReactWoo Geo Core. Uses ReactWoo API; not a replacement for Geo Core detection.
- * Version: 0.4.89
+ * Version: 0.4.90
  * Author: ReactWoo
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'RWGA_VERSION' ) ) {
-	define( 'RWGA_VERSION', '0.4.89' );
+	define( 'RWGA_VERSION', '0.4.90' );
 }
 if ( ! defined( 'RWGA_FILE' ) ) {
 	define( 'RWGA_FILE', __FILE__ );
@@ -52,6 +52,12 @@ register_deactivation_hook(
 	static function () {
 		require_once RWGA_PATH . 'includes/class-rwga-cron.php';
 		RWGA_Cron::deactivate();
+		if ( class_exists( 'RWGA_Weather_Catalog_Audit', false ) ) {
+			RWGA_Weather_Catalog_Audit::deactivate();
+		} else {
+			require_once RWGA_PATH . 'includes/services/class-rwga-weather-catalog-audit.php';
+			RWGA_Weather_Catalog_Audit::deactivate();
+		}
 	}
 );
 

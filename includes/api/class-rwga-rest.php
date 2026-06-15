@@ -524,6 +524,16 @@ class RWGA_REST {
 				),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/products/(?P<id>\\d+)/suggest-weather-facets',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_suggest_weather_facets' ),
+				'permission_callback' => array( __CLASS__, 'permission_edit_products' ),
+			)
+		);
 	}
 
 	/**
@@ -567,6 +577,34 @@ class RWGA_REST {
 			return new WP_Error( 'rwga_forbidden', __( 'Insufficient permission to manage automations.', 'reactwoo-geo-ai' ), array( 'status' => 403 ) );
 		}
 		return true;
+	}
+
+	/**
+	 * @return bool|\WP_Error
+	 */
+	public static function permission_edit_products() {
+		if ( ! current_user_can( 'edit_products' ) && ! current_user_can( 'manage_woocommerce' ) ) {
+			return new WP_Error( 'rwga_forbidden', __( 'Insufficient permission to edit products.', 'reactwoo-geo-ai' ), array( 'status' => 403 ) );
+		}
+		return true;
+	}
+
+	/**
+	 * POST /geo-ai/v1/products/{id}/suggest-weather-facets
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_suggest_weather_facets( $request ) {
+		if ( ! class_exists( 'RWGA_Weather_Facet_Suggester', false ) ) {
+			require_once RWGA_PATH . 'includes/services/class-rwga-weather-facet-suggester.php';
+		}
+		$pid = absint( $request['id'] );
+		if ( $pid <= 0 || ! current_user_can( 'edit_post', $pid ) ) {
+			return new WP_Error( 'rwga_forbidden', __( 'Cannot edit this product.', 'reactwoo-geo-ai' ), array( 'status' => 403 ) );
+		}
+		$result = RWGA_Weather_Facet_Suggester::suggest_for_product( $pid );
+		return rest_ensure_response( $result );
 	}
 
 	/**
