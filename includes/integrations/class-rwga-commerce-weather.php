@@ -21,20 +21,21 @@ class RWGA_Commerce_Weather {
 		if ( ! class_exists( 'WooCommerce', false ) || ! class_exists( 'RWGCM_Weather_Affinity', false ) ) {
 			return;
 		}
-		add_action( 'woocommerce_product_options_general_product_data', array( __CLASS__, 'render_suggest_button' ), 26 );
+		add_action( 'geocore_product_tab_after_weather', array( __CLASS__, 'render_suggest_button' ), 10 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_product_editor' ) );
 	}
 
 	/**
+	 * @param int $post_id Product ID.
 	 * @return void
 	 */
-	public static function render_suggest_button() {
-		global $post;
-		if ( ! $post instanceof WP_Post || 'product' !== $post->post_type ) {
+	public static function render_suggest_button( $post_id ) {
+		$post_id = absint( $post_id );
+		if ( $post_id <= 0 ) {
 			return;
 		}
 		echo '<p class="form-field rwgcm-product-weather-suggest">';
-		echo '<button type="button" class="button" id="rwga-suggest-weather-facets" data-product-id="' . esc_attr( (string) (int) $post->ID ) . '">';
+		echo '<button type="button" class="button" id="rwga-suggest-weather-facets" data-product-id="' . esc_attr( (string) $post_id ) . '">';
 		esc_html_e( 'Suggest weather facets (Geo AI)', 'reactwoo-geo-ai' );
 		echo '</button> ';
 		echo '<span class="description" id="rwga-suggest-weather-facets-status"></span>';
