@@ -156,6 +156,8 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/class-rwga-ai-snapshot.php';
 		RWGA_Knowledge_Graph::init();
 		RWGA_AI_Snapshot::init();
+		require_once RWGA_PATH . 'includes/class-rwga-insights-provider.php';
+		RWGA_Insights_Provider::init();
 		RWGA_Site_Intelligence_Sync::init();
 		RWGA_Site_Intelligence_Journey::init();
 		RWGA_Local_Intelligence::init();
