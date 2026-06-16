@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.93] - 2026-06-16
+
+### Fixed
+- **Site intelligence quota:** Cache monthly upload quota state from API responses; skip cron sync when quota is exhausted; show used/limit on the wizard with audit-only guidance when a prior sync exists.
+- **Snapshot upload errors:** Quota failures include `used/limit` in admin messages (`SNAPSHOT_QUOTA_EXCEEDED`).
+
 ## [0.4.90] - 2026-06-11
 
 ### Added

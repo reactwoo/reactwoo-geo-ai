@@ -41,12 +41,15 @@ class RWGA_Site_Intelligence_Sync {
 		}
 
 		$defaults = array(
-			'cloud_site_id'       => '',
-			'last_snapshot_hash'  => '',
-			'last_synced_at_gmt'  => '',
-			'last_sync_status'    => '',
-			'last_sync_error'     => '',
-			'last_skip_reason'    => '',
+			'cloud_site_id'            => '',
+			'last_snapshot_hash'       => '',
+			'last_synced_at_gmt'       => '',
+			'last_sync_status'         => '',
+			'last_sync_error'          => '',
+			'last_skip_reason'         => '',
+			'snapshot_quota_used'      => 0,
+			'snapshot_quota_limit'     => 0,
+			'snapshot_quota_month'     => '',
 		);
 
 		$status = array_merge( $defaults, $raw );
@@ -134,6 +137,25 @@ class RWGA_Site_Intelligence_Sync {
 			);
 		}
 
+		if ( ! $force && self::is_snapshot_quota_blocked() ) {
+			$quota = self::get_snapshot_quota_status();
+			$err   = RWGA_Site_Snapshot_Client::format_snapshot_quota_message( $quota );
+			self::save_status(
+				array(
+					'last_sync_status' => 'error',
+					'last_sync_error'  => $err,
+				)
+			);
+			return new WP_Error(
+				'rwga_snapshot_quota_exceeded',
+				$err,
+				array(
+					'quota' => $quota,
+					'code'  => 'SNAPSHOT_QUOTA_EXCEEDED',
+				)
+			);
+		}
+
 		$site_id = isset( $status['cloud_site_id'] ) ? (string) $status['cloud_site_id'] : '';
 		if ( '' === $site_id ) {
 			$registered = RWGA_Site_Snapshot_Client::register_site();
@@ -152,29 +174,35 @@ class RWGA_Site_Intelligence_Sync {
 
 		$upload = RWGA_Site_Snapshot_Client::upload_snapshot( $site_id, $snapshot );
 		if ( is_wp_error( $upload ) ) {
-			self::save_status(
-				array(
-					'last_sync_status' => 'error',
-					'last_sync_error'  => $upload->get_error_message(),
-				)
+			$patch = array(
+				'last_sync_status' => 'error',
+				'last_sync_error'  => $upload->get_error_message(),
 			);
+			$quota = self::extract_quota_from_error( $upload );
+			if ( is_array( $quota ) ) {
+				$patch = array_merge( $patch, self::quota_status_patch( $quota ) );
+			}
+			self::save_status( $patch );
 			if ( class_exists( 'RWGC_AI_Snapshot_Sync_Status', false ) ) {
 				RWGC_AI_Snapshot_Sync_Status::record_sync_error( $upload->get_error_message() );
 			}
 			return $upload;
 		}
 
-		$now = gmdate( 'c' );
-		self::save_status(
-			array(
-				'cloud_site_id'      => $site_id,
-				'last_snapshot_hash' => $hash,
-				'last_synced_at_gmt' => $now,
-				'last_sync_status'   => 'synced',
-				'last_sync_error'    => '',
-				'last_skip_reason'   => '',
-			)
+		$now   = gmdate( 'c' );
+		$patch = array(
+			'cloud_site_id'      => $site_id,
+			'last_snapshot_hash' => $hash,
+			'last_synced_at_gmt' => $now,
+			'last_sync_status'   => 'synced',
+			'last_sync_error'    => '',
+			'last_skip_reason'   => '',
 		);
+		$quota = self::extract_quota_from_upload( $upload );
+		if ( is_array( $quota ) ) {
+			$patch = array_merge( $patch, self::quota_status_patch( $quota ) );
+		}
+		self::save_status( $patch );
 
 		if ( class_exists( 'RWGC_AI_Snapshot_Sync_Status', false ) ) {
 			RWGC_AI_Snapshot_Sync_Status::record_sync_success( $hash );
@@ -205,7 +233,107 @@ class RWGA_Site_Intelligence_Sync {
 		if ( ! class_exists( 'RWGA_License', false ) || ! RWGA_License::is_configured() ) {
 			return;
 		}
+		if ( self::is_snapshot_quota_blocked() ) {
+			return;
+		}
 		self::sync( false );
+	}
+
+	/**
+	 * Whether the monthly snapshot upload quota is exhausted for the current month.
+	 *
+	 * @return bool
+	 */
+	public static function is_snapshot_quota_blocked() {
+		$quota = self::get_snapshot_quota_status();
+		if ( empty( $quota['month'] ) || $quota['month'] !== gmdate( 'Y-m' ) ) {
+			return false;
+		}
+		$limit = isset( $quota['limit'] ) ? (int) $quota['limit'] : 0;
+		$used  = isset( $quota['used'] ) ? (int) $quota['used'] : 0;
+		if ( $limit <= 0 ) {
+			return true;
+		}
+		return $used >= $limit;
+	}
+
+	/**
+	 * @return array{used:int,limit:int,month:string}
+	 */
+	public static function get_snapshot_quota_status() {
+		$status = self::get_status();
+		return array(
+			'used'  => isset( $status['snapshot_quota_used'] ) ? (int) $status['snapshot_quota_used'] : 0,
+			'limit' => isset( $status['snapshot_quota_limit'] ) ? (int) $status['snapshot_quota_limit'] : 0,
+			'month' => isset( $status['snapshot_quota_month'] ) ? (string) $status['snapshot_quota_month'] : '',
+		);
+	}
+
+	/**
+	 * Whether a successful cloud sync has completed at least once.
+	 *
+	 * @return bool
+	 */
+	public static function has_synced_snapshot() {
+		$status = self::get_status();
+		return ! empty( $status['last_synced_at_gmt'] ) && 'synced' === sanitize_key( (string) ( $status['last_sync_status'] ?? '' ) );
+	}
+
+	/**
+	 * @param array<string, mixed> $upload Upload response.
+	 * @return array{used:int,limit:int}|null
+	 */
+	private static function extract_quota_from_upload( $upload ) {
+		if ( ! is_array( $upload ) ) {
+			return null;
+		}
+		$response = isset( $upload['response'] ) && is_array( $upload['response'] ) ? $upload['response'] : array();
+		$inner    = isset( $response['data'] ) && is_array( $response['data'] ) ? $response['data'] : $response;
+		if ( isset( $inner['quota'] ) && is_array( $inner['quota'] ) ) {
+			return self::normalize_quota_row( $inner['quota'] );
+		}
+		return null;
+	}
+
+	/**
+	 * @param \WP_Error $error Upload error.
+	 * @return array{used:int,limit:int}|null
+	 */
+	private static function extract_quota_from_error( $error ) {
+		if ( ! is_wp_error( $error ) ) {
+			return null;
+		}
+		$data = $error->get_error_data();
+		if ( isset( $data['quota'] ) && is_array( $data['quota'] ) ) {
+			return self::normalize_quota_row( $data['quota'] );
+		}
+		if ( isset( $data['data'] ) && is_array( $data['data'] ) && isset( $data['data']['quota'] ) && is_array( $data['data']['quota'] ) ) {
+			return self::normalize_quota_row( $data['data']['quota'] );
+		}
+		return null;
+	}
+
+	/**
+	 * @param array<string, mixed> $quota API quota row.
+	 * @return array{used:int,limit:int}
+	 */
+	private static function normalize_quota_row( array $quota ) {
+		return array(
+			'used'  => isset( $quota['used'] ) ? (int) $quota['used'] : 0,
+			'limit' => isset( $quota['limit'] ) ? (int) $quota['limit'] : 0,
+		);
+	}
+
+	/**
+	 * @param array{used:int,limit:int} $quota Quota row.
+	 * @return array<string, int|string>
+	 */
+	private static function quota_status_patch( array $quota ) {
+		return array(
+			'snapshot_quota_used'  => (int) $quota['used'],
+			'snapshot_quota_limit' => (int) $quota['limit'],
+			'snapshot_quota_month' => gmdate( 'Y-m' ),
+		);
 	}
 
 	/**

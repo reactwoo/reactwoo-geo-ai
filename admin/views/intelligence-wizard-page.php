@@ -28,6 +28,14 @@ $rwga_audit_only_url = wp_nonce_url(
 );
 $rwga_targeted_audits = isset( $rwga_targeted_audits ) && is_array( $rwga_targeted_audits ) ? $rwga_targeted_audits : array();
 $rwga_pending_count   = isset( $rwga_pending_count ) ? (int) $rwga_pending_count : 0;
+$rwga_sync_status     = isset( $rwga_sync_status ) && is_array( $rwga_sync_status ) ? $rwga_sync_status : array();
+$rwga_quota_blocked   = ! empty( $rwga_quota_blocked );
+$rwga_has_prior_sync  = ! empty( $rwga_has_prior_sync );
+$rwga_quota           = isset( $rwga_quota ) && is_array( $rwga_quota ) ? $rwga_quota : array(
+	'used'  => 0,
+	'limit' => 0,
+	'month' => '',
+);
 $rwga_toggle_auto_url = wp_nonce_url(
 	admin_url( 'admin-post.php?action=rwga_intelligence_wizard_toggle_auto' ),
 	'rwga_intelligence_wizard_toggle_auto'
@@ -132,6 +140,41 @@ $can_run = current_user_can( RWGA_Capabilities::CAP_RUN_AI );
 	}
 	?>
 
+	<?php if ( $rwga_quota_blocked || ( (int) $rwga_quota['limit'] > 0 && (int) $rwga_quota['used'] > 0 ) ) : ?>
+		<div class="notice notice-warning" style="max-width:820px;">
+			<p>
+				<?php if ( $rwga_quota_blocked ) : ?>
+					<strong><?php esc_html_e( 'Snapshot upload quota', 'reactwoo-geo-ai' ); ?></strong>
+					<?php
+					echo esc_html(
+						RWGA_Site_Snapshot_Client::format_snapshot_quota_message(
+							array(
+								'used'  => (int) $rwga_quota['used'],
+								'limit' => (int) $rwga_quota['limit'],
+							)
+						)
+					);
+					?>
+				<?php elseif ( (int) $rwga_quota['limit'] > 0 ) : ?>
+					<strong><?php esc_html_e( 'Snapshot upload quota', 'reactwoo-geo-ai' ); ?></strong>
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: 1: uploads used, 2: monthly limit */
+							__( '%1$d of %2$d snapshot uploads used this month.', 'reactwoo-geo-ai' ),
+							(int) $rwga_quota['used'],
+							(int) $rwga_quota['limit']
+						)
+					);
+					?>
+				<?php endif; ?>
+				<?php if ( $rwga_has_prior_sync ) : ?>
+					<?php esc_html_e( 'Your last snapshot is already in the cloud — use Run site audit only to continue without a new upload.', 'reactwoo-geo-ai' ); ?>
+				<?php endif; ?>
+			</p>
+		</div>
+	<?php endif; ?>
+
 	<div class="rwgc-card rwga-intel-wizard-hero" style="max-width:820px;margin-bottom:1.5rem;">
 		<h2><?php esc_html_e( 'Quick start', 'reactwoo-geo-ai' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Run everything in one go: sync your latest Geo snapshot to the cloud, then run a site audit. You will land on the review step when suggestions are ready.', 'reactwoo-geo-ai' ); ?></p>
@@ -155,8 +198,10 @@ $can_run = current_user_can( RWGA_Capabilities::CAP_RUN_AI );
 		<?php endif; ?>
 		<p class="rwgc-actions">
 			<?php if ( $can_run ) : ?>
-				<a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( $rwga_setup_url ); ?>"><?php esc_html_e( 'Run automated setup', 'reactwoo-geo-ai' ); ?></a>
-				<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( $rwga_audit_only_url ); ?>"><?php esc_html_e( 'Run site audit only', 'reactwoo-geo-ai' ); ?></a>
+				<?php if ( ! $rwga_quota_blocked ) : ?>
+					<a class="rwgc-btn rwgc-btn--primary" href="<?php echo esc_url( $rwga_setup_url ); ?>"><?php esc_html_e( 'Run automated setup', 'reactwoo-geo-ai' ); ?></a>
+				<?php endif; ?>
+				<a class="rwgc-btn rwgc-btn--<?php echo $rwga_quota_blocked ? 'primary' : 'secondary'; ?>" href="<?php echo esc_url( $rwga_audit_only_url ); ?>"><?php esc_html_e( 'Run site audit only', 'reactwoo-geo-ai' ); ?></a>
 			<?php endif; ?>
 			<a class="rwgc-btn rwgc-btn--secondary" href="<?php echo esc_url( admin_url( 'admin.php?page=rwga-intelligence-actions&status=pending' ) ); ?>"><?php esc_html_e( 'Pending suggestions', 'reactwoo-geo-ai' ); ?></a>
 		</p>

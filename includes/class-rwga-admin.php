@@ -2596,6 +2596,20 @@ class RWGA_Admin {
 		$rwga_pending_count = class_exists( 'RWGA_Site_Intelligence_Journey', false )
 			? RWGA_Site_Intelligence_Journey::count_all_pending_actions()
 			: 0;
+		$rwga_sync_status   = class_exists( 'RWGA_Site_Intelligence_Sync', false )
+			? RWGA_Site_Intelligence_Sync::get_status()
+			: array();
+		$rwga_quota         = class_exists( 'RWGA_Site_Intelligence_Sync', false )
+			? RWGA_Site_Intelligence_Sync::get_snapshot_quota_status()
+			: array(
+				'used'  => 0,
+				'limit' => 0,
+				'month' => '',
+			);
+		$rwga_quota_blocked = class_exists( 'RWGA_Site_Intelligence_Sync', false )
+			&& RWGA_Site_Intelligence_Sync::is_snapshot_quota_blocked();
+		$rwga_has_prior_sync = class_exists( 'RWGA_Site_Intelligence_Sync', false )
+			&& RWGA_Site_Intelligence_Sync::has_synced_snapshot();
 		$rwgc_nav_current = 'rwga-intelligence-wizard';
 		include RWGA_PATH . 'admin/views/intelligence-wizard-page.php';
 	}

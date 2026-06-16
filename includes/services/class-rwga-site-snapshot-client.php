@@ -138,8 +138,20 @@ class RWGA_Site_Snapshot_Client {
 		$data = isset( $result['data'] ) && is_array( $result['data'] ) ? $result['data'] : null;
 
 		if ( $code < 200 || $code >= 300 ) {
-			$msg = self::extract_api_message( is_array( $data ) ? $data : null, __( 'Snapshot upload failed.', 'reactwoo-geo-ai' ) );
-			return new WP_Error( 'rwga_upload_failed', $msg, array( 'status' => $code, 'data' => $data ) );
+			$msg  = self::extract_api_message( is_array( $data ) ? $data : null, __( 'Snapshot upload failed.', 'reactwoo-geo-ai' ) );
+			$meta = array( 'status' => $code, 'data' => $data );
+			if ( is_array( $data ) ) {
+				$api_code = isset( $data['code'] ) ? sanitize_key( (string) $data['code'] ) : '';
+				if ( 'SNAPSHOT_QUOTA_EXCEEDED' === $api_code ) {
+					$quota = isset( $data['quota'] ) && is_array( $data['quota'] ) ? $data['quota'] : null;
+					if ( is_array( $quota ) ) {
+						$meta['quota'] = $quota;
+						$meta['code']  = $api_code;
+					}
+					return new WP_Error( 'rwga_snapshot_quota_exceeded', $msg, $meta );
+				}
+			}
+			return new WP_Error( 'rwga_upload_failed', $msg, $meta );
 		}
 
 		$parsed = array(
@@ -175,7 +187,8 @@ class RWGA_Site_Snapshot_Client {
 		}
 		$code = isset( $data['code'] ) ? sanitize_key( (string) $data['code'] ) : '';
 		if ( 'SNAPSHOT_QUOTA_EXCEEDED' === $code ) {
-			return __( 'Monthly site intelligence upload limit reached for this license.', 'reactwoo-geo-ai' );
+			$quota = isset( $data['quota'] ) && is_array( $data['quota'] ) ? $data['quota'] : null;
+			return self::format_snapshot_quota_message( $quota );
 		}
 		if ( 'RATE_LIMIT_EXCEEDED' === $code ) {
 			return __( 'Site intelligence sync rate limit reached. Try again later.', 'reactwoo-geo-ai' );
@@ -184,5 +197,26 @@ class RWGA_Site_Snapshot_Client {
 			return __( 'Site intelligence sync requires a Pro plan or higher.', 'reactwoo-geo-ai' );
 		}
 		return $fallback;
+	}
+
+	/**
+	 * @param array<string, mixed>|null $quota API quota payload.
+	 * @return string
+	 */
+	public static function format_snapshot_quota_message( $quota ) {
+		if ( ! is_array( $quota ) ) {
+			return __( 'Monthly site intelligence upload limit reached for this license.', 'reactwoo-geo-ai' );
+		}
+		$used  = isset( $quota['used'] ) ? (int) $quota['used'] : 0;
+		$limit = isset( $quota['limit'] ) ? (int) $quota['limit'] : 0;
+		if ( $limit <= 0 ) {
+			return __( 'Monthly site intelligence upload limit is not available on this plan.', 'reactwoo-geo-ai' );
+		}
+		return sprintf(
+			/* translators: 1: uploads used, 2: monthly limit */
+			__( 'Monthly site intelligence upload limit reached (%1$d of %2$d used this month).', 'reactwoo-geo-ai' ),
+			$used,
+			$limit
+		);
 	}
 }
