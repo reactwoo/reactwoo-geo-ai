@@ -109,6 +109,71 @@ class RWGA_Variant_Group_Extractor {
 	}
 
 	/**
+	 * Variant groups for a plan (excludes original/source segment).
+	 *
+	 * @param string                    $phrase   Normalised phrase.
+	 * @param array<int,array>          $entities Entity rows.
+	 * @param array<string,mixed>|null  $source   Extracted source targeting.
+	 * @return array<int,array{raw:string,countries:array<int,string>,mode:string,label:string}>
+	 */
+	public static function extract_plan_variant_groups( $phrase, array $entities, $source = null ) {
+		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+		$remaining = $phrase;
+
+		if ( is_array( $source ) && ! empty( $source['raw'] ) ) {
+			$remaining = str_replace( (string) $source['raw'], ' ', $remaining );
+		}
+
+		$remaining = preg_replace(
+			'/^(?:.*?\b)?(?:duplicate|copy|clone)\s+(?:the\s+)?[\w\s-]+?\s+(?:twice|two times|three times)\b/i',
+			' ',
+			$remaining
+		);
+		$remaining = trim( preg_replace( '/\s+/', ' ', (string) $remaining ) );
+
+		$pair_patterns = array(
+			'/(?:and\s+)?create\s+one version for (.+?) and another for (.+?)$/i',
+			'/create one version for (.+?) and another for (.+?)$/i',
+			'/one version for (.+?) and another(?: version)? for (.+?)$/i',
+			'/one for (.+?) and another for (.+?)$/i',
+		);
+		foreach ( $pair_patterns as $pattern ) {
+			if ( preg_match( $pattern, $remaining, $m ) ) {
+				$g1 = self::group_from_segment( trim( $m[1] ), $entities );
+				$g2 = self::group_from_segment( trim( $m[2] ), $entities );
+				if ( ! empty( $g1['countries'] ) && ! empty( $g2['countries'] ) ) {
+					return array( $g1, $g2 );
+				}
+			}
+		}
+
+		$groups = array();
+		$regex  = '/(?:\band\s+)?(?:the\s+)?(?:(?:one|\d+(?:st|nd|rd|th)|first|second|third|another)\s+version\s+(?:will\s+show\s+in|should\s+show\s+in|is\s+for|for|show\s+in)?\s*(?:both\s+)?.+?)(?=\s+and\s+(?:the\s+)?(?:(?:one|\d+(?:st|nd|rd|th)|another)\s+version)|$)/i';
+		if ( preg_match_all( $regex, $remaining, $matches ) && ! empty( $matches[0] ) ) {
+			foreach ( $matches[0] as $seg ) {
+				$group = self::group_from_segment( trim( (string) $seg ), $entities );
+				if ( ! empty( $group['countries'] ) ) {
+					$groups[] = $group;
+				}
+			}
+			if ( count( $groups ) >= 1 ) {
+				return $groups;
+			}
+		}
+
+		return array();
+	}
+
+	/**
+	 * @param array<int,string> $codes    Country codes.
+	 * @param array<int,array>  $entities Entities.
+	 * @return string
+	 */
+	public static function label_for_countries( array $codes, array $entities ) {
+		return self::label_for_group( $codes, $entities );
+	}
+
+	/**
 	 * @param string           $segment  Raw segment text.
 	 * @param array<int,array> $entities Entities.
 	 * @return array{raw:string,countries:array<int,string>,mode:string,label:string}

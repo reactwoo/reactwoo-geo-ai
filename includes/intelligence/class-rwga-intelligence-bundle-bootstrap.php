@@ -85,6 +85,7 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 			array( 'DE', 'Germany', array( 'Germany', 'German', 'DE' ) ),
 			array( 'FR', 'France', array( 'France', 'French', 'FR' ) ),
 			array( 'RU', 'Russia', array( 'Russia', 'Russian', 'RU', 'russia' ) ),
+			array( 'PT', 'Portugal', array( 'Portugal', 'Portuguese', 'PT' ) ),
 		);
 		$out = array();
 		foreach ( $rows as $idx => $row ) {
@@ -112,6 +113,20 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 			if ( is_array( $row ) && ! empty( $row['action_key'] ) ) {
 				$by_key[ (string) $row['action_key'] ] = $row;
 			}
+		}
+		if ( ! isset( $by_key['geocore_create_variant_plan_with_country_rules'] ) ) {
+			$by_key['geocore_create_variant_plan_with_country_rules'] = array(
+				'action_key'            => 'geocore_create_variant_plan_with_country_rules',
+				'name'                  => 'Create Variant Plan With Country Rules',
+				'description'           => 'Apply source page targeting and create duplicate variants with country rules.',
+				'category'              => 'variant_creation',
+				'target_types'          => array( 'page', 'variant' ),
+				'required_params'       => array( 'source_page_ref' ),
+				'optional_params'       => array( 'duplicate_count', 'source_targeting', 'variants' ),
+				'requires_confirmation' => true,
+				'is_destructive'        => false,
+				'status'                => 'active',
+			);
 		}
 		if ( ! isset( $by_key['geocore_create_variants_with_country_rules'] ) ) {
 			$by_key['geocore_create_variants_with_country_rules'] = array(
@@ -149,6 +164,15 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 			if ( is_array( $row ) && ! empty( $row['intent_key'] ) ) {
 				$by_key[ (string) $row['intent_key'] ] = $row;
 			}
+		}
+		if ( ! isset( $by_key['create_geo_variant_plan'] ) ) {
+			$by_key['create_geo_variant_plan'] = array(
+				'intent_key'      => 'create_geo_variant_plan',
+				'name'            => 'Create geo variant plan',
+				'min_confidence'  => 0.7,
+				'requires_context'=> false,
+				'status'          => 'active',
+			);
 		}
 		if ( ! isset( $by_key['create_geo_variants'] ) ) {
 			$by_key['create_geo_variants'] = array(

@@ -36,6 +36,13 @@ class RWGA_Local_Intent_Interpreter {
 		$intents       = self::index_intents( is_array( $bundle['intents'] ) ? $bundle['intents'] : array() );
 		$editor_opts   = self::editor_options( $context );
 
+		if ( class_exists( 'RWGA_Variant_Plan_Interpreter', false ) ) {
+			$plan = RWGA_Variant_Plan_Interpreter::parse( $phrase, $flat_entities, $context );
+			if ( ! empty( $plan['matched'] ) ) {
+				return self::build_variant_plan_result( $plan, $context, $phrase );
+			}
+		}
+
 		if ( class_exists( 'RWGA_Multi_Variant_Interpreter', false ) ) {
 			$multi = RWGA_Multi_Variant_Interpreter::parse( $phrase, $flat_entities, $context );
 			if ( ! empty( $multi['matched'] ) ) {
@@ -182,6 +189,54 @@ class RWGA_Local_Intent_Interpreter {
 			'_debug_entities'       => array(
 				'matched_terms'  => $multi['matched_terms'] ?? array(),
 				'variant_groups' => $multi['variant_groups'] ?? array(),
+			),
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $plan    Variant plan parse result.
+	 * @param array<string,mixed> $context Context.
+	 * @param string              $phrase  Normalised phrase.
+	 * @return array<string,mixed>
+	 */
+	private static function build_variant_plan_result( array $plan, array $context, $phrase ) {
+		$page_ref = $plan['page_ref'] ?? null;
+		$page_id  = is_array( $page_ref ) && ! empty( $page_ref['page_id'] ) ? (int) $page_ref['page_id'] : 0;
+		if ( $page_id <= 0 && ! empty( $context['page_id'] ) ) {
+			$page_id = (int) $context['page_id'];
+		}
+		$resolved = null;
+		if ( $page_id > 0 ) {
+			$resolved = array(
+				'type' => 'page',
+				'id'   => $page_id,
+			);
+		}
+
+		return array(
+			'intent'                => (string) ( $plan['intent'] ?? 'create_geo_variant_plan' ),
+			'matched_action'        => (string) ( $plan['matched_action'] ?? 'geocore_create_variant_plan_with_country_rules' ),
+			'confidence'            => round( (float) ( $plan['confidence'] ?? 0.88 ), 2 ),
+			'target_reference'      => 'this',
+			'resolved_target'       => $resolved,
+			'params'                => isset( $plan['params'] ) && is_array( $plan['params'] ) ? $plan['params'] : array(),
+			'steps'                 => isset( $plan['steps'] ) && is_array( $plan['steps'] ) ? $plan['steps'] : array(),
+			'source_targeting'      => $plan['source_targeting'] ?? ( $plan['params']['source_targeting'] ?? null ),
+			'variant_groups'        => isset( $plan['variant_groups'] ) && is_array( $plan['variant_groups'] ) ? $plan['variant_groups'] : array(),
+			'duplicate_count'       => (int) ( $plan['duplicate_count'] ?? 0 ),
+			'missing_information'   => isset( $plan['missing_information'] ) && is_array( $plan['missing_information'] )
+				? $plan['missing_information']
+				: ( $page_id > 0 ? array() : array( 'page_ref' ) ),
+			'suggested_options'     => isset( $plan['suggested_options'] ) && is_array( $plan['suggested_options'] ) ? $plan['suggested_options'] : array(),
+			'requires_confirmation' => true,
+			'summary'               => (string) ( $plan['summary'] ?? '' ),
+			'warnings'              => array(),
+			'normalised_phrase'     => $phrase,
+			'_debug_entities'       => array(
+				'matched_terms'    => $plan['matched_terms'] ?? array(),
+				'variant_groups'     => $plan['variant_groups'] ?? array(),
+				'source_targeting'   => $plan['source_targeting'] ?? null,
+				'duplicate_count'    => $plan['duplicate_count'] ?? 0,
 			),
 		);
 	}

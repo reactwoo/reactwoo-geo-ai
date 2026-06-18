@@ -21,6 +21,11 @@ class RWGA_Multi_Variant_Interpreter {
 			return array( 'matched' => false );
 		}
 
+		if ( class_exists( 'RWGA_Original_Source_Targeting_Extractor', false )
+			&& RWGA_Original_Source_Targeting_Extractor::has_original_marker( $phrase ) ) {
+			return array( 'matched' => false );
+		}
+
 		if ( class_exists( 'RWGA_Variant_Group_Extractor', false )
 			&& RWGA_Variant_Group_Extractor::is_ambiguous_grouping( $phrase, $entities ) ) {
 			return array(
@@ -147,13 +152,16 @@ class RWGA_Multi_Variant_Interpreter {
 	public static function parse_country_list( $segment, array $entities ) {
 		$segment = RWGA_Local_Intent_Interpreter::normalise( $segment );
 
-		if ( preg_match( '/\bboth\s+(.+)$/i', $segment, $both_match ) ) {
-			$segment = trim( $both_match[1] );
-		}
+		$segment = preg_replace( '/\b(?:1st|2nd|3rd|\d+(?:st|nd|rd|th)|first|second|third)\s+version\b/i', ' ', $segment );
+		$segment = preg_replace( '/\b(?:both|either|together|also)\b/i', ' ', $segment );
+		$segment = preg_replace( '/\b(?:version|variant|works|which|that|will|would|should|the|a|an)\b/i', ' ', $segment );
+		$segment = preg_replace( '/\b(?:for|display|show|in|only)\b/i', ' ', $segment );
+		$segment = trim( preg_replace( '/\s+/', ' ', (string) $segment ) );
 
-		$segment = preg_replace( '/\b(version|variant|works|which|that|for|display|show|will|the|a|an)\b/i', ' ', $segment );
-		$segment = preg_replace( '/\bonly\b/i', ' ', $segment );
-		$segment = preg_replace( '/\s+/', ' ', trim( (string) $segment ) );
+		$parts = preg_split( '/\s*(?:,|\/|&|\*|\+|\bplus\b|\bas well as\b|\band\b)\s*/i', $segment );
+		if ( ! is_array( $parts ) ) {
+			$parts = array( $segment );
+		}
 
 		$found   = array();
 		$indexed = self::index_countries( $entities );
@@ -165,6 +173,34 @@ class RWGA_Multi_Variant_Interpreter {
 				return $lb - $la;
 			}
 		);
+
+		foreach ( $parts as $part ) {
+			$part = trim( (string) $part );
+			if ( '' === $part ) {
+				continue;
+			}
+			foreach ( self::match_countries_in_text( $part, $indexed ) as $code ) {
+				if ( ! in_array( $code, $found, true ) ) {
+					$found[] = $code;
+				}
+			}
+		}
+
+		if ( ! empty( $found ) ) {
+			return $found;
+		}
+
+		return self::match_countries_in_text( $segment, $indexed );
+	}
+
+	/**
+	 * @param string                         $text    Text to scan.
+	 * @param array<string,array<int,string>> $indexed Country alias index.
+	 * @return array<int,string>
+	 */
+	private static function match_countries_in_text( $text, array $indexed ) {
+		$found = array();
+		$text  = RWGA_Local_Intent_Interpreter::normalise( $text );
 
 		foreach ( $indexed as $code => $aliases ) {
 			usort(
@@ -179,28 +215,22 @@ class RWGA_Multi_Variant_Interpreter {
 					continue;
 				}
 				$pattern = '/\b' . preg_quote( $alias, '/' ) . '\b/i';
-				if ( preg_match( $pattern, $segment ) ) {
-					if ( ! in_array( $code, $found, true ) ) {
-						$found[] = $code;
-					}
-					$segment = preg_replace( $pattern, ' ', $segment );
+				if ( preg_match( $pattern, $text ) && ! in_array( $code, $found, true ) ) {
+					$found[] = $code;
+					$text    = preg_replace( $pattern, ' ', $text );
 				}
 			}
 		}
 
-		$segment = preg_replace( '/\b(and|&|plus|as well as)\b/i', ' ', $segment );
-		$segment = preg_replace( '/[,\\/]+/', ' ', $segment );
-		$segment = trim( preg_replace( '/\s+/', ' ', $segment ) );
-
-		if ( '' !== $segment ) {
-			foreach ( $indexed as $code => $aliases ) {
-				foreach ( preg_split( '/\s+/', $segment ) as $token ) {
-					if ( '' === $token ) {
-						continue;
-					}
+		$text = trim( preg_replace( '/\s+/', ' ', $text ) );
+		if ( '' !== $text ) {
+			foreach ( preg_split( '/\s+/', $text ) as $token ) {
+				if ( '' === $token ) {
+					continue;
+				}
+				foreach ( $indexed as $code => $aliases ) {
 					foreach ( $aliases as $alias ) {
-						$normalised = RWGA_Local_Intent_Interpreter::normalise( $alias );
-						if ( $token === $normalised && ! in_array( $code, $found, true ) ) {
+						if ( $token === RWGA_Local_Intent_Interpreter::normalise( $alias ) && ! in_array( $code, $found, true ) ) {
 							$found[] = $code;
 						}
 					}
