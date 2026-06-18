@@ -252,6 +252,7 @@ class RWGA_Assistant_Service {
 			return $summary;
 		}
 		return $summary . "\n\n" . $badge;
+	}
 
 	/**
 	 * @param array<string,mixed> $context Context.
