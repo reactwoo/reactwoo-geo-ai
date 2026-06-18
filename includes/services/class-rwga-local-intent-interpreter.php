@@ -24,10 +24,16 @@ class RWGA_Local_Intent_Interpreter {
 			return self::empty_result( $phrase, __( 'Intelligence bundle not loaded.', 'reactwoo-geo-ai' ) );
 		}
 
-		$patterns = is_array( $bundle['phrase_patterns'] ) ? $bundle['phrase_patterns'] : array();
-		$entities = self::index_entities( is_array( $bundle['entities'] ) ? $bundle['entities'] : array() );
-		$actions  = self::index_actions( is_array( $bundle['actions'] ) ? $bundle['actions'] : array() );
-		$intents  = self::index_intents( is_array( $bundle['intents'] ) ? $bundle['intents'] : array() );
+		$patterns      = is_array( $bundle['phrase_patterns'] ) ? $bundle['phrase_patterns'] : array();
+		$flat_entities = is_array( $bundle['entities'] ) ? $bundle['entities'] : array();
+		$entities      = self::index_entities( $flat_entities );
+		$actions       = self::index_actions( is_array( $bundle['actions'] ) ? $bundle['actions'] : array() );
+		$intents       = self::index_intents( is_array( $bundle['intents'] ) ? $bundle['intents'] : array() );
+		$editor_opts   = self::editor_options( $context );
+
+		$compound = class_exists( 'RWGA_Compound_Condition_Interpreter', false )
+			? RWGA_Compound_Condition_Interpreter::parse( $phrase, $flat_entities, $editor_opts )
+			: array( 'compound' => false );
 
 		$best       = null;
 		$best_score = 0.0;
@@ -49,6 +55,9 @@ class RWGA_Local_Intent_Interpreter {
 		}
 
 		if ( ! $best ) {
+			if ( ! empty( $compound['compound'] ) && ! empty( $compound['conditions'] ) ) {
+				return self::build_compound_result( $compound, $context, $phrase );
+			}
 			return self::empty_result( $phrase, __( 'No matching command pattern found.', 'reactwoo-geo-ai' ) );
 		}
 
@@ -95,7 +104,7 @@ class RWGA_Local_Intent_Interpreter {
 		$requires_confirmation = ! empty( $action['requires_confirmation'] );
 		$summary               = self::build_summary( $intent_key, $action_key, $params, $resolved_target );
 
-		return array(
+		$result = array(
 			'intent'                => $intent_key,
 			'matched_action'        => $action_key,
 			'confidence'            => round( $confidence, 2 ),
@@ -108,6 +117,113 @@ class RWGA_Local_Intent_Interpreter {
 			'warnings'              => array(),
 			'normalised_phrase'     => $phrase,
 		);
+
+		return self::merge_compound_into_result( $result, $compound, $phrase );
+	}
+
+	/**
+	 * Editor context for compound condition gating (Core vs Pro types).
+	 *
+	 * @param array<string,mixed> $context Resolved context.
+	 * @return array<string,mixed>
+	 */
+	private static function editor_options( array $context ) {
+		$pro = (bool) apply_filters( 'rwgc_pro_enabled', false );
+		if ( isset( $context['pro'] ) ) {
+			$pro = (bool) $context['pro'];
+		}
+		return array(
+			'pro' => $pro,
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $compound Compound parse payload.
+	 * @param array<string,mixed> $context  Resolved context.
+	 * @param string              $phrase   Normalised phrase.
+	 * @return array<string,mixed>
+	 */
+	private static function build_compound_result( array $compound, array $context, $phrase ) {
+		$resolved_target = RWGA_Context_Resolver::resolve_reference( 'this', $context );
+		$missing         = array();
+		if ( ! $resolved_target && preg_match( '/\b(this|current|page)\b/i', $phrase ) ) {
+			$missing[] = 'target_context';
+		}
+
+		$variant_hint = (bool) preg_match( '/\b(version|variant|different page|different version|local page)\b/i', $phrase );
+
+		return array(
+			'intent'                => $variant_hint ? 'create_variant' : (string) ( $compound['intent'] ?? 'compound_targeting' ),
+			'matched_action'        => (string) ( $compound['matched_action'] ?? 'geocore_create_portable_rule' ),
+			'confidence'            => round( (float) ( $compound['confidence'] ?? 0.75 ), 2 ),
+			'target_reference'      => 'this',
+			'resolved_target'       => $resolved_target,
+			'params'                => self::params_from_compound( $compound ),
+			'missing_information'   => $missing,
+			'requires_confirmation' => true,
+			'summary'               => (string) ( $compound['summary'] ?? '' ),
+			'warnings'              => isset( $compound['warnings'] ) && is_array( $compound['warnings'] ) ? $compound['warnings'] : array(),
+			'normalised_phrase'     => $phrase,
+			'compound'              => true,
+			'condition_match'       => (string) ( $compound['condition_match'] ?? 'all' ),
+			'conditions'            => isset( $compound['conditions'] ) && is_array( $compound['conditions'] ) ? $compound['conditions'] : array(),
+			'portable_rule_set'     => isset( $compound['portable_rule_set'] ) && is_array( $compound['portable_rule_set'] ) ? $compound['portable_rule_set'] : null,
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $result   Pattern match result.
+	 * @param array<string,mixed> $compound Compound parse payload.
+	 * @param string              $phrase   Normalised phrase.
+	 * @return array<string,mixed>
+	 */
+	private static function merge_compound_into_result( array $result, array $compound, $phrase ) {
+		if ( empty( $compound['compound'] ) || empty( $compound['conditions'] ) ) {
+			return $result;
+		}
+
+		$result['compound']          = true;
+		$result['condition_match']   = (string) ( $compound['condition_match'] ?? 'all' );
+		$result['conditions']        = $compound['conditions'];
+		$result['portable_rule_set'] = $compound['portable_rule_set'] ?? null;
+		$result['params']            = array_merge( self::params_from_compound( $compound ), is_array( $result['params'] ) ? $result['params'] : array() );
+		$result['summary']           = (string) ( $compound['summary'] ?? $result['summary'] );
+		if ( ! empty( $compound['warnings'] ) && is_array( $compound['warnings'] ) ) {
+			$result['warnings'] = array_values(
+				array_unique(
+					array_merge(
+						is_array( $result['warnings'] ) ? $result['warnings'] : array(),
+						$compound['warnings']
+					)
+				)
+			);
+		}
+		if ( preg_match( '/\b(version|variant|different page|different version|local page)\b/i', $phrase ) ) {
+			$result['intent'] = 'create_variant';
+		}
+		return $result;
+	}
+
+	/**
+	 * @param array<string,mixed> $compound Compound parse payload.
+	 * @return array<string,mixed>
+	 */
+	private static function params_from_compound( array $compound ) {
+		$params = array();
+		$conds  = isset( $compound['conditions'] ) && is_array( $compound['conditions'] ) ? $compound['conditions'] : array();
+		foreach ( $conds as $cond ) {
+			if ( ! is_array( $cond ) ) {
+				continue;
+			}
+			$type = (string) ( $cond['type'] ?? '' );
+			if ( 'country' === $type && ! empty( $cond['value'] ) ) {
+				$params['countries'] = is_array( $cond['value'] ) ? $cond['value'] : array( $cond['value'] );
+			}
+			if ( 'device_type' === $type && ! empty( $cond['value'] ) ) {
+				$params['device'] = is_array( $cond['value'] ) ? (string) reset( $cond['value'] ) : (string) $cond['value'];
+			}
+		}
+		return $params;
 	}
 
 	/**

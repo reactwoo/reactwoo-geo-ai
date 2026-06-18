@@ -144,6 +144,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-sync.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-sync-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-context-resolver.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-compound-condition-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-local-intent-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-learning-event-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-journey.php';
