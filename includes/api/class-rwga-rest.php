@@ -527,6 +527,66 @@ class RWGA_REST {
 
 		register_rest_route(
 			self::NS,
+			'/interpret/preview',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_assistant_preview' ),
+				'permission_callback' => array( __CLASS__, 'permission_assistant' ),
+				'args'                => array(
+					'message' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'context' => array(
+						'default' => array(),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/interpret',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_assistant_interpret' ),
+				'permission_callback' => array( __CLASS__, 'permission_assistant' ),
+				'args'                => array(
+					'message' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'context' => array(
+						'default' => array(),
+					),
+					'debug'   => array(
+						'default' => false,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/interpret/execute',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_assistant_execute' ),
+				'permission_callback' => array( __CLASS__, 'permission_assistant' ),
+				'args'                => array(
+					'proposal_id' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/intelligence/command/bundle',
 			array(
 				'methods'             => 'GET',
@@ -597,6 +657,15 @@ class RWGA_REST {
 			return new WP_Error( 'rwga_unlicensed', __( 'Geo AI license not configured.', 'reactwoo-geo-ai' ), array( 'status' => 403 ) );
 		}
 		return true;
+	}
+
+	/**
+	 * Targeting assistant: editors who can manage pages (no cloud license required).
+	 *
+	 * @return bool
+	 */
+	public static function permission_assistant() {
+		return current_user_can( 'edit_pages' );
 	}
 
 	/**
@@ -1659,6 +1728,63 @@ class RWGA_REST {
 			return new WP_Error( 'rwga_not_loaded', __( 'Intelligence sync service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
 		}
 		$result = RWGA_Intelligence_Sync_Service::sync( true );
+		return rest_ensure_response( $result );
+	}
+
+	/**
+	 * POST /geo-ai/v1/interpret/preview
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_assistant_preview( $request ) {
+		if ( ! class_exists( 'RWGA_Assistant_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Assistant service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$message = (string) $request->get_param( 'message' );
+		$context = $request->get_param( 'context' );
+		if ( ! is_array( $context ) ) {
+			$context = array();
+		}
+		$context['screen'] = 'targeting_assistant';
+		return rest_ensure_response( RWGA_Assistant_Service::preview( $message, $context ) );
+	}
+
+	/**
+	 * POST /geo-ai/v1/interpret
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_assistant_interpret( $request ) {
+		if ( ! class_exists( 'RWGA_Assistant_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Assistant service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$message = (string) $request->get_param( 'message' );
+		$context = $request->get_param( 'context' );
+		if ( ! is_array( $context ) ) {
+			$context = array();
+		}
+		$context['screen'] = 'targeting_assistant';
+		$debug             = rest_sanitize_boolean( $request->get_param( 'debug' ) );
+		return rest_ensure_response( RWGA_Assistant_Service::interpret( $message, $context, $debug ) );
+	}
+
+	/**
+	 * POST /geo-ai/v1/interpret/execute
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_assistant_execute( $request ) {
+		if ( ! class_exists( 'RWGA_Assistant_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Assistant service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$id = (string) $request->get_param( 'proposal_id' );
+		$result = RWGA_Assistant_Service::execute( $id );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
 		return rest_ensure_response( $result );
 	}
 

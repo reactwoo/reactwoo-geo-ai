@@ -23,6 +23,14 @@ class RWGA_Intelligence_Sync_Service {
 	 */
 	public static function init() {
 		add_action( 'rwga_loaded', array( __CLASS__, 'maybe_auto_sync' ), 30 );
+		add_action( 'rwga_loaded', array( __CLASS__, 'ensure_bundle_on_load' ), 5 );
+	}
+
+	/**
+	 * @return void
+	 */
+	public static function ensure_bundle_on_load() {
+		self::ensure_bundle();
 	}
 
 	/**
@@ -107,18 +115,43 @@ class RWGA_Intelligence_Sync_Service {
 	 * @return array<string,mixed>|null
 	 */
 	public static function get_local_bundle() {
+		return self::ensure_bundle();
+	}
+
+	/**
+	 * Load, augment, and persist bundle when missing.
+	 *
+	 * @return array<string,mixed>|null
+	 */
+	public static function ensure_bundle() {
 		$cached = get_transient( self::TRANSIENT_BUNDLE );
-		if ( is_array( $cached ) && ! empty( $cached ) ) {
-			return $cached;
+		if ( is_array( $cached ) && ! empty( $cached['phrase_patterns'] ) ) {
+			return class_exists( 'RWGA_Intelligence_Bundle_Bootstrap', false )
+				? RWGA_Intelligence_Bundle_Bootstrap::augment( $cached )
+				: $cached;
 		}
 		$stored = get_option( self::OPTION_BUNDLE, array() );
 		if ( is_array( $stored ) && ! empty( $stored ) ) {
-			set_transient( self::TRANSIENT_BUNDLE, $stored, HOUR_IN_SECONDS );
-			return $stored;
+			$bundle = class_exists( 'RWGA_Intelligence_Bundle_Bootstrap', false )
+				? RWGA_Intelligence_Bundle_Bootstrap::augment( $stored )
+				: $stored;
+			set_transient( self::TRANSIENT_BUNDLE, $bundle, HOUR_IN_SECONDS );
+			return $bundle;
 		}
 		$fallback = self::load_fallback_bundle();
-		if ( $fallback ) {
+		if ( $fallback && self::validate_bundle_schema( $fallback ) ) {
+			$fallback = class_exists( 'RWGA_Intelligence_Bundle_Bootstrap', false )
+				? RWGA_Intelligence_Bundle_Bootstrap::augment( $fallback )
+				: $fallback;
+			self::store_bundle( $fallback, 'fallback' );
 			return $fallback;
+		}
+		if ( class_exists( 'RWGA_Intelligence_Bundle_Bootstrap', false ) ) {
+			$minimal = RWGA_Intelligence_Bundle_Bootstrap::augment( null );
+			if ( is_array( $minimal ) && ! empty( $minimal['phrase_patterns'] ) ) {
+				self::store_bundle( $minimal, 'bootstrap' );
+				return $minimal;
+			}
 		}
 		return null;
 	}
@@ -210,15 +243,23 @@ class RWGA_Intelligence_Sync_Service {
 	 * @return array<string,mixed>|null
 	 */
 	private static function load_fallback_bundle() {
-		$path = RWGA_PATH . 'data/geocore-intelligence-fallback.json';
-		if ( ! is_readable( $path ) ) {
-			return null;
+		$paths = array(
+			RWGA_PATH . 'data/geocore-intelligence-fallback.json',
+			RWGA_PATH . 'assets/intelligence/geocore-default-bundle.json',
+		);
+		foreach ( $paths as $path ) {
+			if ( ! is_readable( $path ) ) {
+				continue;
+			}
+			$raw = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			if ( ! is_string( $raw ) || '' === $raw ) {
+				continue;
+			}
+			$data = json_decode( $raw, true );
+			if ( is_array( $data ) ) {
+				return $data;
+			}
 		}
-		$raw = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		if ( ! is_string( $raw ) || '' === $raw ) {
-			return null;
-		}
-		$data = json_decode( $raw, true );
-		return is_array( $data ) ? $data : null;
+		return null;
 	}
 }

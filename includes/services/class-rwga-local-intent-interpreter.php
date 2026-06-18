@@ -17,11 +17,16 @@ class RWGA_Local_Intent_Interpreter {
 	public static function interpret( $raw_phrase, array $context = array() ) {
 		$phrase = self::normalise( $raw_phrase );
 		$bundle = class_exists( 'RWGA_Intelligence_Sync_Service', false )
-			? RWGA_Intelligence_Sync_Service::get_local_bundle()
+			? RWGA_Intelligence_Sync_Service::ensure_bundle()
 			: null;
 
 		if ( ! is_array( $bundle ) || empty( $bundle['phrase_patterns'] ) ) {
-			return self::empty_result( $phrase, __( 'Intelligence bundle not loaded.', 'reactwoo-geo-ai' ) );
+			return self::empty_result( $phrase, __( 'Intelligence bundle not loaded.', 'reactwoo-geo-ai' ), array(
+				'_debug_bundle' => array(
+					'loaded' => false,
+					'hint'   => __( 'Ensure ReactWoo Geo AI is active and the intelligence bundle file is present.', 'reactwoo-geo-ai' ),
+				),
+			) );
 		}
 
 		$patterns      = is_array( $bundle['phrase_patterns'] ) ? $bundle['phrase_patterns'] : array();
@@ -30,6 +35,13 @@ class RWGA_Local_Intent_Interpreter {
 		$actions       = self::index_actions( is_array( $bundle['actions'] ) ? $bundle['actions'] : array() );
 		$intents       = self::index_intents( is_array( $bundle['intents'] ) ? $bundle['intents'] : array() );
 		$editor_opts   = self::editor_options( $context );
+
+		if ( class_exists( 'RWGA_Multi_Variant_Interpreter', false ) ) {
+			$multi = RWGA_Multi_Variant_Interpreter::parse( $phrase, $flat_entities, $context );
+			if ( ! empty( $multi['matched'] ) ) {
+				return self::build_multi_variant_result( $multi, $context, $phrase );
+			}
+		}
 
 		$compound = class_exists( 'RWGA_Compound_Condition_Interpreter', false )
 			? RWGA_Compound_Condition_Interpreter::parse( $phrase, $flat_entities, $editor_opts )
@@ -119,6 +131,42 @@ class RWGA_Local_Intent_Interpreter {
 		);
 
 		return self::merge_compound_into_result( $result, $compound, $phrase );
+	}
+
+	/**
+	 * @param array<string,mixed> $multi   Multi-variant parse result.
+	 * @param array<string,mixed> $context Context.
+	 * @param string              $phrase  Normalised phrase.
+	 * @return array<string,mixed>
+	 */
+	private static function build_multi_variant_result( array $multi, array $context, $phrase ) {
+		$page_ref = $multi['page_ref'] ?? null;
+		$page_id  = is_array( $page_ref ) && ! empty( $page_ref['page_id'] ) ? (int) $page_ref['page_id'] : 0;
+		if ( $page_id <= 0 && ! empty( $context['page_id'] ) ) {
+			$page_id = (int) $context['page_id'];
+		}
+		$resolved = null;
+		if ( $page_id > 0 ) {
+			$resolved = array(
+				'type' => 'page',
+				'id'   => $page_id,
+			);
+		}
+
+		return array(
+			'intent'                => (string) ( $multi['intent'] ?? 'create_geo_variants' ),
+			'matched_action'        => (string) ( $multi['matched_action'] ?? 'geocore_create_variants_with_country_rules' ),
+			'confidence'            => round( (float) ( $multi['confidence'] ?? 0.85 ), 2 ),
+			'target_reference'      => 'this',
+			'resolved_target'       => $resolved,
+			'params'                => isset( $multi['params'] ) && is_array( $multi['params'] ) ? $multi['params'] : array(),
+			'steps'                 => isset( $multi['steps'] ) && is_array( $multi['steps'] ) ? $multi['steps'] : array(),
+			'missing_information'   => $page_id > 0 ? array() : array( 'page_ref' ),
+			'requires_confirmation' => true,
+			'summary'               => (string) ( $multi['summary'] ?? '' ),
+			'warnings'              => array(),
+			'normalised_phrase'     => $phrase,
+		);
 	}
 
 	/**
@@ -285,6 +333,24 @@ class RWGA_Local_Intent_Interpreter {
 	}
 
 	/**
+	 * @param array<string,array<int,array>> $indexed Indexed entities.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function flatten_entities( array $indexed ) {
+		$out = array();
+		foreach ( $indexed as $rows ) {
+			if ( is_array( $rows ) ) {
+				foreach ( $rows as $row ) {
+					if ( is_array( $row ) ) {
+						$out[] = $row;
+					}
+				}
+			}
+		}
+		return $out;
+	}
+
+	/**
 	 * @param array<int,array<string,mixed>> $actions Action rows.
 	 * @return array<string,array<string,mixed>>
 	 */
@@ -381,6 +447,15 @@ class RWGA_Local_Intent_Interpreter {
 		$extracted = array();
 		foreach ( $placeholders as $idx => $placeholder ) {
 			$raw_value = isset( $m[ $idx + 1 ] ) ? trim( (string) $m[ $idx + 1 ] ) : '';
+			if ( 'country_list' === $placeholder && class_exists( 'RWGA_Multi_Variant_Interpreter', false ) ) {
+				$list = RWGA_Multi_Variant_Interpreter::parse_country_list( $raw_value, self::flatten_entities( $entities ) );
+				$extracted[ $placeholder ] = $list;
+				continue;
+			}
+			if ( 'page' === $placeholder ) {
+				$extracted[ $placeholder ] = self::normalise( $raw_value );
+				continue;
+			}
 			$entity_type = self::placeholder_entity_type( $placeholder );
 			$resolved    = self::resolve_entity_value( $raw_value, $entity_type, $entities );
 			if ( $resolved ) {
@@ -400,6 +475,8 @@ class RWGA_Local_Intent_Interpreter {
 	private static function placeholder_entity_type( $placeholder ) {
 		$map = array(
 			'country'            => 'country',
+			'country_list'       => 'country',
+			'page'               => 'page',
 			'device'             => 'device',
 			'weather_condition'  => 'weather_condition',
 		);
@@ -495,6 +572,15 @@ class RWGA_Local_Intent_Interpreter {
 		foreach ( $extracted as $key => $value ) {
 			if ( 'country' === $key && empty( $params['countries'] ) ) {
 				$params['countries'] = array( $value );
+			} elseif ( 'country_list' === $key && empty( $params['variants'] ) ) {
+				$params['variants'] = array(
+					array(
+						'countries' => is_array( $value ) ? $value : array( $value ),
+						'mode'      => 'include_only',
+					),
+				);
+			} elseif ( 'page' === $key && empty( $params['page_ref'] ) ) {
+				$params['page_ref'] = is_string( $value ) ? $value : '';
 			} elseif ( 'weather_condition' === $key && empty( $params['weather_condition'] ) ) {
 				$params['weather_condition'] = $value;
 			} elseif ( 'device' === $key && empty( $params['device'] ) ) {

@@ -11,7 +11,7 @@ from pathlib import Path
 
 _DEFAULT_FOLDER = "reactwoo-geo-ai"
 
-INCLUDE_DIRS = ["admin", "assets", "includes"]
+INCLUDE_DIRS = ["admin", "assets", "includes", "data"]
 
 INCLUDE_FILES = [
     "reactwoo-geo-ai.php",
