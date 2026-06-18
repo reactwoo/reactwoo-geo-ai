@@ -150,6 +150,11 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-group-extractor.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-original-source-targeting-extractor.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-country-rule-interpreter.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-phrase-shape-normaliser.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-memory-store.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-memory-client.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-memory-matcher.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-parser.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-multi-variant-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-proposal-store.php';

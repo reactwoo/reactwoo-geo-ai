@@ -86,10 +86,11 @@ class RWGA_Assistant_Service {
 		$response = array(
 			'success'     => true,
 			'status'      => 'proposal',
-			'message'     => (string) ( $proposal['summary'] ?? '' ),
+			'message'     => self::format_message_with_badge( (string) ( $proposal['summary'] ?? '' ), $raw ),
 			'proposal_id' => $id,
 			'proposal'    => $proposal,
 			'actions'     => self::action_buttons(),
+			'badge'       => self::interpretation_badge( $raw ),
 		);
 		if ( $include_debug ) {
 			$response['debug'] = $debug;
@@ -129,6 +130,18 @@ class RWGA_Assistant_Service {
 		}
 
 		RWGA_Proposal_Store::delete( $proposal_id );
+
+		if ( class_exists( 'RWGA_Learning_Event_Service', false ) ) {
+			do_action(
+				'rwga_intelligence_interpretation_feedback',
+				$proposal,
+				array(
+					'outcome'          => 'executed',
+					'approved_by_user' => true,
+					'raw_phrase'       => (string) ( $proposal['original_message'] ?? '' ),
+				)
+			);
+		}
 
 		return array(
 			'success' => true,
@@ -189,6 +202,12 @@ class RWGA_Assistant_Service {
 			? $raw['variant_groups']
 			: ( $raw['_debug_entities']['variant_groups'] ?? array() );
 		$base['matched_terms']       = $raw['_debug_entities']['matched_terms'] ?? array();
+		$parser_debug                = is_array( $raw['_debug_entities'] ?? null ) ? $raw['_debug_entities'] : array();
+		foreach ( array( 'parser_used', 'variant_plan_terms_detected', 'source_page_ref', 'total_version_count', 'segments', 'fallback_pattern_match_used', 'warnings', 'countries_detected' ) as $key ) {
+			if ( isset( $parser_debug[ $key ] ) ) {
+				$base[ $key ] = $parser_debug[ $key ];
+			}
+		}
 		if ( class_exists( 'RWGA_Page_Reference_Resolver', false ) ) {
 			$page = RWGA_Page_Reference_Resolver::detect( $phrase );
 			if ( $page ) {
@@ -199,8 +218,40 @@ class RWGA_Assistant_Service {
 			}
 		}
 		$base['proposal'] = $raw;
+		$base['_interpretation_trace'] = isset( $raw['_interpretation_trace'] ) ? $raw['_interpretation_trace'] : array();
+		$base['interpretation_source'] = (string) ( $raw['interpretation_source'] ?? '' );
 		return $base;
 	}
+
+	/**
+	 * @param array<string,mixed> $raw Interpreter output.
+	 * @return string
+	 */
+	private static function interpretation_badge( array $raw ) {
+		$source = (string) ( $raw['interpretation_source'] ?? '' );
+		if ( 'interpretation_memory' === $source ) {
+			return __( 'Learned interpretation', 'reactwoo-geo-ai' );
+		}
+		if ( 'ai_fallback' === $source ) {
+			return __( 'AI-assisted interpretation', 'reactwoo-geo-ai' );
+		}
+		if ( in_array( $source, array( 'local_parser', 'pattern_bundle' ), true ) ) {
+			return __( 'Local smart action', 'reactwoo-geo-ai' );
+		}
+		return '';
+	}
+
+	/**
+	 * @param string              $summary Summary text.
+	 * @param array<string,mixed> $raw     Raw interpreter output.
+	 * @return string
+	 */
+	private static function format_message_with_badge( $summary, array $raw ) {
+		$badge = self::interpretation_badge( $raw );
+		if ( '' === $badge ) {
+			return $summary;
+		}
+		return $summary . "\n\n" . $badge;
 
 	/**
 	 * @param array<string,mixed> $context Context.
@@ -243,7 +294,17 @@ class RWGA_Assistant_Service {
 					$src_label
 				),
 			);
-			if ( preg_match( '/\b(?:duplicate|copy|clone)\s+(?:the\s+)?\w+\s+twice\b/i', $phrase ) ) {
+			$total_versions = (int) ( $plan['params']['total_version_count'] ?? 0 );
+			if ( $total_versions > 0 ) {
+				$keywords[] = array(
+					'text' => sprintf(
+						/* translators: %d: version count */
+						__( 'Create %d variations', 'reactwoo-geocore' ),
+						$total_versions
+					),
+					'type' => 'version_signal',
+				);
+			} elseif ( preg_match( '/\b(?:duplicate|copy|clone)\s+(?:the\s+)?\w+\s+twice\b/i', $phrase ) ) {
 				$keywords[] = array(
 					'text' => __( 'Duplicate homepage twice', 'reactwoo-geocore' ),
 					'type' => 'duplicate_signal',
@@ -254,14 +315,18 @@ class RWGA_Assistant_Service {
 				'label'      => __( 'Homepage targeting plan', 'reactwoo-geocore' ),
 				'confidence' => (float) ( $plan['confidence'] ?? 0.88 ),
 			);
-			foreach ( (array) ( $plan['params']['variants'] ?? array() ) as $idx => $variant ) {
+			foreach ( (array) ( $plan['params']['variants'] ?? array() ) as $variant ) {
 				$label = (string) ( $variant['label'] ?? '' );
+				$ordinal = (int) ( $variant['ordinal'] ?? 0 );
+				if ( $ordinal <= 0 ) {
+					$ordinal = count( $variant_groups ) + ( $source ? 2 : 1 );
+				}
 				$variant_groups[] = array(
-					'index' => $idx + 1,
+					'index' => $ordinal,
 					'label' => sprintf(
 						/* translators: 1: variant number, 2: targeting label */
-						__( 'New variant %1$d: %2$s', 'reactwoo-geocore' ),
-						$idx + 1,
+						__( 'Variant %1$d: %2$s', 'reactwoo-geocore' ),
+						$ordinal,
 						$label
 					),
 				);
@@ -445,6 +510,8 @@ class RWGA_Assistant_Service {
 			'portable_rule_set'     => $raw['portable_rule_set'] ?? null,
 			'resolved_target'       => $raw['resolved_target'] ?? null,
 			'original_message'      => $message,
+			'interpretation_source' => (string) ( $raw['interpretation_source'] ?? '' ),
+			'interpretation_badge'  => self::interpretation_badge( $raw ),
 		);
 	}
 
@@ -471,12 +538,16 @@ class RWGA_Assistant_Service {
 				}
 				$lines[] = $label;
 			}
-			foreach ( (array) ( $raw['params']['variants'] ?? array() ) as $idx => $variant ) {
+			foreach ( (array) ( $raw['params']['variants'] ?? array() ) as $variant ) {
+				$ordinal = (int) ( $variant['ordinal'] ?? 0 );
+				if ( $ordinal <= 0 ) {
+					$ordinal = 1;
+				}
 				$lines[] = '';
 				$lines[] = sprintf(
 					/* translators: %d: variant number */
-					__( 'New variant %d', 'reactwoo-geocore' ),
-					$idx + 1
+					__( 'Variant %d', 'reactwoo-geocore' ),
+					$ordinal
 				);
 				$lines[] = (string) ( $variant['label'] ?? implode( ', ', (array) ( $variant['countries'] ?? array() ) ) );
 			}

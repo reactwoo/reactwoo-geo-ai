@@ -84,6 +84,38 @@ $rwga_learning_enabled = ! empty( $rwga_learning_enabled );
 				</table>
 			<?php endif; ?>
 		</div>
+
+		<div class="rwgc-card">
+			<h2><?php esc_html_e( 'Interpretation memory', 'reactwoo-geo-ai' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Reuse accepted interpretations locally and from ReactWoo shared memory before calling AI fallback.', 'reactwoo-geo-ai' ); ?></p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'rwga_intelligence_memory_settings' ); ?>
+				<input type="hidden" name="action" value="rwga_intelligence_memory_settings" />
+				<label>
+					<input type="checkbox" name="local_enabled" value="1" <?php checked( ! empty( $rwga_memory_local_enabled ) ); ?> />
+					<?php esc_html_e( 'Enable local interpretation memory', 'reactwoo-geo-ai' ); ?>
+				</label><br />
+				<label>
+					<input type="checkbox" name="shared_enabled" value="1" <?php checked( ! empty( $rwga_memory_shared_enabled ) ); ?> />
+					<?php esc_html_e( 'Enable shared ReactWoo interpretation memory', 'reactwoo-geo-ai' ); ?>
+				</label><br />
+				<label>
+					<input type="checkbox" name="clear_local_memory" value="1" />
+					<?php esc_html_e( 'Clear local memory cache on save', 'reactwoo-geo-ai' ); ?>
+				</label>
+				<p><button type="submit" class="rwgc-btn rwgc-btn--secondary"><?php esc_html_e( 'Save memory settings', 'reactwoo-geo-ai' ); ?></button></p>
+			</form>
+			<p class="description">
+				<?php
+				$count = is_array( $rwga_memory_cache ?? null ) ? count( $rwga_memory_cache ) : 0;
+				printf(
+					/* translators: %d: cached memory count */
+					esc_html__( 'Local cache entries: %d', 'reactwoo-geo-ai' ),
+					(int) $count
+				);
+				?>
+			</p>
+		</div>
 	</div>
 
 	<div class="rwgc-card" style="margin:1rem 0;">

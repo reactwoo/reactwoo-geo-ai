@@ -41,7 +41,8 @@ class RWGA_Original_Source_Targeting_Extractor {
 				return true;
 			}
 		}
-		return (bool) preg_match( '/\b(?:keep|leave|make)\s+the\s+original\b/i', $phrase );
+		return (bool) preg_match( '/\b(?:keep|leave|make|update)\s+the\s+original\b/i', $phrase )
+			|| (bool) preg_match( '/\b(?:the\s+)?original\b/i', $phrase );
 	}
 
 	/**
@@ -56,8 +57,9 @@ class RWGA_Original_Source_Targeting_Extractor {
 		}
 
 		$patterns = array(
+			'/(?:update|keep|leave|make)\s+the\s+original(?:\s+(?:version|homepage|page))?\s+(?:to\s+)?(?:only\s+)?(?:show\s+in|show\s+for|display\s+in|for)\s+(.+?)(?=\s+(?:variant|variation|version|\d+(?:st|nd|rd|th)|the\s+(?:second|third))\b|\s+and\s+(?:the\s+)?(?:variant|variation|version|one|another)\b|$)/i',
 			'/(?:keep|leave|make)\s+the\s+original(?:\s+(?:version|homepage|page))?\s+(?:for|show\s+in|would\s+show\s+in|should\s+show\s+in|will\s+show\s+in)\s+(.+?)(?=\s+and\s+(?:create|one|\d+(?:st|nd|rd|th)|another)\s+|\s+(?:one|\d+(?:st|nd|rd|th)|another)\s+version|$)/i',
-			'/((?:the\s+)?(?:original|existing|current|default|source|main|base)\s+(?:version|homepage|page)?)\s+(?:would\s+show\s+in|should\s+show\s+in|will\s+show\s+in|for|show\s+in)\s+(.+?)(?=\s+(?:one|\d+(?:st|nd|rd|th)|another)\s+version|\s+and\s+(?:the\s+)?(?:one|\d+(?:st|nd|rd|th)|another)\s+version|$)/i',
+			'/((?:the\s+)?(?:original|existing|current|default|source|main|base)\s+(?:version|homepage|page)?)\s+(?:would\s+show\s+in|should\s+show\s+in|will\s+show\s+in|for|show\s+in)\s+(.+?)(?=\s+(?:one|\d+(?:st|nd|rd|th)|another|variant|variation|version)\s+|\s+and\s+(?:the\s+)?(?:one|\d+(?:st|nd|rd|th)|another|variant)\s+|$)/i',
 		);
 
 		foreach ( $patterns as $regex ) {

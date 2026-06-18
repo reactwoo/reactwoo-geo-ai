@@ -63,6 +63,7 @@ class RWGA_Admin {
 		add_action( 'admin_post_rwga_intelligence_sync', array( __CLASS__, 'handle_intelligence_sync' ) );
 		add_action( 'admin_post_rwga_intelligence_interpret_test', array( __CLASS__, 'handle_intelligence_interpret_test' ) );
 		add_action( 'admin_post_rwga_intelligence_learning_toggle', array( __CLASS__, 'handle_intelligence_learning_toggle' ) );
+		add_action( 'admin_post_rwga_intelligence_memory_settings', array( __CLASS__, 'handle_intelligence_memory_settings' ) );
 		add_action( 'admin_post_rwga_clear_geo_ai_license', array( __CLASS__, 'handle_clear_license_post' ) );
 		add_action( 'rwgc_dashboard_satellite_panels', array( __CLASS__, 'render_geo_core_summary_card' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'render_intelligence_pending_admin_notice' ) );
@@ -3112,6 +3113,15 @@ class RWGA_Admin {
 		$rwga_learning_enabled = class_exists( 'RWGA_Learning_Event_Service', false )
 			? RWGA_Learning_Event_Service::is_enabled()
 			: false;
+		$rwga_memory_local_enabled = class_exists( 'RWGA_Interpretation_Memory_Store', false )
+			? RWGA_Interpretation_Memory_Store::is_local_enabled()
+			: true;
+		$rwga_memory_shared_enabled = class_exists( 'RWGA_Interpretation_Memory_Store', false )
+			? RWGA_Interpretation_Memory_Store::is_shared_enabled()
+			: true;
+		$rwga_memory_cache = class_exists( 'RWGA_Interpretation_Memory_Store', false )
+			? RWGA_Interpretation_Memory_Store::get_entries()
+			: array();
 		$rwga_bundle_raw       = is_array( $bundle ) ? $bundle : array();
 		$rwga_test_result      = get_transient( 'rwga_intel_test_result_' . get_current_user_id() );
 		$rwga_test_phrase      = get_transient( 'rwga_intel_test_phrase_' . get_current_user_id() );
@@ -3192,6 +3202,23 @@ class RWGA_Admin {
 		check_admin_referer( 'rwga_intelligence_learning_toggle' );
 		$enabled = ! empty( $_POST['enabled'] );
 		update_option( RWGA_Learning_Event_Service::OPTION_ENABLED, $enabled ? 1 : 0, false );
+		wp_safe_redirect( admin_url( 'admin.php?page=rwga-intelligence-layer' ) );
+		exit;
+	}
+
+	/**
+	 * @return void
+	 */
+	public static function handle_intelligence_memory_settings() {
+		if ( ! current_user_can( RWGA_Capabilities::CAP_VIEW_REPORTS ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'reactwoo-geo-ai' ) );
+		}
+		check_admin_referer( 'rwga_intelligence_memory_settings' );
+		update_option( RWGA_Interpretation_Memory_Store::OPTION_LOCAL_ENABLED, ! empty( $_POST['local_enabled'] ) ? 1 : 0, false );
+		update_option( RWGA_Interpretation_Memory_Store::OPTION_SHARED_ENABLED, ! empty( $_POST['shared_enabled'] ) ? 1 : 0, false );
+		if ( ! empty( $_POST['clear_local_memory'] ) && class_exists( 'RWGA_Interpretation_Memory_Store', false ) ) {
+			RWGA_Interpretation_Memory_Store::clear();
+		}
 		wp_safe_redirect( admin_url( 'admin.php?page=rwga-intelligence-layer' ) );
 		exit;
 	}
