@@ -142,6 +142,10 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-cloud-client.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-optimise-handoff.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-sync.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-intelligence-sync-service.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-context-resolver.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-local-intent-interpreter.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-learning-event-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-journey.php';
 		require_once RWGA_PATH . 'includes/analyzers/class-rwga-messaging-analyzer.php';
 		require_once RWGA_PATH . 'includes/analyzers/class-rwga-ux-insight-builder.php';
@@ -159,6 +163,8 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/class-rwga-insights-provider.php';
 		RWGA_Insights_Provider::init();
 		RWGA_Site_Intelligence_Sync::init();
+		RWGA_Intelligence_Sync_Service::init();
+		RWGA_Learning_Event_Service::init();
 		RWGA_Site_Intelligence_Journey::init();
 		RWGA_Local_Intelligence::init();
 		require_once RWGA_PATH . 'includes/services/class-rwga-page-context.php';

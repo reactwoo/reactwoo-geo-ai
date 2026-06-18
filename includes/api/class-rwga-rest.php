@@ -527,6 +527,56 @@ class RWGA_REST {
 
 		register_rest_route(
 			self::NS,
+			'/intelligence/command/bundle',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'handle_command_intelligence_bundle' ),
+				'permission_callback' => array( __CLASS__, 'permission_view_reports' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/command/interpret',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_command_intelligence_interpret' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+				'args'                => array(
+					'phrase' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'context' => array(
+						'default' => array(),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/command/learning-event',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_command_intelligence_learning_event' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/intelligence/command/sync',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_command_intelligence_sync' ),
+				'permission_callback' => array( __CLASS__, 'permission_run_ai' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/products/(?P<id>\\d+)/suggest-weather-facets',
 			array(
 				'methods'             => 'POST',
@@ -1538,6 +1588,78 @@ class RWGA_REST {
 				'version'   => RWGA_Local_Intelligence::VERSION,
 			)
 		);
+	}
+
+	/**
+	 * GET /geo-ai/v1/intelligence/command/bundle
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_command_intelligence_bundle() {
+		if ( ! class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Intelligence sync service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$bundle = RWGA_Intelligence_Sync_Service::get_local_bundle();
+		$status = RWGA_Intelligence_Sync_Service::get_status();
+		return rest_ensure_response(
+			array(
+				'status' => $status,
+				'bundle' => is_array( $bundle ) ? $bundle : null,
+			)
+		);
+	}
+
+	/**
+	 * POST /geo-ai/v1/intelligence/command/interpret
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_command_intelligence_interpret( $request ) {
+		if ( ! class_exists( 'RWGA_Local_Intent_Interpreter', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Local interpreter unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$phrase  = (string) $request->get_param( 'phrase' );
+		$context = $request->get_param( 'context' );
+		if ( ! is_array( $context ) ) {
+			$context = array();
+		}
+		if ( class_exists( 'RWGA_Context_Resolver', false ) ) {
+			$context = RWGA_Context_Resolver::resolve( $context );
+		}
+		$result = RWGA_Local_Intent_Interpreter::interpret( $phrase, $context );
+		return rest_ensure_response( $result );
+	}
+
+	/**
+	 * POST /geo-ai/v1/intelligence/command/learning-event
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_command_intelligence_learning_event( $request ) {
+		if ( ! class_exists( 'RWGA_Learning_Event_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Learning event service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$payload = $request->get_json_params();
+		if ( ! is_array( $payload ) ) {
+			$payload = array();
+		}
+		$result = RWGA_Learning_Event_Service::record( $payload );
+		return rest_ensure_response( $result );
+	}
+
+	/**
+	 * POST /geo-ai/v1/intelligence/command/sync
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_command_intelligence_sync() {
+		if ( ! class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Intelligence sync service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$result = RWGA_Intelligence_Sync_Service::sync( true );
+		return rest_ensure_response( $result );
 	}
 
 	/**

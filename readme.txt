@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.93
+Stable tag: 0.4.94
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.94 =
+* **Command intelligence:** Local phrase-to-action interpreter using shared ReactWoo API intelligence bundles; sync service, context resolver, learning events, admin test screen, REST endpoints, and offline fallback bundle.
 
 = 0.4.93 =
 * **Site intelligence quota:** Show monthly upload used/limit on the wizard; skip cron when quota is exhausted; promote audit-only when a prior sync exists.

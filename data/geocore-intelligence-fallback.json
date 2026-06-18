@@ -1,0 +1,2666 @@
+{
+  "suite": "geocore",
+  "bundle_version": "1.0.0",
+  "schema_version": "1.0",
+  "generated_at": "2026-06-18T06:49:33.688Z",
+  "actions": [
+    {
+      "id": "action-0",
+      "suite": "geocore",
+      "action_key": "geocore_create_country_rule",
+      "name": "Create Country Rule",
+      "description": "Create or update country targeting for the current context.",
+      "category": "targeting",
+      "target_types": [
+        "page",
+        "product",
+        "popup",
+        "variant",
+        "element",
+        "rule"
+      ],
+      "required_params": [
+        "mode",
+        "countries"
+      ],
+      "optional_params": [
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-1",
+      "suite": "geocore",
+      "action_key": "geocore_update_country_rule",
+      "name": "Update Country Rule",
+      "description": "Update an existing country targeting rule.",
+      "category": "targeting",
+      "target_types": [
+        "rule",
+        "page",
+        "product",
+        "popup",
+        "variant"
+      ],
+      "required_params": [
+        "rule_id"
+      ],
+      "optional_params": [
+        "mode",
+        "countries"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-2",
+      "suite": "geocore",
+      "action_key": "geocore_create_weather_rule",
+      "name": "Create Weather Rule",
+      "description": "Create weather-based targeting for the current context.",
+      "category": "targeting",
+      "target_types": [
+        "product",
+        "page",
+        "popup",
+        "variant",
+        "element"
+      ],
+      "required_params": [
+        "weather_condition"
+      ],
+      "optional_params": [
+        "temperature_operator",
+        "temperature_value",
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-3",
+      "suite": "geocore",
+      "action_key": "geocore_update_weather_rule",
+      "name": "Update Weather Rule",
+      "description": "Update an existing weather targeting rule.",
+      "category": "targeting",
+      "target_types": [
+        "rule",
+        "product",
+        "page",
+        "popup"
+      ],
+      "required_params": [
+        "rule_id"
+      ],
+      "optional_params": [
+        "weather_condition"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-4",
+      "suite": "geocore",
+      "action_key": "geocore_create_device_rule",
+      "name": "Create Device Rule",
+      "description": "Create device-based targeting for the current context.",
+      "category": "targeting",
+      "target_types": [
+        "page",
+        "product",
+        "popup",
+        "variant",
+        "element"
+      ],
+      "required_params": [
+        "device"
+      ],
+      "optional_params": [
+        "mode",
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-5",
+      "suite": "geocore",
+      "action_key": "geocore_create_url_rule",
+      "name": "Create URL Rule",
+      "description": "Create URL path targeting.",
+      "category": "targeting",
+      "target_types": [
+        "page",
+        "popup",
+        "variant",
+        "element"
+      ],
+      "required_params": [
+        "url_pattern"
+      ],
+      "optional_params": [
+        "mode",
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-6",
+      "suite": "geocore",
+      "action_key": "geocore_create_utm_rule",
+      "name": "Create UTM Rule",
+      "description": "Create UTM or referrer targeting.",
+      "category": "targeting",
+      "target_types": [
+        "page",
+        "popup",
+        "variant",
+        "element"
+      ],
+      "required_params": [
+        "utm_key",
+        "utm_value"
+      ],
+      "optional_params": [
+        "mode",
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-7",
+      "suite": "geocore",
+      "action_key": "geocore_attach_rule_to_variant",
+      "name": "Attach Rule To Variant",
+      "description": "Attach a rule to a specific variant.",
+      "category": "variant_lifecycle",
+      "target_types": [
+        "rule",
+        "variant",
+        "page"
+      ],
+      "required_params": [
+        "rule_id",
+        "variant_id"
+      ],
+      "optional_params": [],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-8",
+      "suite": "geocore",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "name": "Duplicate Rule To Variants",
+      "description": "Copy a rule to one or more variants.",
+      "category": "variant_lifecycle",
+      "target_types": [
+        "rule",
+        "variant",
+        "page",
+        "popup"
+      ],
+      "required_params": [
+        "source_rule_id"
+      ],
+      "optional_params": [
+        "variant_ids",
+        "scope"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-9",
+      "suite": "geocore",
+      "action_key": "geocore_disable_rule",
+      "name": "Disable Rule",
+      "description": "Disable an active targeting rule.",
+      "category": "targeting",
+      "target_types": [
+        "rule"
+      ],
+      "required_params": [
+        "rule_id"
+      ],
+      "optional_params": [],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-10",
+      "suite": "geocore",
+      "action_key": "geocore_archive_rule",
+      "name": "Archive Rule",
+      "description": "Archive a targeting rule.",
+      "category": "targeting",
+      "target_types": [
+        "rule"
+      ],
+      "required_params": [
+        "rule_id"
+      ],
+      "optional_params": [],
+      "requires_confirmation": true,
+      "is_destructive": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-11",
+      "suite": "geocore",
+      "action_key": "geocore_run_page_audit",
+      "name": "Run Page Audit",
+      "description": "Audit targeting and visibility for a page or variant.",
+      "category": "diagnostics",
+      "target_types": [
+        "page",
+        "product",
+        "variant"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": false,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-12",
+      "suite": "geocore",
+      "action_key": "geocore_run_popup_diagnostics",
+      "name": "Run Popup Diagnostics",
+      "description": "Diagnose why a popup may not be firing.",
+      "category": "diagnostics",
+      "target_types": [
+        "popup",
+        "page",
+        "variant"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": false,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-13",
+      "suite": "geocore",
+      "action_key": "geocore_run_rule_diagnostics",
+      "name": "Run Rule Diagnostics",
+      "description": "Diagnose rule eligibility and conflicts.",
+      "category": "diagnostics",
+      "target_types": [
+        "rule",
+        "page",
+        "popup",
+        "variant"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "target_type",
+        "target_id",
+        "rule_id"
+      ],
+      "requires_confirmation": false,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-14",
+      "suite": "geocore",
+      "action_key": "geocore_explain_rule_conflicts",
+      "name": "Explain Rule Conflicts",
+      "description": "Explain overlapping or conflicting rules.",
+      "category": "diagnostics",
+      "target_types": [
+        "page",
+        "product",
+        "popup",
+        "variant",
+        "rule"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": false,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-15",
+      "suite": "geocore",
+      "action_key": "geocore_promote_variant",
+      "name": "Promote Variant",
+      "description": "Promote a variant to become the primary page version.",
+      "category": "variant_lifecycle",
+      "target_types": [
+        "variant",
+        "page"
+      ],
+      "required_params": [
+        "variant_id"
+      ],
+      "optional_params": [],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-16",
+      "suite": "geocore",
+      "action_key": "geocore_cleanup_removed_variant_references",
+      "name": "Clean Up Removed Variant References",
+      "description": "Remove orphaned rules and references from deleted variants.",
+      "category": "variant_lifecycle",
+      "target_types": [
+        "variant",
+        "page",
+        "rule",
+        "popup"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "variant_ids",
+        "cleanup_mode"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-17",
+      "suite": "geocore",
+      "action_key": "geocore_reassign_variant_rules",
+      "name": "Reassign Variant Rules",
+      "description": "Reassign rules after variant promotion or restructuring.",
+      "category": "variant_lifecycle",
+      "target_types": [
+        "variant",
+        "rule",
+        "page"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "source_variant_id",
+        "target_variant_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-18",
+      "suite": "geocore",
+      "action_key": "geocore_apply_product_country_rule",
+      "name": "Apply Product Country Rule",
+      "description": "Apply country targeting to a product.",
+      "category": "targeting",
+      "target_types": [
+        "product"
+      ],
+      "required_params": [
+        "mode",
+        "countries"
+      ],
+      "optional_params": [
+        "product_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-19",
+      "suite": "geocore",
+      "action_key": "geocore_apply_product_weather_rule",
+      "name": "Apply Product Weather Rule",
+      "description": "Apply weather messaging to a product.",
+      "category": "targeting",
+      "target_types": [
+        "product"
+      ],
+      "required_params": [
+        "weather_condition"
+      ],
+      "optional_params": [
+        "product_id"
+      ],
+      "requires_confirmation": true,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-20",
+      "suite": "geocore",
+      "action_key": "geocore_recommend_localised_sections",
+      "name": "Recommend Localised Sections",
+      "description": "Recommend sections to localise based on targeting context.",
+      "category": "ux",
+      "target_types": [
+        "page",
+        "variant",
+        "product"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": false,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "action-21",
+      "suite": "geocore",
+      "action_key": "geocore_recommend_variant_structure",
+      "name": "Recommend Variant Structure",
+      "description": "Recommend variant layout improvements.",
+      "category": "ux",
+      "target_types": [
+        "page",
+        "variant"
+      ],
+      "required_params": [],
+      "optional_params": [
+        "target_type",
+        "target_id"
+      ],
+      "requires_confirmation": false,
+      "is_destructive": false,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    }
+  ],
+  "intents": [
+    {
+      "id": "intent-0",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "name": "Country Include",
+      "category": "targeting",
+      "default_action_key": "geocore_create_country_rule",
+      "min_confidence": 0.75,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-1",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "name": "Country Exclude",
+      "category": "targeting",
+      "default_action_key": "geocore_create_country_rule",
+      "min_confidence": 0.75,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-2",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "name": "Weather Rule",
+      "category": "targeting",
+      "default_action_key": "geocore_create_weather_rule",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-3",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "name": "Device Rule",
+      "category": "targeting",
+      "default_action_key": "geocore_create_device_rule",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-4",
+      "suite": "geocore",
+      "intent_key": "url_rule",
+      "name": "URL Rule",
+      "category": "targeting",
+      "default_action_key": "geocore_create_url_rule",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-5",
+      "suite": "geocore",
+      "intent_key": "utm_referrer_rule",
+      "name": "UTM Referrer Rule",
+      "category": "targeting",
+      "default_action_key": "geocore_create_utm_rule",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-6",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "name": "Diagnose Visibility",
+      "category": "diagnostics",
+      "default_action_key": "geocore_run_page_audit",
+      "min_confidence": 0.65,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-7",
+      "suite": "geocore",
+      "intent_key": "diagnose_popup",
+      "name": "Diagnose Popup",
+      "category": "diagnostics",
+      "default_action_key": "geocore_run_popup_diagnostics",
+      "min_confidence": 0.65,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-8",
+      "suite": "geocore",
+      "intent_key": "diagnose_rule",
+      "name": "Diagnose Rule",
+      "category": "diagnostics",
+      "default_action_key": "geocore_run_rule_diagnostics",
+      "min_confidence": 0.65,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-9",
+      "suite": "geocore",
+      "intent_key": "page_audit",
+      "name": "Page Audit",
+      "category": "diagnostics",
+      "default_action_key": "geocore_run_page_audit",
+      "min_confidence": 0.65,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-10",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "name": "Apply To Variants",
+      "category": "variant_lifecycle",
+      "default_action_key": "geocore_duplicate_rule_to_variants",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-11",
+      "suite": "geocore",
+      "intent_key": "variant_cleanup",
+      "name": "Clean Up Variant References",
+      "category": "variant_lifecycle",
+      "default_action_key": "geocore_cleanup_removed_variant_references",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-12",
+      "suite": "geocore",
+      "intent_key": "variant_promote",
+      "name": "Promote Variant",
+      "category": "variant_lifecycle",
+      "default_action_key": "geocore_promote_variant",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-13",
+      "suite": "geocore",
+      "intent_key": "rule_conflict_explain",
+      "name": "Explain Rule Conflicts",
+      "category": "diagnostics",
+      "default_action_key": "geocore_explain_rule_conflicts",
+      "min_confidence": 0.65,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-14",
+      "suite": "geocore",
+      "intent_key": "product_country_rule",
+      "name": "Product Country Rule",
+      "category": "targeting",
+      "default_action_key": "geocore_apply_product_country_rule",
+      "min_confidence": 0.75,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-15",
+      "suite": "geocore",
+      "intent_key": "product_weather_rule",
+      "name": "Product Weather Rule",
+      "category": "targeting",
+      "default_action_key": "geocore_apply_product_weather_rule",
+      "min_confidence": 0.7,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-16",
+      "suite": "geocore",
+      "intent_key": "ux_recommend_localisation",
+      "name": "Recommend Localisation",
+      "category": "ux",
+      "default_action_key": "geocore_recommend_localised_sections",
+      "min_confidence": 0.6,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "intent-17",
+      "suite": "geocore",
+      "intent_key": "ux_recommend_variant_structure",
+      "name": "Recommend Variant Structure",
+      "category": "ux",
+      "default_action_key": "geocore_recommend_variant_structure",
+      "min_confidence": 0.6,
+      "requires_context": true,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    }
+  ],
+  "phrase_patterns": [
+    {
+      "id": "pattern-0",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "only show this to {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 100,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-1",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "only show this in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 99,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-2",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "show this to {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 98,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-3",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "show this in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 97,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-4",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "show this for {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 96,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-5",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "show this for {country} users",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 95,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-6",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "show this for visitors in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 94,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-7",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "make this visible in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 93,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-8",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "make this local for {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 92,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-9",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "target {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 91,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-10",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "target visitors in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 90,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-11",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "target {country} users",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 89,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-12",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "include {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 88,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-13",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "add {country} targeting",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 87,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-14",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "create a rule for {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 86,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-15",
+      "suite": "geocore",
+      "intent_key": "country_include",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "create country rule for {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 85,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "include_only",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-16",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "hide this from {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 100,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-17",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "hide this in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 99,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-18",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "do not show this to {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 98,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-19",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "don't show this to {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 97,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-20",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "do not show this in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 96,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-21",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "don't show this in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 95,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-22",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "exclude {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 94,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-23",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "block {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 93,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-24",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "block visitors from {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 92,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-25",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "prevent {country} visitors seeing this",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 91,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-26",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "remove {country} from targeting",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 90,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-27",
+      "suite": "geocore",
+      "intent_key": "country_exclude",
+      "action_key": "geocore_create_country_rule",
+      "pattern": "make this unavailable in {country}",
+      "pattern_type": "template",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 89,
+      "confidence_weight": 0.95,
+      "param_schema": {
+        "mode": "exclude",
+        "countries": [
+          "{country}"
+        ]
+      },
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-28",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "show this when it is raining",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 100,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-29",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "show this in rainy weather",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 99,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-30",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "show this when it rains",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 98,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-31",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "use this offer for rainy weather",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 97,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-32",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "display this when it is hot",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 96,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-33",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "show this in hot weather",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 95,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-34",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "show this when it is cold",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 94,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-35",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "display this in cold weather",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 93,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-36",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "show this when it snows",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 92,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-37",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "show this in snowy weather",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 91,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-38",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "create weather rule",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 90,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-39",
+      "suite": "geocore",
+      "intent_key": "weather_rule",
+      "action_key": "geocore_create_weather_rule",
+      "pattern": "create weather messaging for this product",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 89,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-40",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "mobile only",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 100,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-41",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "desktop only",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 99,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-42",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "tablet only",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 98,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-43",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "only show this on mobile",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 97,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-44",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "only show this on desktop",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 96,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-45",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "only show this on tablet",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 95,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-46",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "hide this on mobile",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 94,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-47",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "hide this on desktop",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 93,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-48",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "show this for mobile users",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 92,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-49",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "show this for desktop users",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 91,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-50",
+      "suite": "geocore",
+      "intent_key": "device_rule",
+      "action_key": "geocore_create_device_rule",
+      "pattern": "make this mobile only",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 90,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-51",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "why is this not showing",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 90,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-52",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "why is this popup not firing",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 89,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-53",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "why is this popup not showing",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 88,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-54",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "why can't i see this",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 87,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-55",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "why can't i see this",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 86,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-56",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "check this page",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 85,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-57",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "audit this page",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 84,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-58",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "audit this targeting setup",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 83,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-59",
+      "suite": "geocore",
+      "intent_key": "diagnose_visibility",
+      "action_key": "geocore_run_page_audit",
+      "pattern": "check this targeting",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 82,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-60",
+      "suite": "geocore",
+      "intent_key": "rule_conflict_explain",
+      "action_key": "geocore_explain_rule_conflicts",
+      "pattern": "find conflicting rules",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 88,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-61",
+      "suite": "geocore",
+      "intent_key": "rule_conflict_explain",
+      "action_key": "geocore_explain_rule_conflicts",
+      "pattern": "explain this rule",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 87,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-62",
+      "suite": "geocore",
+      "intent_key": "rule_conflict_explain",
+      "action_key": "geocore_explain_rule_conflicts",
+      "pattern": "explain rule conflicts",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 86,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-63",
+      "suite": "geocore",
+      "intent_key": "rule_conflict_explain",
+      "action_key": "geocore_explain_rule_conflicts",
+      "pattern": "what rules affect this page",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 85,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-64",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "pattern": "apply this to all variants",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 85,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-65",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "pattern": "attach this to all variants",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 84,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-66",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "pattern": "copy this rule to variants",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 83,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-67",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "pattern": "copy this to all variants",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 82,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-68",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "pattern": "make this work on the variant",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 81,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-69",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "pattern": "attach this rule to the variant",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 80,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-70",
+      "suite": "geocore",
+      "intent_key": "variant_apply",
+      "action_key": "geocore_duplicate_rule_to_variants",
+      "pattern": "attach this popup to the variant",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 79,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-71",
+      "suite": "geocore",
+      "intent_key": "variant_cleanup",
+      "action_key": "geocore_cleanup_removed_variant_references",
+      "pattern": "clean up deleted variant rules",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 85,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-72",
+      "suite": "geocore",
+      "intent_key": "variant_cleanup",
+      "action_key": "geocore_cleanup_removed_variant_references",
+      "pattern": "clean up removed variant rules",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 84,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-73",
+      "suite": "geocore",
+      "intent_key": "variant_cleanup",
+      "action_key": "geocore_cleanup_removed_variant_references",
+      "pattern": "remove old variant references",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 83,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-74",
+      "suite": "geocore",
+      "intent_key": "variant_cleanup",
+      "action_key": "geocore_cleanup_removed_variant_references",
+      "pattern": "fix orphaned variant rules",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 82,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-75",
+      "suite": "geocore",
+      "intent_key": "variant_promote",
+      "action_key": "geocore_reassign_variant_rules",
+      "pattern": "move this rule to the promoted variant",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 80,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-76",
+      "suite": "geocore",
+      "intent_key": "variant_promote",
+      "action_key": "geocore_reassign_variant_rules",
+      "pattern": "what happens if i promote this variant",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 79,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "pattern-77",
+      "suite": "geocore",
+      "intent_key": "variant_promote",
+      "action_key": "geocore_reassign_variant_rules",
+      "pattern": "check promoted variant rules",
+      "pattern_type": "contains",
+      "language": "en",
+      "locale": "en_GB",
+      "priority": 78,
+      "confidence_weight": 0.85,
+      "param_schema": {},
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity-0",
+      "suite": "geocore",
+      "entity_type": "country",
+      "entity_key": "GB",
+      "display_name": "United Kingdom",
+      "aliases": [
+        "UK",
+        "Britain",
+        "Great Britain",
+        "United Kingdom",
+        "GB"
+      ],
+      "value": "GB",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-1",
+      "suite": "geocore",
+      "entity_type": "country",
+      "entity_key": "CA",
+      "display_name": "Canada",
+      "aliases": [
+        "Canada",
+        "Canadian",
+        "CA"
+      ],
+      "value": "CA",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-2",
+      "suite": "geocore",
+      "entity_type": "country",
+      "entity_key": "US",
+      "display_name": "United States",
+      "aliases": [
+        "US",
+        "USA",
+        "America",
+        "United States",
+        "United States of America",
+        "American"
+      ],
+      "value": "US",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-3",
+      "suite": "geocore",
+      "entity_type": "country",
+      "entity_key": "ZA",
+      "display_name": "South Africa",
+      "aliases": [
+        "South Africa",
+        "SA",
+        "South African",
+        "ZA"
+      ],
+      "value": "ZA",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-4",
+      "suite": "geocore",
+      "entity_type": "country",
+      "entity_key": "DE",
+      "display_name": "Germany",
+      "aliases": [
+        "Germany",
+        "German",
+        "DE"
+      ],
+      "value": "DE",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-5",
+      "suite": "geocore",
+      "entity_type": "country",
+      "entity_key": "FR",
+      "display_name": "France",
+      "aliases": [
+        "France",
+        "French",
+        "FR"
+      ],
+      "value": "FR",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-6",
+      "suite": "geocore",
+      "entity_type": "device",
+      "entity_key": "mobile",
+      "display_name": "Mobile",
+      "aliases": [
+        "mobile",
+        "phone",
+        "smartphone",
+        "mobile users"
+      ],
+      "value": "mobile",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-7",
+      "suite": "geocore",
+      "entity_type": "device",
+      "entity_key": "desktop",
+      "display_name": "Desktop",
+      "aliases": [
+        "desktop",
+        "computer",
+        "laptop",
+        "desktop users"
+      ],
+      "value": "desktop",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-8",
+      "suite": "geocore",
+      "entity_type": "device",
+      "entity_key": "tablet",
+      "display_name": "Tablet",
+      "aliases": [
+        "tablet",
+        "ipad",
+        "tablet users"
+      ],
+      "value": "tablet",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-9",
+      "suite": "geocore",
+      "entity_type": "weather_condition",
+      "entity_key": "rain",
+      "display_name": "Rain",
+      "aliases": [
+        "rain",
+        "raining",
+        "rainy",
+        "wet weather"
+      ],
+      "value": "rain",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-10",
+      "suite": "geocore",
+      "entity_type": "weather_condition",
+      "entity_key": "hot",
+      "display_name": "Hot Weather",
+      "aliases": [
+        "hot",
+        "warm",
+        "heat",
+        "sunny",
+        "high temperature"
+      ],
+      "value": "hot",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-11",
+      "suite": "geocore",
+      "entity_type": "weather_condition",
+      "entity_key": "cold",
+      "display_name": "Cold Weather",
+      "aliases": [
+        "cold",
+        "freezing",
+        "low temperature",
+        "winter weather"
+      ],
+      "value": "cold",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "entity-12",
+      "suite": "geocore",
+      "entity_type": "weather_condition",
+      "entity_key": "snow",
+      "display_name": "Snow",
+      "aliases": [
+        "snow",
+        "snowing",
+        "snowy",
+        "icy"
+      ],
+      "value": "snow",
+      "status": "active",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    }
+  ],
+  "ux_rules": [
+    {
+      "id": "ux-0",
+      "suite": "geocore",
+      "rule_key": "localise_cta_by_country",
+      "category": "localisation",
+      "title": "Localise CTAs for country-specific targeting",
+      "description": "If a page uses country targeting, check whether CTA copy should reflect the visitor location, currency, delivery options, or availability.",
+      "trigger_conditions": {
+        "has_country_rule": true
+      },
+      "recommendation": "Consider localising CTAs where country-specific offers, pricing, delivery, or availability differ.",
+      "suggested_actions": [
+        "geocore_recommend_localised_sections"
+      ],
+      "priority": 80,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "ux-1",
+      "suite": "geocore",
+      "rule_key": "localise_shipping_by_country",
+      "category": "localisation",
+      "title": "Localise shipping and delivery messages",
+      "description": "Shipping and returns messaging should be localised when fulfilment differs by visitor country.",
+      "trigger_conditions": {
+        "has_country_rule": true,
+        "page_contains_shipping_copy": true
+      },
+      "recommendation": "Create localised delivery and returns messaging for targeted countries.",
+      "suggested_actions": [
+        "geocore_recommend_localised_sections"
+      ],
+      "priority": 75,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "ux-2",
+      "suite": "geocore",
+      "rule_key": "weather_product_messaging",
+      "category": "personalisation",
+      "title": "Use weather-based product messaging",
+      "description": "Weather-sensitive products can benefit from messaging based on current visitor weather.",
+      "trigger_conditions": {
+        "target_type": "product",
+        "supports_weather_rules": true
+      },
+      "recommendation": "Create weather-specific product messaging for hot, cold, rainy, or snowy conditions.",
+      "suggested_actions": [
+        "geocore_apply_product_weather_rule"
+      ],
+      "priority": 70,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "ux-3",
+      "suite": "geocore",
+      "rule_key": "mobile_variant_simplification",
+      "category": "mobile_ux",
+      "title": "Simplify mobile variants",
+      "description": "Mobile-only targeting should prioritise short copy, clear CTA visibility, and reduced layout complexity.",
+      "trigger_conditions": {
+        "has_device_rule": true,
+        "device": "mobile"
+      },
+      "recommendation": "For mobile-targeted variants, use shorter headings, visible CTAs, and avoid excessive condition stacking.",
+      "suggested_actions": [
+        "geocore_recommend_variant_structure"
+      ],
+      "priority": 65,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "ux-4",
+      "suite": "geocore",
+      "rule_key": "popup_conflict_risk",
+      "category": "diagnostics",
+      "title": "Check popup rule conflict risk",
+      "description": "Popups with overlapping country, URL, device, UTM, and variant rules are more likely to fail unexpectedly.",
+      "trigger_conditions": {
+        "target_type": "popup",
+        "rule_count_greater_than": 3
+      },
+      "recommendation": "Run popup diagnostics to identify conflicting or higher-priority rules.",
+      "suggested_actions": [
+        "geocore_run_popup_diagnostics",
+        "geocore_explain_rule_conflicts"
+      ],
+      "priority": 90,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "ux-5",
+      "suite": "geocore",
+      "rule_key": "variant_promotion_cleanup",
+      "category": "variant_lifecycle",
+      "title": "Check rules after variant promotion",
+      "description": "When a variant is promoted, old references may remain attached to previous parent/variant relationships.",
+      "trigger_conditions": {
+        "variant_state": "promoted"
+      },
+      "recommendation": "Check and reassign rules, popups, CTAs, and element references after promoting a variant.",
+      "suggested_actions": [
+        "geocore_reassign_variant_rules",
+        "geocore_explain_rule_conflicts"
+      ],
+      "priority": 85,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    },
+    {
+      "id": "ux-6",
+      "suite": "geocore",
+      "rule_key": "removed_variant_cleanup",
+      "category": "variant_lifecycle",
+      "title": "Clean up removed variant references",
+      "description": "Removed variants can leave behind orphaned rules, CTAs, popups, or element references.",
+      "trigger_conditions": {
+        "variant_state": "removed"
+      },
+      "recommendation": "Disable, delete, or reassign rules and references attached to removed variants.",
+      "suggested_actions": [
+        "geocore_cleanup_removed_variant_references"
+      ],
+      "priority": 80,
+      "status": "active",
+      "version": "1.0.0",
+      "created_at": "2026-06-18T06:49:33.689Z",
+      "updated_at": "2026-06-18T06:49:33.689Z"
+    }
+  ],
+  "confidence": {
+    "high": 0.85,
+    "medium": 0.6,
+    "low": 0.4
+  },
+  "hash": "b094d10f287ca1d36b7c39c4c79832a1d8424f704187404047339705e3c3aeb0",
+  "_source": "fallback"
+}
