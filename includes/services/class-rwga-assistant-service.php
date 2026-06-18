@@ -45,6 +45,7 @@ class RWGA_Assistant_Service {
 		return array(
 			'success'             => true,
 			'status'              => 'preview',
+			'request_id'          => (int) ( $context['preview_request_id'] ?? 0 ),
 			'detected'            => $detected,
 			'summary'             => $summary,
 			'missing_information' => $missing,
@@ -168,13 +169,29 @@ class RWGA_Assistant_Service {
 	 */
 	private static function build_interpret_debug( $message, array $raw, $bundle ) {
 		$base = self::bundle_debug( $bundle );
-		$base['normalised_input']   = RWGA_Local_Intent_Interpreter::normalise( $message );
-		$base['matched_patterns']   = isset( $raw['_debug_patterns'] ) ? $raw['_debug_patterns'] : array();
-		$base['detected_entities']  = isset( $raw['_debug_entities'] ) ? $raw['_debug_entities'] : array();
-		$base['proposed_action']    = (string) ( $raw['matched_action'] ?? '' );
-		$base['confidence']         = (float) ( $raw['confidence'] ?? 0 );
-		$base['missing_information']= isset( $raw['missing_information'] ) ? $raw['missing_information'] : array();
-		$base['proposal']           = $raw;
+		$phrase = RWGA_Local_Intent_Interpreter::normalise( $message );
+		$base['normalised_input']    = $phrase;
+		$base['detected_intent']     = (string) ( $raw['intent'] ?? '' );
+		$base['matched_patterns']    = isset( $raw['_debug_patterns'] ) ? $raw['_debug_patterns'] : array();
+		$base['detected_entities']   = isset( $raw['_debug_entities'] ) ? $raw['_debug_entities'] : array();
+		$base['proposed_action']     = (string) ( $raw['matched_action'] ?? '' );
+		$base['confidence']          = (float) ( $raw['confidence'] ?? 0 );
+		$base['missing_information'] = isset( $raw['missing_information'] ) ? $raw['missing_information'] : array();
+		$base['variant_count']       = (int) ( $raw['variant_count'] ?? 0 );
+		$base['variant_groups']      = isset( $raw['variant_groups'] ) && is_array( $raw['variant_groups'] )
+			? $raw['variant_groups']
+			: ( $raw['_debug_entities']['variant_groups'] ?? array() );
+		$base['matched_terms']       = $raw['_debug_entities']['matched_terms'] ?? array();
+		if ( class_exists( 'RWGA_Page_Reference_Resolver', false ) ) {
+			$page = RWGA_Page_Reference_Resolver::detect( $phrase );
+			if ( $page ) {
+				$base['detected_page'] = array(
+					'label' => (string) ( $page['label'] ?? $page['value'] ?? '' ),
+					'value' => (string) ( $page['value'] ?? '' ),
+				);
+			}
+		}
+		$base['proposal'] = $raw;
 		return $base;
 	}
 
@@ -196,47 +213,110 @@ class RWGA_Assistant_Service {
 	 * @return array<string,mixed>
 	 */
 	private static function detect_terms( $phrase, array $entities, array $context ) {
-		$intents  = array();
-		$entities_out = array();
-		$keywords = array();
+		$intents        = array();
+		$entities_out   = array();
+		$keywords       = array();
+		$variant_groups = array();
 
-		if ( preg_match( '/\b(create|show|hide|target|audit|diagnose|clean|apply|exclude)\b/i', $phrase, $m ) ) {
-			$keywords[] = array( 'text' => $m[1], 'type' => 'action' );
-		}
-		if ( preg_match( '/\b(two|\d+)\s+variants?\b/i', $phrase, $m ) ) {
-			$keywords[] = array( 'text' => trim( $m[0] ), 'type' => 'variant_count' );
-			$intents[]  = array(
+		$multi = class_exists( 'RWGA_Multi_Variant_Interpreter', false )
+			? RWGA_Multi_Variant_Interpreter::parse( $phrase, $entities, $context )
+			: array( 'matched' => false );
+
+		if ( ! empty( $multi['matched'] ) ) {
+			$variants = isset( $multi['params']['variants'] ) && is_array( $multi['params']['variants'] )
+				? $multi['params']['variants']
+				: array();
+			$count    = (int) ( $multi['variant_count'] ?? count( $variants ) );
+			if ( $count < 1 && ! empty( $multi['missing_information'] ) ) {
+				$count = max( 1, count( (array) ( $multi['params']['countries'] ?? array() ) ) );
+			}
+			$intents[] = array(
 				'key'        => 'create_geo_variants',
-				'label'      => __( 'Create geo variants', 'reactwoo-geocore' ),
-				'confidence' => 0.86,
+				'label'      => sprintf(
+					/* translators: %d: variant count */
+					__( 'Create %d variants', 'reactwoo-geocore' ),
+					max( 1, $count )
+				),
+				'confidence' => (float) ( $multi['confidence'] ?? 0.8 ),
 			);
+
+			$page = class_exists( 'RWGA_Page_Reference_Resolver', false )
+				? RWGA_Page_Reference_Resolver::detect( $phrase )
+				: null;
+			if ( $page ) {
+				$entities_out[] = array(
+					'type'   => 'page',
+					'label'  => (string) ( $page['label'] ?? $page['value'] ),
+					'value'  => (string) ( $page['value'] ?? '' ),
+					'source' => 'phrase',
+				);
+			} elseif ( ! empty( $multi['params']['source_page_ref'] ) ) {
+				$entities_out[] = array(
+					'type'   => 'page',
+					'label'  => ucfirst( (string) $multi['params']['source_page_ref'] ),
+					'value'  => (string) $multi['params']['source_page_ref'],
+					'source' => 'phrase',
+				);
+			}
+
+			foreach ( $variants as $idx => $variant ) {
+				$label = (string) ( $variant['label'] ?? '' );
+				if ( '' === $label && ! empty( $variant['countries'] ) ) {
+					$label = implode( ' + ', (array) $variant['countries'] );
+				}
+				$variant_groups[] = array(
+					'index' => $idx + 1,
+					'label' => sprintf(
+						/* translators: 1: variant number, 2: targeting label */
+						__( 'Variant %1$d: %2$s', 'reactwoo-geocore' ),
+						$idx + 1,
+						$label
+					),
+				);
+			}
+
+			if ( preg_match( '/\b(duplicate|twice|another|the other)\b/i', $phrase, $m ) ) {
+				$keywords[] = array( 'text' => $m[1], 'type' => 'variant_signal' );
+			}
+		} else {
+			if ( preg_match( '/\b(create|show|hide|target|audit|diagnose|clean|apply|exclude)\b/i', $phrase, $m ) ) {
+				$keywords[] = array( 'text' => $m[1], 'type' => 'action' );
+			}
+
+			$country_rule = class_exists( 'RWGA_Country_Rule_Interpreter', false )
+				? RWGA_Country_Rule_Interpreter::parse( $phrase, $entities )
+				: array( 'matched' => false );
+			if ( ! empty( $country_rule['matched'] ) ) {
+				$intents[] = array(
+					'key'        => (string) ( $country_rule['intent'] ?? 'country_include' ),
+					'label'      => (string) ( $country_rule['summary'] ?? __( 'Country rule', 'reactwoo-geocore' ) ),
+					'confidence' => (float) ( $country_rule['confidence'] ?? 0.75 ),
+				);
+				foreach ( (array) ( $country_rule['params']['countries'] ?? array() ) as $code ) {
+					$entities_out[] = array(
+						'type'   => 'country',
+						'label'  => $code,
+						'value'  => $code,
+						'source' => 'phrase',
+					);
+				}
+			}
+
+			$page = class_exists( 'RWGA_Page_Reference_Resolver', false )
+				? RWGA_Page_Reference_Resolver::detect( $phrase )
+				: null;
+			if ( $page ) {
+				$entities_out[] = array(
+					'type'   => 'page',
+					'label'  => (string) ( $page['label'] ?? $page['value'] ),
+					'value'  => (string) ( $page['value'] ?? '' ),
+					'source' => 'phrase',
+				);
+			}
 		}
-		if ( preg_match( '/\bonly\b/i', $phrase ) ) {
+
+		if ( preg_match( '/\bonly\b/i', $phrase ) && empty( $variant_groups ) ) {
 			$keywords[] = array( 'text' => 'only', 'type' => 'rule_mode' );
-		}
-
-		$page = class_exists( 'RWGA_Page_Reference_Resolver', false )
-			? RWGA_Page_Reference_Resolver::detect( $phrase )
-			: null;
-		if ( $page ) {
-			$entities_out[] = array(
-				'type'   => 'page',
-				'label'  => (string) ( $page['label'] ?? $page['value'] ),
-				'value'  => (string) ( $page['value'] ?? '' ),
-				'source' => 'phrase',
-			);
-		}
-
-		$countries = class_exists( 'RWGA_Multi_Variant_Interpreter', false )
-			? RWGA_Multi_Variant_Interpreter::parse_country_list( $phrase, $entities )
-			: array();
-		foreach ( $countries as $code ) {
-			$entities_out[] = array(
-				'type'   => 'country',
-				'label'  => $code,
-				'value'  => $code,
-				'source' => 'phrase',
-			);
 		}
 
 		foreach ( array( 'mobile', 'desktop', 'tablet' ) as $device ) {
@@ -251,9 +331,10 @@ class RWGA_Assistant_Service {
 		}
 
 		return array(
-			'intents'  => $intents,
-			'entities' => $entities_out,
-			'keywords' => $keywords,
+			'intents'        => $intents,
+			'entities'       => $entities_out,
+			'keywords'       => $keywords,
+			'variant_groups' => $variant_groups,
 		);
 	}
 
@@ -266,16 +347,21 @@ class RWGA_Assistant_Service {
 		$steps = isset( $raw['steps'] ) && is_array( $raw['steps'] ) ? $raw['steps'] : array();
 		if ( empty( $steps ) && ! empty( $raw['params']['variants'] ) ) {
 			foreach ( (array) $raw['params']['variants'] as $idx => $variant ) {
-				$countries = is_array( $variant['countries'] ?? null ) ? $variant['countries'] : array();
-				$steps[]   = array(
+				$label = (string) ( $variant['label'] ?? '' );
+				if ( '' === $label ) {
+					$countries = is_array( $variant['countries'] ?? null ) ? $variant['countries'] : array();
+					$label     = implode( ', ', $countries );
+				}
+				$steps[] = array(
 					'label'  => sprintf(
-						/* translators: %s: country codes */
-						__( 'Create variant for %s', 'reactwoo-geocore' ),
-						implode( ', ', $countries )
+						/* translators: 1: variant number, 2: variant label */
+						__( 'Variant %1$d: %2$s', 'reactwoo-geocore' ),
+						$idx + 1,
+						$label
 					),
 					'action' => 'geocore_create_variant',
 					'params' => array(
-						'countries' => $countries,
+						'countries' => $variant['countries'] ?? array(),
 						'mode'      => $variant['mode'] ?? 'include_only',
 					),
 				);
@@ -288,16 +374,47 @@ class RWGA_Assistant_Service {
 			'confidence'            => (float) ( $raw['confidence'] ?? 0 ),
 			'requires_confirmation' => ! empty( $raw['requires_confirmation'] ),
 			'summary'               => (string) ( $raw['summary'] ?? '' ),
+			'setup_summary'         => self::format_setup_summary( $raw ),
 			'params'                => isset( $raw['params'] ) && is_array( $raw['params'] ) ? $raw['params'] : array(),
 			'steps'                 => $steps,
 			'warnings'              => isset( $raw['warnings'] ) && is_array( $raw['warnings'] ) ? $raw['warnings'] : array(),
 			'missing_information'   => isset( $raw['missing_information'] ) && is_array( $raw['missing_information'] ) ? $raw['missing_information'] : array(),
-			'conditions'            => isset( $raw['conditions'] ) && is_array( $raw['conditions'] ) ? $raw['conditions'] : array(),
-			'condition_match'       => (string) ( $raw['condition_match'] ?? '' ),
+			'suggested_options'     => isset( $raw['suggested_options'] ) && is_array( $raw['suggested_options'] ) ? $raw['suggested_options'] : array(),
+			'conditions'            => 'create_geo_variants' === ( $raw['intent'] ?? '' ) ? array() : ( isset( $raw['conditions'] ) && is_array( $raw['conditions'] ) ? $raw['conditions'] : array() ),
+			'condition_match'       => 'create_geo_variants' === ( $raw['intent'] ?? '' ) ? '' : (string) ( $raw['condition_match'] ?? '' ),
 			'portable_rule_set'     => $raw['portable_rule_set'] ?? null,
 			'resolved_target'       => $raw['resolved_target'] ?? null,
 			'original_message'      => $message,
 		);
+	}
+
+	/**
+	 * Human-readable setup panel summary (not raw condition syntax).
+	 *
+	 * @param array<string,mixed> $raw Interpreter output.
+	 * @return string
+	 */
+	private static function format_setup_summary( array $raw ) {
+		$intent = (string) ( $raw['intent'] ?? '' );
+		if ( 'create_geo_variants' === $intent && ! empty( $raw['params']['variants'] ) ) {
+			$page_ref = (string) ( $raw['params']['source_page_ref'] ?? $raw['params']['page_ref'] ?? 'page' );
+			$lines    = array( ucfirst( $page_ref ) . ' ' . __( 'variants', 'reactwoo-geocore' ) );
+			foreach ( (array) $raw['params']['variants'] as $variant ) {
+				$label = (string) ( $variant['label'] ?? '' );
+				if ( '' === $label && ! empty( $variant['countries'] ) ) {
+					$label = implode( ', ', (array) $variant['countries'] );
+				}
+				$lines[] = $label;
+			}
+			return implode( "\n", $lines );
+		}
+		if ( 'country_include' === $intent ) {
+			return __( 'Country rule', 'reactwoo-geocore' ) . "\n" . (string) ( $raw['summary'] ?? '' );
+		}
+		if ( 'country_exclude' === $intent ) {
+			return __( 'Country rule', 'reactwoo-geocore' ) . "\n" . (string) ( $raw['summary'] ?? '' );
+		}
+		return (string) ( $raw['summary'] ?? '' );
 	}
 
 	/**

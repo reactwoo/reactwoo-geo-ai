@@ -84,6 +84,7 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 			array( 'ZA', 'South Africa', array( 'South Africa', 'South African', 'ZA' ) ),
 			array( 'DE', 'Germany', array( 'Germany', 'German', 'DE' ) ),
 			array( 'FR', 'France', array( 'France', 'French', 'FR' ) ),
+			array( 'RU', 'Russia', array( 'Russia', 'Russian', 'RU', 'russia' ) ),
 		);
 		$out = array();
 		foreach ( $rows as $idx => $row ) {
@@ -191,11 +192,43 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 				'status'             => 'active',
 			),
 			array(
+				'pattern'            => 'duplicate the {page} twice with a version for {country} only and a version which works in both {country_list}',
+				'pattern_type'       => 'template',
+				'intent_key'         => 'create_geo_variants',
+				'action_key'         => 'geocore_create_variants_with_country_rules',
+				'confidence_weight'  => 0.95,
+				'status'             => 'active',
+			),
+			array(
+				'pattern'            => 'duplicate {page} twice',
+				'pattern_type'       => 'template',
+				'intent_key'         => 'create_geo_variants',
+				'action_key'         => 'geocore_create_variants_with_country_rules',
+				'confidence_weight'  => 0.9,
+				'status'             => 'active',
+			),
+			array(
+				'pattern'            => 'create two variants of {page}',
+				'pattern_type'       => 'template',
+				'intent_key'         => 'create_geo_variants',
+				'action_key'         => 'geocore_create_variants_with_country_rules',
+				'confidence_weight'  => 0.9,
+				'status'             => 'active',
+			),
+			array(
 				'pattern'            => 'make one version for {country} and another for {country_list}',
 				'pattern_type'       => 'template',
 				'intent_key'         => 'create_geo_variants',
 				'action_key'         => 'geocore_create_variants_with_country_rules',
 				'confidence_weight'  => 0.88,
+				'status'             => 'active',
+			),
+			array(
+				'pattern'            => 'one for {country} and one for {country_list}',
+				'pattern_type'       => 'template',
+				'intent_key'         => 'create_geo_variants',
+				'action_key'         => 'geocore_create_variants_with_country_rules',
+				'confidence_weight'  => 0.86,
 				'status'             => 'active',
 			),
 			array(

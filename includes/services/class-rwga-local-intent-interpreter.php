@@ -43,7 +43,15 @@ class RWGA_Local_Intent_Interpreter {
 			}
 		}
 
+		if ( class_exists( 'RWGA_Country_Rule_Interpreter', false ) ) {
+			$country_rule = RWGA_Country_Rule_Interpreter::parse( $phrase, $flat_entities );
+			if ( ! empty( $country_rule['matched'] ) ) {
+				return self::build_country_rule_result( $country_rule, $context, $phrase );
+			}
+		}
+
 		$compound = class_exists( 'RWGA_Compound_Condition_Interpreter', false )
+			&& ( ! class_exists( 'RWGA_Variant_Group_Extractor', false ) || ! RWGA_Variant_Group_Extractor::is_multi_variant_command( $phrase ) )
 			? RWGA_Compound_Condition_Interpreter::parse( $phrase, $flat_entities, $editor_opts )
 			: array( 'compound' => false );
 
@@ -161,9 +169,40 @@ class RWGA_Local_Intent_Interpreter {
 			'resolved_target'       => $resolved,
 			'params'                => isset( $multi['params'] ) && is_array( $multi['params'] ) ? $multi['params'] : array(),
 			'steps'                 => isset( $multi['steps'] ) && is_array( $multi['steps'] ) ? $multi['steps'] : array(),
-			'missing_information'   => $page_id > 0 ? array() : array( 'page_ref' ),
+			'variant_groups'        => isset( $multi['variant_groups'] ) && is_array( $multi['variant_groups'] ) ? $multi['variant_groups'] : array(),
+			'variant_count'         => (int) ( $multi['variant_count'] ?? count( $multi['params']['variants'] ?? array() ) ),
+			'missing_information'   => isset( $multi['missing_information'] ) && is_array( $multi['missing_information'] )
+				? $multi['missing_information']
+				: ( $page_id > 0 ? array() : array( 'page_ref' ) ),
+			'suggested_options'     => isset( $multi['suggested_options'] ) && is_array( $multi['suggested_options'] ) ? $multi['suggested_options'] : array(),
 			'requires_confirmation' => true,
 			'summary'               => (string) ( $multi['summary'] ?? '' ),
+			'warnings'              => array(),
+			'normalised_phrase'     => $phrase,
+			'_debug_entities'       => array(
+				'matched_terms'  => $multi['matched_terms'] ?? array(),
+				'variant_groups' => $multi['variant_groups'] ?? array(),
+			),
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $rule    Country rule parse result.
+	 * @param array<string,mixed> $context Context.
+	 * @param string              $phrase  Normalised phrase.
+	 * @return array<string,mixed>
+	 */
+	private static function build_country_rule_result( array $rule, array $context, $phrase ) {
+		return array(
+			'intent'                => (string) ( $rule['intent'] ?? 'country_include' ),
+			'matched_action'        => (string) ( $rule['matched_action'] ?? 'geocore_create_country_rule' ),
+			'confidence'            => round( (float) ( $rule['confidence'] ?? 0.8 ), 2 ),
+			'target_reference'      => 'this',
+			'resolved_target'       => RWGA_Context_Resolver::resolve_reference( 'this', $context ),
+			'params'                => isset( $rule['params'] ) && is_array( $rule['params'] ) ? $rule['params'] : array(),
+			'missing_information'   => array(),
+			'requires_confirmation' => true,
+			'summary'               => (string) ( $rule['summary'] ?? '' ),
 			'warnings'              => array(),
 			'normalised_phrase'     => $phrase,
 		);

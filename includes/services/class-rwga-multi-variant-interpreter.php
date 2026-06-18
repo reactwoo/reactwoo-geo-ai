@@ -17,74 +17,100 @@ class RWGA_Multi_Variant_Interpreter {
 	 */
 	public static function parse( $phrase, array $entities, array $context = array() ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
-		if ( '' === $phrase || ! preg_match( '/\bvariants?\b|\bversions?\b/i', $phrase ) ) {
+		if ( '' === $phrase || ! self::is_multi_variant_command( $phrase ) ) {
 			return array( 'matched' => false );
 		}
 
-		$page_ref = class_exists( 'RWGA_Page_Reference_Resolver', false )
-			? RWGA_Page_Reference_Resolver::detect( $phrase )
-			: null;
-
-		$variants = self::extract_variants( $phrase, $entities );
-		if ( count( $variants ) < 2 && ! preg_match( '/\btwo\b|\b2\b/', $phrase ) ) {
-			return array( 'matched' => false );
+		if ( class_exists( 'RWGA_Variant_Group_Extractor', false )
+			&& RWGA_Variant_Group_Extractor::is_ambiguous_grouping( $phrase, $entities ) ) {
+			return array(
+				'matched'             => true,
+				'intent'              => 'create_geo_variants',
+				'matched_action'      => 'geocore_create_variants_with_country_rules',
+				'confidence'          => 0.62,
+				'missing_information' => array(
+					array(
+						'key'      => 'variant_grouping',
+						'question' => __( 'Do you want one shared variant for all listed countries, or separate variants for each country?', 'reactwoo-geocore' ),
+					),
+				),
+				'suggested_options'   => array(
+					__( 'One shared variant', 'reactwoo-geocore' ),
+					__( 'Separate variants per country', 'reactwoo-geocore' ),
+				),
+				'params'              => array(
+					'countries' => self::parse_country_list( $phrase, $entities ),
+				),
+				'summary'             => __( 'I need to know how to group these countries into variants.', 'reactwoo-geocore' ),
+			);
 		}
-		if ( empty( $variants ) ) {
-			return array( 'matched' => false );
-		}
 
-		if ( 1 === count( $variants ) && preg_match( '/\btwo\b|\b2\b/', $phrase ) ) {
-			$variants = self::split_dual_segment( $phrase, $entities );
-		}
+		$extracted = class_exists( 'RWGA_Variant_Group_Extractor', false )
+			? RWGA_Variant_Group_Extractor::extract( $phrase, $entities )
+			: array( 'variant_groups' => array(), 'variant_count' => 0 );
 
-		if ( count( $variants ) < 1 ) {
-			return array( 'matched' => false );
+		$groups = $extracted['variant_groups'] ?? array();
+		if ( count( $groups ) < 2 ) {
+			$groups = self::legacy_groups( $phrase, $entities );
 		}
-
-		$page_value = $page_ref ? (string) ( $page_ref['value'] ?? 'homepage' ) : self::extract_page_token( $phrase );
-		$steps      = array();
-		foreach ( $variants as $idx => $variant ) {
-			$countries = $variant['countries'] ?? array();
-			$label     = 1 === count( $countries )
-				? sprintf(
-					/* translators: %s: country code or name */
-					__( 'Create homepage variant for %s', 'reactwoo-geocore' ),
-					implode( ', ', $countries )
-				)
-				: sprintf(
-					/* translators: %s: comma-separated country list */
-					__( 'Create homepage variant for %s', 'reactwoo-geocore' ),
-					implode( ' + ', $countries )
-				);
-			$steps[] = array(
-				'label'  => str_replace( 'homepage', $page_value, $label ),
-				'action' => 'geocore_create_variant',
-				'params' => array(
-					'page_ref'  => $page_value,
-					'countries' => $countries,
-					'mode'      => 'include_only',
-					'name'      => sprintf( 'Variant %d', $idx + 1 ),
+		if ( count( $groups ) < 1 ) {
+			return array(
+				'matched'  => false,
+				'_debug'   => array(
+					'reason'                  => 'multi_variant_terms_detected_but_groups_not_extracted',
+					'countries_detected'      => self::parse_country_list( $phrase, $entities ),
+					'variant_terms_detected'    => $extracted['matched_terms'] ?? array(),
 				),
 			);
 		}
+
+		$page_ref   = class_exists( 'RWGA_Page_Reference_Resolver', false )
+			? RWGA_Page_Reference_Resolver::detect( $phrase )
+			: null;
+		$page_value = $page_ref ? (string) ( $page_ref['value'] ?? 'homepage' ) : self::extract_page_token( $phrase );
+		$variants   = array();
+		$steps      = array();
+
+		foreach ( $groups as $idx => $group ) {
+			$countries = $group['countries'] ?? array();
+			$label     = (string) ( $group['label'] ?? self::default_group_label( $countries, $entities ) );
+			$variants[] = array(
+				'label'     => $label,
+				'mode'      => $group['mode'] ?? 'include_only',
+				'countries' => $countries,
+			);
+			$steps[] = array(
+				'label'  => sprintf(
+					/* translators: 1: variant number, 2: country group label */
+					__( 'Variant %1$d: %2$s', 'reactwoo-geocore' ),
+					$idx + 1,
+					$label
+				),
+				'action' => 'geocore_create_variant',
+				'params' => array(
+					'source_page_ref' => $page_value,
+					'countries'       => $countries,
+					'mode'            => 'include_only',
+				),
+			);
+		}
+
+		$count = (int) ( $extracted['variant_count'] ?? count( $variants ) );
 
 		return array(
 			'matched'        => true,
 			'intent'         => 'create_geo_variants',
 			'matched_action' => 'geocore_create_variants_with_country_rules',
-			'confidence'     => min( 0.98, 0.72 + ( 0.08 * count( $variants ) ) ),
+			'confidence'     => min( 0.98, 0.78 + ( 0.06 * count( $variants ) ) ),
 			'page_ref'       => $page_ref,
+			'variant_groups' => $groups,
+			'variant_count'  => $count,
+			'matched_terms'  => $extracted['matched_terms'] ?? array(),
 			'params'         => array(
-				'page_ref' => $page_value,
-				'variants' => array_map(
-					static function ( $v ) {
-						return array(
-							'countries' => $v['countries'] ?? array(),
-							'mode'      => 'include_only',
-						);
-					},
-					$variants
-				),
+				'source_page_ref' => $page_value,
+				'page_ref'        => $page_value,
+				'variant_count'   => $count,
+				'variants'        => $variants,
 			),
 			'steps'          => $steps,
 			'summary'        => self::build_summary( $page_value, $variants ),
@@ -92,50 +118,25 @@ class RWGA_Multi_Variant_Interpreter {
 	}
 
 	/**
-	 * @param string           $phrase   Phrase.
-	 * @param array<int,array> $entities Entities.
-	 * @return array<int,array{countries:array<int,string>}>
+	 * @param string $phrase Normalised phrase.
+	 * @return bool
 	 */
-	private static function split_dual_segment( $phrase, array $entities ) {
-		$patterns = array(
-			'/one will display in (.+?) only the other in (.+)$/i',
-			'/one for (.+?) and (?:one|another) for (.+)$/i',
-			'/one version for (.+?) and another for (.+)$/i',
-			'/one in (.+?) and (?:one|another) in (.+)$/i',
-		);
-		foreach ( $patterns as $regex ) {
-			if ( preg_match( $regex, $phrase, $m ) ) {
-				$a = self::parse_country_list( trim( $m[1] ), $entities );
-				$b = self::parse_country_list( trim( $m[2] ), $entities );
-				if ( ! empty( $a ) && ! empty( $b ) ) {
-					return array(
-						array( 'countries' => $a ),
-						array( 'countries' => $b ),
-					);
-				}
-			}
-		}
-		return array();
+	public static function is_multi_variant_command( $phrase ) {
+		return class_exists( 'RWGA_Variant_Group_Extractor', false )
+			? RWGA_Variant_Group_Extractor::is_multi_variant_command( $phrase )
+			: (bool) preg_match( '/\bvariants?\b|\bversions?\b|\bduplicate\b|\btwice\b/i', $phrase );
 	}
 
 	/**
 	 * @param string           $phrase   Phrase.
 	 * @param array<int,array> $entities Entities.
-	 * @return array<int,array{countries:array<int,string>}>
+	 * @return array<int,array{raw:string,countries:array,mode:string,label:string}>
 	 */
-	private static function extract_variants( $phrase, array $entities ) {
-		$dual = self::split_dual_segment( $phrase, $entities );
-		if ( ! empty( $dual ) ) {
-			return $dual;
+	private static function legacy_groups( $phrase, array $entities ) {
+		if ( ! class_exists( 'RWGA_Variant_Group_Extractor', false ) ) {
+			return array();
 		}
-		$all = self::parse_country_list( $phrase, $entities );
-		if ( count( $all ) >= 2 && preg_match( '/\bvariants?\b/', $phrase ) ) {
-			return array(
-				array( 'countries' => array( $all[0] ) ),
-				array( 'countries' => array_slice( $all, 1 ) ),
-			);
-		}
-		return array();
+		return RWGA_Variant_Group_Extractor::split_variant_groups( $phrase, $entities );
 	}
 
 	/**
@@ -145,22 +146,82 @@ class RWGA_Multi_Variant_Interpreter {
 	 */
 	public static function parse_country_list( $segment, array $entities ) {
 		$segment = RWGA_Local_Intent_Interpreter::normalise( $segment );
-		$segment = preg_replace( '/\b(only|just|display|show|will|the|other|in|for|and)\b/i', ' ', $segment );
+
+		if ( preg_match( '/\bboth\s+(.+)$/i', $segment, $both_match ) ) {
+			$segment = trim( $both_match[1] );
+		}
+
+		$segment = preg_replace( '/\b(version|variant|works|which|that|for|display|show|will|the|a|an)\b/i', ' ', $segment );
+		$segment = preg_replace( '/\bonly\b/i', ' ', $segment );
 		$segment = preg_replace( '/\s+/', ' ', trim( (string) $segment ) );
+
 		$found   = array();
 		$indexed = self::index_countries( $entities );
+		uksort(
+			$indexed,
+			static function ( $a, $b ) use ( $indexed ) {
+				$la = max( array_map( 'strlen', $indexed[ $a ] ) );
+				$lb = max( array_map( 'strlen', $indexed[ $b ] ) );
+				return $lb - $la;
+			}
+		);
+
 		foreach ( $indexed as $code => $aliases ) {
+			usort(
+				$aliases,
+				static function ( $a, $b ) {
+					return strlen( (string) $b ) - strlen( (string) $a );
+				}
+			);
 			foreach ( $aliases as $alias ) {
 				$alias = RWGA_Local_Intent_Interpreter::normalise( $alias );
-				if ( '' !== $alias && false !== strpos( $segment, $alias ) ) {
+				if ( '' === $alias ) {
+					continue;
+				}
+				$pattern = '/\b' . preg_quote( $alias, '/' ) . '\b/i';
+				if ( preg_match( $pattern, $segment ) ) {
 					if ( ! in_array( $code, $found, true ) ) {
 						$found[] = $code;
 					}
-					$segment = str_replace( $alias, ' ', $segment );
+					$segment = preg_replace( $pattern, ' ', $segment );
 				}
 			}
 		}
+
+		$segment = preg_replace( '/\b(and|&|plus|as well as)\b/i', ' ', $segment );
+		$segment = preg_replace( '/[,\\/]+/', ' ', $segment );
+		$segment = trim( preg_replace( '/\s+/', ' ', $segment ) );
+
+		if ( '' !== $segment ) {
+			foreach ( $indexed as $code => $aliases ) {
+				foreach ( preg_split( '/\s+/', $segment ) as $token ) {
+					if ( '' === $token ) {
+						continue;
+					}
+					foreach ( $aliases as $alias ) {
+						$normalised = RWGA_Local_Intent_Interpreter::normalise( $alias );
+						if ( $token === $normalised && ! in_array( $code, $found, true ) ) {
+							$found[] = $code;
+						}
+					}
+				}
+			}
+		}
+
 		return $found;
+	}
+
+	/**
+	 * @param array<int,string> $codes    Codes.
+	 * @param array<int,array>  $entities Entities.
+	 * @return string
+	 */
+	private static function default_group_label( array $codes, array $entities ) {
+		if ( class_exists( 'RWGA_Variant_Group_Extractor', false ) ) {
+			$group = RWGA_Variant_Group_Extractor::group_from_segment( implode( ' ', $codes ), $entities );
+			return (string) ( $group['label'] ?? implode( ' + ', $codes ) );
+		}
+		return implode( ' + ', $codes );
 	}
 
 	/**
@@ -181,6 +242,7 @@ class RWGA_Multi_Variant_Interpreter {
 			$aliases[] = (string) ( $row['display_name'] ?? '' );
 			$aliases[] = strtolower( (string) ( $row['display_name'] ?? '' ) );
 			$aliases[] = $code;
+			$aliases[] = strtolower( $code );
 			$out[ $code ] = array_values( array_unique( array_filter( $aliases ) ) );
 		}
 		return $out;
@@ -191,29 +253,33 @@ class RWGA_Multi_Variant_Interpreter {
 	 * @return string
 	 */
 	private static function extract_page_token( $phrase ) {
-		if ( preg_match( '/variants? of (?:the )?([a-z0-9\s-]+?)(?:\s+one|\s*,|\s*$)/i', $phrase, $m ) ) {
+		if ( preg_match( '/\b(?:duplicate|variants?|versions? of)\s+(?:the\s+)?([a-z0-9\s-]+?)(?:\s+twice|\s+with|\s+one|\s*,|\s*$)/i', $phrase, $m ) ) {
 			return trim( $m[1] );
+		}
+		if ( preg_match( '/\bhomepage\b|\bhome page\b/i', $phrase ) ) {
+			return 'homepage';
 		}
 		return 'homepage';
 	}
 
 	/**
-	 * @param string                              $page     Page ref.
-	 * @param array<int,array{countries:array}> $variants Variants.
+	 * @param string                         $page     Page ref.
+	 * @param array<int,array<string,mixed>> $variants Variants.
 	 * @return string
 	 */
 	private static function build_summary( $page, array $variants ) {
-		$parts = array();
-		foreach ( $variants as $v ) {
-			$codes = $v['countries'] ?? array();
-			$parts[] = implode( ' + ', $codes );
-		}
+		$labels = array_map(
+			static function ( $v ) {
+				return (string) ( $v['label'] ?? implode( ' + ', $v['countries'] ?? array() ) );
+			},
+			$variants
+		);
 		return sprintf(
-			/* translators: 1: page reference, 2: variant country groups */
-			__( 'Create %1$d %2$s variants: %3$s.', 'reactwoo-geocore' ),
+			/* translators: 1: variant count, 2: page, 3: variant labels */
+			__( 'I found a %1$d-variant setup for the %2$s: %3$s.', 'reactwoo-geocore' ),
 			count( $variants ),
 			$page,
-			implode( '; ', $parts )
+			implode( '; ', $labels )
 		);
 	}
 }

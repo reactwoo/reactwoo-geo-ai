@@ -21,6 +21,11 @@ class RWGA_Compound_Condition_Interpreter {
 			return self::empty_result();
 		}
 
+		if ( class_exists( 'RWGA_Variant_Group_Extractor', false )
+			&& RWGA_Variant_Group_Extractor::is_multi_variant_command( $phrase ) ) {
+			return self::empty_result();
+		}
+
 		$segments = self::split_segments( $phrase );
 		if ( count( $segments['parts'] ) <= 1 && ! $segments['has_explicit_logic'] ) {
 			$implicit = self::scan_implicit_conditions( $phrase, $entities, $options );

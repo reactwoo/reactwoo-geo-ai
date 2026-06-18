@@ -147,6 +147,8 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/intelligence/class-rwga-intelligence-bundle-bootstrap.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-compound-condition-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-page-reference-resolver.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-variant-group-extractor.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-country-rule-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-multi-variant-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-proposal-store.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-assistant-service.php';
