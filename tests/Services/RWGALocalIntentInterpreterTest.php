@@ -155,6 +155,52 @@ final class RWGALocalIntentInterpreterTest extends TestCase {
 		$this->assertSame( array( 'FR' ), $result['params']['variants'][1]['countries'] );
 	}
 
+	public function test_create_two_variants_portugal_germany_russia_uk_clause_split(): void {
+		$phrase = 'i want you to create 2 variants of the homepage, one should display in portugal and one should show in germany and russia - update the original to display in uk';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ), (string) ( $result['summary'] ?? $result['reason'] ?? 'no match' ) );
+		$this->assertSame( 'create_geo_variant_plan', $result['intent'] );
+		$this->assertSame( 'homepage', $result['params']['source_page_ref'] );
+		$this->assertSame( 2, $result['params']['duplicate_count'] );
+		$this->assertSame( array( 'GB' ), $result['params']['source_targeting']['countries'] );
+		$this->assertCount( 2, $result['params']['variants'] );
+		$this->assertSame( array( 'PT' ), $result['params']['variants'][0]['countries'] );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'RU' ), $result['params']['variants'][1]['countries'] );
+		$this->assertSame(
+			array(
+				'one should display in portugal',
+				'one should show in germany and russia',
+				'update the original to display in uk',
+			),
+			RWGA_Variant_Plan_Parser::split_variant_plan_clauses( RWGA_Variant_Plan_Parser::normalise( $phrase ) )
+		);
+	}
+
+	public function test_create_two_variants_one_for_portugal_germany_russia_uk(): void {
+		$phrase = 'create 2 variants of the homepage one for portugal and one for germany and russia update the original for uk';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ) );
+		$this->assertSame( array( 'GB' ), $result['params']['source_targeting']['countries'] );
+		$this->assertSame( array( 'PT' ), $result['params']['variants'][0]['countries'] );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'RU' ), $result['params']['variants'][1]['countries'] );
+	}
+
+	public function test_create_two_variants_ireland_france_germany_without_original(): void {
+		$phrase = 'create two variants one should show in ireland and one should show in france and germany';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ) );
+		$this->assertSame( array( 'IE' ), $result['params']['variants'][0]['countries'] );
+		$this->assertEqualsCanonicalizing( array( 'FR', 'DE' ), $result['params']['variants'][1]['countries'] );
+	}
+
+	public function test_simple_country_rule_portugal_germany_russia_not_split_as_variants(): void {
+		$phrase = 'show this in portugal germany and russia';
+		$result = RWGA_Country_Rule_Interpreter::parse( $phrase, $this->entities() );
+		$this->assertTrue( ! empty( $result['matched'] ) );
+		$this->assertSame( 'country_include', $result['intent'] );
+		$this->assertEqualsCanonicalizing( array( 'PT', 'DE', 'RU' ), $result['params']['countries'] );
+	}
+
 	public function test_duplicate_twice_with_original_segment_parser(): void {
 		$phrase = 'duplicate the homepage twice the original version should show in uk one version should show in germany and another should show in france and portugal';
 		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );

@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.101
+Stable tag: 0.4.102
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.102 =
+* **Geo Assistant:** Clause-boundary variant plan splitting (`and one should`, `one for`, etc.) before country extraction; distinguish create-N-variants vs variations; optional interpreter debug logs (`RWGA_DEBUG_INTERPRETER` or `rwga_debug_interpreter` option).
 
 = 0.4.101 =
 * **Geo Assistant:** Parse “create N new variant” plans with “one/the other should display” segments; add Ireland to bundled countries; defer intelligence sync to init (WP 6.7 textdomain notices).

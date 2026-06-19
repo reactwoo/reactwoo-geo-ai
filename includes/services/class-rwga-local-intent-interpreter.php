@@ -227,6 +227,23 @@ class RWGA_Local_Intent_Interpreter {
 	 */
 	private static function attach_trace( array $result, array $trace ) {
 		$result['_interpretation_trace'] = $trace;
+		if ( class_exists( 'RWGA_Interpreter_Debug', false ) && RWGA_Interpreter_Debug::is_enabled() ) {
+			RWGA_Interpreter_Debug::log(
+				'interpret',
+				array(
+					'normalised_input'       => (string) ( $result['normalised_phrase'] ?? '' ),
+					'intent'                 => (string) ( $result['intent'] ?? '' ),
+					'interpretation_source'  => (string) ( $result['interpretation_source'] ?? '' ),
+					'local_confidence'       => (float) ( $result['confidence'] ?? 0 ),
+					'final_params'           => isset( $result['params'] ) && is_array( $result['params'] ) ? $result['params'] : array(),
+					'fallback_layer_used'    => (string) ( $result['interpretation_source'] ?? 'none' ),
+					'memory_match_attempted' => ! empty( $trace['interpretation_memory']['attempted'] ),
+					'ai_fallback_called'     => ! empty( $trace['ai_fallback']['called'] ),
+					'validation_status'      => (string) ( $result['intent'] ?? 'unknown' ),
+					'trace'                  => $trace,
+				)
+			);
+		}
 		return $result;
 	}
 

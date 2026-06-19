@@ -53,15 +53,35 @@ class RWGA_Variant_Plan_Parser {
 		$page_value          = self::detect_page_ref( $phrase );
 		$total_version_count = self::detect_total_version_count( $phrase );
 		$duplicate_count     = self::detect_duplicate_count( $phrase );
-		$segments            = self::split_segments( $phrase );
+		$segments            = self::split_segments_from_boundaries( $phrase );
+		$raw_clauses         = array_values(
+			array_filter(
+				array_map(
+					static function ( $segment ) {
+						return trim( (string) ( $segment['raw'] ?? '' ) );
+					},
+					$segments
+				)
+			)
+		);
+		foreach ( $segments as $idx => $segment ) {
+			$raw = (string) ( $segment['raw'] ?? '' );
+			$segments[ $idx ]['type']    = self::classify_clause_type( $raw );
+			$segments[ $idx ]['marker']  = self::clause_marker_label( $raw, $segments[ $idx ]['type'] );
+			$segments[ $idx ]['ordinal'] = (int) ( $segment['ordinal'] ?? 0 ) > 0
+				? (int) $segment['ordinal']
+				: self::clause_ordinal_hint( $raw );
+		}
 
 		$debug['source_page_ref']      = $page_value;
 		$debug['total_version_count']  = $total_version_count;
 		$debug['duplicate_count']      = $duplicate_count;
+		$debug['raw_clauses']          = $raw_clauses;
 		$debug['segments']             = $segments;
 
 		$source   = null;
 		$variants = array();
+		$variant_ordinal = 0;
 
 		foreach ( $segments as $segment ) {
 			$countries = self::extract_country_list_from_segment( $segment['raw'], $entities );
@@ -85,9 +105,10 @@ class RWGA_Variant_Plan_Parser {
 				continue;
 			}
 
+			$variant_ordinal++;
 			$ordinal = (int) ( $segment['ordinal'] ?? 0 );
 			if ( $ordinal <= 0 ) {
-				$ordinal = $source ? ( 2 + count( $variants ) ) : ( 1 + count( $variants ) );
+				$ordinal = $variant_ordinal;
 			}
 			$variants[] = array(
 				'ordinal'   => $ordinal,
@@ -98,6 +119,19 @@ class RWGA_Variant_Plan_Parser {
 				'countries' => $countries,
 			);
 		}
+
+		$debug['detected_source_clause']   = $source;
+		$debug['detected_variant_clauses'] = $variants;
+		$debug['countries_per_clause']     = array_map(
+			static function ( $segment ) use ( $entities ) {
+				return array(
+					'raw'       => $segment['raw'] ?? '',
+					'type'      => $segment['type'] ?? '',
+					'countries' => self::extract_country_list_from_segment( (string) ( $segment['raw'] ?? '' ), $entities ),
+				);
+			},
+			$segments
+		);
 
 		if ( null === $source && self::has_original_marker( $phrase ) ) {
 			$legacy = class_exists( 'RWGA_Original_Source_Targeting_Extractor', false )
@@ -129,9 +163,21 @@ class RWGA_Variant_Plan_Parser {
 			return self::ambiguous_source_usage( $phrase, $page_value, $debug );
 		}
 
-		if ( null === $source || empty( $variants ) ) {
+		if ( empty( $variants ) ) {
 			$debug['segments_found'] = count( $segments );
 			$debug['reason']         = empty( $segments ) ? 'failed_to_segment_variant_plan' : 'incomplete_variant_plan';
+			if ( ! empty( $all_countries ) && $page_value ) {
+				return self::partial_clarification( $phrase, $page_value, $all_countries, $debug );
+			}
+			return array_merge(
+				array( 'matched' => false, 'reason' => $debug['reason'] ),
+				array( '_debug' => $debug )
+			);
+		}
+
+		if ( null === $source && self::has_original_marker( $phrase ) ) {
+			$debug['segments_found'] = count( $segments );
+			$debug['reason']         = 'incomplete_variant_plan';
 			if ( ! empty( $all_countries ) && $page_value ) {
 				return self::partial_clarification( $phrase, $page_value, $all_countries, $debug );
 			}
@@ -157,7 +203,9 @@ class RWGA_Variant_Plan_Parser {
 		}
 		$debug['segments'] = $enriched_segments;
 
-		return self::build_matched_result( $phrase, $page_value, $source, $variants, $total_version_count, $duplicate_count, $enriched_segments, $debug, $entities );
+		$result = self::build_matched_result( $phrase, $page_value, $source, $variants, $total_version_count, $duplicate_count, $enriched_segments, $debug, $entities );
+		self::log_parse_result( $phrase, $debug, $result );
+		return $result;
 	}
 
 	/**
@@ -245,26 +293,45 @@ class RWGA_Variant_Plan_Parser {
 	 * @return int
 	 */
 	public static function detect_total_version_count( $phrase ) {
-		$new_count = self::detect_create_variant_count( $phrase );
-		if ( $new_count <= 0 ) {
-			return 0;
+		$new_variants = self::detect_create_new_variant_count( $phrase );
+		if ( $new_variants > 0 ) {
+			return self::has_original_marker( $phrase ) ? $new_variants + 1 : $new_variants;
 		}
-		// "create 2 new variants" means N new copies plus the original when the source is named explicitly.
-		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))\s+new\s+(?:variations?|variants?|versions?)\b/i', $phrase )
-			&& self::has_original_marker( $phrase ) ) {
-			return $new_count + 1;
+		$total_variations = self::detect_total_variation_count( $phrase );
+		if ( $total_variations > 0 ) {
+			return $total_variations;
 		}
-		return $new_count;
+		return 0;
 	}
 
 	/**
+	 * Count of new variant duplicates from explicit "create N variants" / "create N new …".
+	 *
 	 * @param string $phrase Normalised phrase.
 	 * @return int
 	 */
-	public static function detect_create_variant_count( $phrase ) {
-		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))(?:\s+new)?\s+(?:variations?|variants?|versions?)\b/i', $phrase, $m ) ) {
+	public static function detect_create_new_variant_count( $phrase ) {
+		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))(?:\s+new)?\s+variants\b/i', $phrase, $m ) ) {
 			$key = strtolower( $m[1] );
-			return self::COUNT_MAP[ $key ] ?? (int) $key;
+			return self::COUNT_MAP[ $key ] ?? (int) $m[1];
+		}
+		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))\s+new\s+(?:variations?|versions?)\b/i', $phrase, $m ) ) {
+			$key = strtolower( $m[1] );
+			return self::COUNT_MAP[ $key ] ?? (int) $m[1];
+		}
+		return 0;
+	}
+
+	/**
+	 * Total version count when user names variations/versions (may include original).
+	 *
+	 * @param string $phrase Normalised phrase.
+	 * @return int
+	 */
+	public static function detect_total_variation_count( $phrase ) {
+		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))\s+(?:variations?|versions?)\b/i', $phrase, $m ) ) {
+			$key = strtolower( $m[1] );
+			return self::COUNT_MAP[ $key ] ?? (int) $m[1];
 		}
 		return 0;
 	}
@@ -272,11 +339,24 @@ class RWGA_Variant_Plan_Parser {
 	/**
 	 * @param string $phrase Normalised phrase.
 	 * @return int
+	 * @deprecated Use detect_create_new_variant_count() or detect_total_variation_count().
+	 */
+	public static function detect_create_variant_count( $phrase ) {
+		return self::detect_create_new_variant_count( $phrase );
+	}
+
+	/**
+	 * @param string $phrase Normalised phrase.
+	 * @return int
 	 */
 	public static function detect_duplicate_count( $phrase ) {
-		$create_count = self::detect_create_variant_count( $phrase );
-		if ( $create_count > 0 ) {
-			return $create_count;
+		$new_variants = self::detect_create_new_variant_count( $phrase );
+		if ( $new_variants > 0 ) {
+			return $new_variants;
+		}
+		$total_variations = self::detect_total_variation_count( $phrase );
+		if ( $total_variations > 0 && self::has_original_marker( $phrase ) ) {
+			return max( 0, $total_variations - 1 );
 		}
 		if ( preg_match( '/\b(?:duplicate|copy|clone)\s+(?:the\s+)?[\w\s-]+?\s+twice\b/i', $phrase ) ) {
 			return 2;
@@ -288,24 +368,135 @@ class RWGA_Variant_Plan_Parser {
 	}
 
 	/**
+	 * Split a variant plan into sibling clauses before country extraction.
+	 *
+	 * @param string $normalised Normalised phrase.
+	 * @return array<int,string>
+	 */
+	public static function split_variant_plan_clauses( $normalised ) {
+		$phrase = trim( (string) $normalised );
+		if ( '' === $phrase ) {
+			return array();
+		}
+
+		$segments = self::split_segments_from_boundaries( $phrase );
+		if ( empty( $segments ) ) {
+			return array();
+		}
+
+		return array_values(
+			array_filter(
+				array_map(
+					static function ( $segment ) {
+						return trim( (string) ( $segment['raw'] ?? '' ) );
+					},
+					$segments
+				)
+			)
+		);
+	}
+
+	/**
+	 * @param array<int,string> $raw_clauses Clause strings.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function classify_plan_clauses( array $raw_clauses ) {
+		$segments = array();
+		foreach ( $raw_clauses as $raw ) {
+			$raw = trim( (string) $raw );
+			if ( '' === $raw ) {
+				continue;
+			}
+			$type = self::classify_clause_type( $raw );
+			$segments[] = array(
+				'type'    => $type,
+				'marker'  => self::clause_marker_label( $raw, $type ),
+				'ordinal' => self::clause_ordinal_hint( $raw ),
+				'raw'     => $raw,
+			);
+		}
+		return $segments;
+	}
+
+	/**
+	 * @param string $clause Raw clause text.
+	 * @return string source|variant
+	 */
+	private static function classify_clause_type( $clause ) {
+		if ( preg_match( '/\b(?:update|keep|leave|make)\s+the\s+original\b|\bthe\s+original\s+(?:version|homepage|page)\b|\boriginal\s+(?:should|will|would)\b/i', $clause ) ) {
+			return 'source';
+		}
+		return 'variant';
+	}
+
+	/**
+	 * @param string $clause Clause text.
+	 * @param string $type   source|variant.
+	 * @return string
+	 */
+	private static function clause_marker_label( $clause, $type ) {
+		if ( 'source' === $type ) {
+			return 'update the original';
+		}
+		if ( preg_match( '/\b(the\s+other|another)\b/i', $clause ) ) {
+			return 'the other should';
+		}
+		if ( preg_match( '/\bone\s+for\b/i', $clause ) ) {
+			return 'one for';
+		}
+		return 'one should';
+	}
+
+	/**
+	 * @param string $clause Clause text.
+	 * @return int
+	 */
+	private static function clause_ordinal_hint( $clause ) {
+		if ( preg_match( '/\b(?:the\s+third|variant\s+three|version\s+three|3rd|variant\s+3|version\s+3)\b/i', $clause ) ) {
+			return 3;
+		}
+		if ( preg_match( '/\b(?:the\s+second|variant\s+two|version\s+two|2nd|variant\s+2|version\s+2)\b/i', $clause ) ) {
+			return 2;
+		}
+		return 0;
+	}
+
+	/**
 	 * @param string $phrase Normalised phrase.
 	 * @return array<int,array<string,mixed>>
 	 */
 	public static function split_segments( $phrase ) {
-		$markers = self::segment_markers();
-		$hits    = array();
+		return self::split_segments_from_boundaries( $phrase );
+	}
 
-		foreach ( $markers as $marker ) {
-			if ( ! preg_match( $marker['pattern'], $phrase, $match, PREG_OFFSET_CAPTURE ) ) {
+	/**
+	 * @param string $phrase Normalised phrase.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function split_segments_from_boundaries( $phrase ) {
+		$hits = array();
+
+		foreach ( self::clause_boundary_patterns() as $row ) {
+			$capture = (int) ( $row['capture'] ?? 0 );
+			if ( ! preg_match_all( $row['pattern'], $phrase, $matches, PREG_OFFSET_CAPTURE ) ) {
 				continue;
 			}
-			$hits[] = array(
-				'offset'  => (int) $match[0][1],
-				'length'  => strlen( $match[0][0] ),
-				'type'    => $marker['type'],
-				'marker'  => $marker['marker'],
-				'ordinal' => $marker['ordinal'],
-			);
+			if ( ! isset( $matches[ $capture ] ) ) {
+				continue;
+			}
+			foreach ( $matches[ $capture ] as $match ) {
+				if ( ! is_array( $match ) || '' === $match[0] ) {
+					continue;
+				}
+				$hits[] = array(
+					'offset'  => (int) $match[1],
+					'length'  => strlen( $match[0] ),
+					'type'    => $row['type'],
+					'marker'  => $row['marker'],
+					'ordinal' => (int) ( $row['ordinal'] ?? 0 ),
+					'priority'=> (int) ( $row['priority'] ?? 10 ),
+				);
+			}
 		}
 
 		if ( empty( $hits ) ) {
@@ -316,7 +507,10 @@ class RWGA_Variant_Plan_Parser {
 			$hits,
 			static function ( $a, $b ) {
 				if ( $a['offset'] === $b['offset'] ) {
-					return $b['length'] - $a['length'];
+					if ( $a['priority'] === $b['priority'] ) {
+						return $b['length'] - $a['length'];
+					}
+					return $b['priority'] - $a['priority'];
 				}
 				return $a['offset'] - $b['offset'];
 			}
@@ -337,6 +531,8 @@ class RWGA_Variant_Plan_Parser {
 			$start = $hit['offset'];
 			$end   = isset( $filtered[ $idx + 1 ] ) ? $filtered[ $idx + 1 ]['offset'] : strlen( $phrase );
 			$raw   = trim( substr( $phrase, $start, $end - $start ) );
+			$raw   = preg_replace( '/\s+and\s*$/i', '', (string) $raw );
+			$raw   = preg_replace( '/\s*-\s*$/', '', (string) $raw );
 			if ( '' === $raw ) {
 				continue;
 			}
@@ -354,26 +550,47 @@ class RWGA_Variant_Plan_Parser {
 	/**
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function segment_markers() {
+	private static function clause_boundary_patterns() {
+		$variant_should = '(?:(?:one|another|the\\s+other)\\s+should\\s+(?:show|display|will|would))';
+		$variant_will   = '(?:(?:one|another|the\\s+other)\\s+will\\s+(?:show|display))';
+		$variant_would  = '(?:(?:one|another|the\\s+other)\\s+would\\s+(?:show|display))';
+		$variant_for    = '(?:(?:one|another)\\s+for)';
+		$version_target = '(?:(?:one|another)\\s+(?:version|variant|variation)\\s+(?:should|will|would)\\s+(?:show|display))';
+		$ordinal_target = '(?:(?:the\\s+)?(?:3rd|third|2nd|second)\\s+(?:version|variant|variation)\\s+(?:should|will|would)\\s+(?:show|display))';
+
 		return array(
-			array( 'pattern' => '/\bthen\s+update\s+the\s+original\s+homepage\b/i', 'type' => 'source', 'marker' => 'then update the original homepage', 'ordinal' => 0 ),
-			array( 'pattern' => '/\bthe\s+other\s+should\s+(?:show|display)\b/i', 'type' => 'variant', 'marker' => 'the other should display', 'ordinal' => 2 ),
-			array( 'pattern' => '/\bone\s+should\s+(?:show|display)\b/i', 'type' => 'variant', 'marker' => 'one should display', 'ordinal' => 1 ),
-			array( 'pattern' => '/\bupdate\s+the\s+original\b/i', 'type' => 'source', 'marker' => 'update the original', 'ordinal' => 0 ),
-			array( 'pattern' => '/\b(?:keep|leave|make)\s+the\s+original\b/i', 'type' => 'source', 'marker' => 'keep the original', 'ordinal' => 0 ),
-			array( 'pattern' => '/\bthe\s+original\s+(?:version|homepage|page)\b/i', 'type' => 'source', 'marker' => 'the original version', 'ordinal' => 0 ),
-			array( 'pattern' => '/\bthe\s+original\b/i', 'type' => 'source', 'marker' => 'the original', 'ordinal' => 0 ),
-			array( 'pattern' => '/\bthe\s+third\b/i', 'type' => 'variant', 'marker' => 'the third', 'ordinal' => 3 ),
-			array( 'pattern' => '/\bthe\s+second\b/i', 'type' => 'variant', 'marker' => 'the second', 'ordinal' => 2 ),
-			array( 'pattern' => '/\b(?:variant|variation|version)\s+three\b/i', 'type' => 'variant', 'marker' => 'variant three', 'ordinal' => 3 ),
-			array( 'pattern' => '/\b(?:variant|variation|version)\s+two\b/i', 'type' => 'variant', 'marker' => 'variant two', 'ordinal' => 2 ),
-			array( 'pattern' => '/\b(?:variant|variation|version)\s+3\b/i', 'type' => 'variant', 'marker' => 'variant 3', 'ordinal' => 3 ),
-			array( 'pattern' => '/\b(?:variant|variation|version)\s+2\b/i', 'type' => 'variant', 'marker' => 'variant 2', 'ordinal' => 2 ),
-			array( 'pattern' => '/\b3rd\s+(?:variant|variation|version)\b/i', 'type' => 'variant', 'marker' => '3rd version', 'ordinal' => 3 ),
-			array( 'pattern' => '/\b2nd\s+(?:variant|variation|version)\b/i', 'type' => 'variant', 'marker' => '2nd version', 'ordinal' => 2 ),
-			array( 'pattern' => '/\banother\s+(?:version|variant|variation)\b/i', 'type' => 'variant', 'marker' => 'another version', 'ordinal' => 0 ),
-			array( 'pattern' => '/\banother\b/i', 'type' => 'variant', 'marker' => 'another', 'ordinal' => 0 ),
-			array( 'pattern' => '/\bone\s+(?:version|variant|variation)\b/i', 'type' => 'variant', 'marker' => 'one version', 'ordinal' => 0 ),
+			array( 'pattern' => '/\band\s+(' . $variant_should . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one should', 'ordinal' => 0, 'priority' => 100 ),
+			array( 'pattern' => '/\band\s+(' . $variant_will . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one will', 'ordinal' => 0, 'priority' => 100 ),
+			array( 'pattern' => '/\band\s+(' . $variant_would . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one would', 'ordinal' => 0, 'priority' => 100 ),
+			array( 'pattern' => '/\band\s+(' . $variant_for . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one for', 'ordinal' => 0, 'priority' => 100 ),
+			array( 'pattern' => '/\band\s+(' . $version_target . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one version should', 'ordinal' => 0, 'priority' => 99 ),
+			array( 'pattern' => '/\band\s+(another\s+should\s+(?:show|display|will|would))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and another should', 'ordinal' => 0, 'priority' => 99 ),
+			array( 'pattern' => '/\band\s+(another\s+for)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and another for', 'ordinal' => 0, 'priority' => 99 ),
+			array( 'pattern' => '/\band\s+(?:create\s+)?(one\s+(?:version|variant)\s+for)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and create one version for', 'ordinal' => 0, 'priority' => 98 ),
+			array( 'pattern' => '/\band\s+(' . $ordinal_target . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and ordinal version', 'ordinal' => 0, 'priority' => 98 ),
+			array( 'pattern' => '/\band\s+((?:variant|variation|version)\s+(?:two|2))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and variant two', 'ordinal' => 2, 'priority' => 95 ),
+			array( 'pattern' => '/\band\s+((?:variant|variation|version)\s+(?:three|3))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and variant three', 'ordinal' => 3, 'priority' => 95 ),
+			array( 'pattern' => '/\band\s+(the\s+second)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and the second', 'ordinal' => 2, 'priority' => 90 ),
+			array( 'pattern' => '/\band\s+(the\s+third)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and the third', 'ordinal' => 3, 'priority' => 90 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+|\s)(the\s+original\s+(?:version|homepage|page)\s+(?:should|will|would)\s+(?:show|display|for))\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'the original version should', 'ordinal' => 0, 'priority' => 88 ),
+			array( 'pattern' => '/(?:^|\s)(keep\s+the\s+original(?:\s+homepage)?(?:\s+for)?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'keep the original', 'ordinal' => 0, 'priority' => 86 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)(then\s+update\s+the\s+original(?:\s+homepage)?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'then update the original homepage', 'ordinal' => 0, 'priority' => 85 ),
+			array( 'pattern' => '/(?<=\s)(update\s+the\s+original(?:\s+(?:homepage|page|version))?(?:\s+(?:to\s+)?(?:display|show|for))?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update the original', 'ordinal' => 0, 'priority' => 82 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)(update\s+the\s+original(?:\s+(?:homepage|page|version))?(?:\s+(?:to\s+)?(?:display|show|for))?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update the original', 'ordinal' => 0, 'priority' => 80 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)((?:keep|leave|make)\s+the\s+original)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'keep the original', 'ordinal' => 0, 'priority' => 80 ),
+			array( 'pattern' => '/(?<!\band\s)(' . $variant_should . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one should', 'ordinal' => 0, 'priority' => 50 ),
+			array( 'pattern' => '/(?<!\band\s)(' . $variant_will . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one will', 'ordinal' => 0, 'priority' => 50 ),
+			array( 'pattern' => '/(?<!\band\s)(' . $variant_would . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one would', 'ordinal' => 0, 'priority' => 50 ),
+			array( 'pattern' => '/(?<!\band\s)(' . $variant_for . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one for', 'ordinal' => 0, 'priority' => 50 ),
+			array( 'pattern' => '/(?<!\band\s)(' . $version_target . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one version should', 'ordinal' => 0, 'priority' => 52 ),
+			array( 'pattern' => '/(?<!\band\s)(create\s+one\s+(?:version|variant)\s+for)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'create one version for', 'ordinal' => 0, 'priority' => 52 ),
+			array( 'pattern' => '/(?<!\band\s)(' . $ordinal_target . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'ordinal version', 'ordinal' => 0, 'priority' => 52 ),
+			array( 'pattern' => '/(?<!\band\s)((?:variant|variation|version)\s+(?:two|2))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'variant two', 'ordinal' => 2, 'priority' => 45 ),
+			array( 'pattern' => '/(?<!\band\s)((?:variant|variation|version)\s+(?:three|3))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'variant three', 'ordinal' => 3, 'priority' => 45 ),
+			array( 'pattern' => '/(?<!\band\s)((?:2nd|3rd)\s+(?:variant|variation|version))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'ordinal variant', 'ordinal' => 0, 'priority' => 45 ),
+			array( 'pattern' => '/(?<!\band\s)(the\s+second)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'the second', 'ordinal' => 2, 'priority' => 40 ),
+			array( 'pattern' => '/(?<!\band\s)(the\s+third)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'the third', 'ordinal' => 3, 'priority' => 40 ),
+			array( 'pattern' => '/(?<!\band\s)(another(?:\s+(?:version|variant|variation))?)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'another', 'ordinal' => 0, 'priority' => 35 ),
 		);
 	}
 
@@ -389,14 +606,18 @@ class RWGA_Variant_Plan_Parser {
 	 * @param array<int,array>               $entities            Entities.
 	 * @return array<string,mixed>
 	 */
-	private static function build_matched_result( $phrase, $page_value, array $source, array $variants, $total_version_count, $duplicate_count, array $segments, array $debug, array $entities ) {
-		$source_countries = (array) ( $source['countries'] ?? array() );
-		$source_display   = class_exists( 'RWGA_Variant_Group_Extractor', false )
-			? RWGA_Variant_Group_Extractor::label_for_countries( $source_countries, $entities )
-			: implode( ', ', $source_countries );
+	private static function build_matched_result( $phrase, $page_value, $source, array $variants, $total_version_count, $duplicate_count, array $segments, array $debug, array $entities ) {
+		$has_source       = is_array( $source ) && ! empty( $source['countries'] );
+		$source_countries = $has_source ? (array) ( $source['countries'] ?? array() ) : array();
+		$source_display   = $has_source
+			? ( class_exists( 'RWGA_Variant_Group_Extractor', false )
+				? RWGA_Variant_Group_Extractor::label_for_countries( $source_countries, $entities )
+				: implode( ', ', $source_countries ) )
+			: '';
 
-		$steps = array(
-			array(
+		$steps = array();
+		if ( $has_source ) {
+			$steps[] = array(
 				'label'  => sprintf(
 					/* translators: %s: country label */
 					__( 'Apply %s targeting to original homepage', 'reactwoo-geocore' ),
@@ -408,8 +629,8 @@ class RWGA_Variant_Plan_Parser {
 					'countries'       => $source_countries,
 					'mode'            => $source['mode'] ?? 'include_only',
 				),
-			),
-		);
+			);
+		}
 
 		$variant_out = array();
 		foreach ( $variants as $variant ) {
@@ -448,12 +669,18 @@ class RWGA_Variant_Plan_Parser {
 			$variant_out
 		);
 
-		$summary = sprintf(
-			/* translators: 1: source countries, 2: variant labels */
-			__( 'Update the original homepage for %1$s visitors, then create variants for %2$s.', 'reactwoo-geocore' ),
-			$source_display,
-			implode( ' and ', array_filter( $variant_labels ) )
-		);
+		$summary = $has_source
+			? sprintf(
+				/* translators: 1: source countries, 2: variant labels */
+				__( 'Update the original homepage for %1$s visitors, then create variants for %2$s.', 'reactwoo-geocore' ),
+				$source_display,
+				implode( ' and ', array_filter( $variant_labels ) )
+			)
+			: sprintf(
+				/* translators: %s: variant labels */
+				__( 'Create variants for %s.', 'reactwoo-geocore' ),
+				implode( ' and ', array_filter( $variant_labels ) )
+			);
 
 		$debug['matched_action'] = 'geocore_create_variant_plan_with_country_rules';
 		$debug['confidence']     = 0.88;
@@ -464,7 +691,7 @@ class RWGA_Variant_Plan_Parser {
 			'intent'           => 'create_geo_variant_plan',
 			'matched_action'   => 'geocore_create_variant_plan_with_country_rules',
 			'confidence'       => 0.88,
-			'source_targeting' => $source,
+			'source_targeting' => $has_source ? $source : null,
 			'variant_groups'   => $variants,
 			'duplicate_count'  => $duplicate_count,
 			'matched_terms'    => array_filter( array_map( static function ( $s ) {
@@ -472,19 +699,47 @@ class RWGA_Variant_Plan_Parser {
 			}, $segments ) ),
 			'params'           => array(
 				'source_page_ref'     => $page_value,
-				'total_version_count' => $total_version_count > 0 ? $total_version_count : ( 1 + count( $variant_out ) ),
+				'total_version_count' => $total_version_count > 0 ? $total_version_count : ( $has_source ? 1 + count( $variant_out ) : count( $variant_out ) ),
 				'duplicate_count'     => $duplicate_count,
-				'source_targeting'    => array(
+				'source_targeting'    => $has_source ? array(
 					'label'           => __( 'Original homepage', 'reactwoo-geocore' ),
 					'targeting_label' => $source_display,
 					'mode'            => $source['mode'] ?? 'include_only',
 					'countries'       => $source_countries,
-				),
+				) : null,
 				'variants'            => $variant_out,
 			),
 			'steps'            => $steps,
 			'summary'          => $summary,
 			'_debug'           => $debug,
+		);
+	}
+
+	/**
+	 * @param string              $phrase Normalised phrase.
+	 * @param array<string,mixed> $debug  Debug payload.
+	 * @param array<string,mixed> $result Parse result.
+	 * @return void
+	 */
+	private static function log_parse_result( $phrase, array $debug, array $result ) {
+		if ( ! class_exists( 'RWGA_Interpreter_Debug', false ) || ! RWGA_Interpreter_Debug::is_enabled() ) {
+			return;
+		}
+		$params = isset( $result['params'] ) && is_array( $result['params'] ) ? $result['params'] : array();
+		RWGA_Interpreter_Debug::log(
+			'variant_plan_parser',
+			array(
+				'normalised_input'         => $phrase,
+				'parser_used'              => 'RWGA_Variant_Plan_Parser',
+				'local_confidence'         => (float) ( $result['confidence'] ?? 0 ),
+				'raw_clauses'              => $debug['raw_clauses'] ?? array(),
+				'classified_clauses'       => $debug['segments'] ?? array(),
+				'detected_source_clause'   => $debug['detected_source_clause'] ?? null,
+				'detected_variant_clauses' => $debug['detected_variant_clauses'] ?? array(),
+				'countries_per_clause'     => $debug['countries_per_clause'] ?? array(),
+				'final_params'             => $params,
+				'validation_status'        => ! empty( $result['matched'] ) ? 'matched' : (string) ( $result['reason'] ?? 'unmatched' ),
+			)
 		);
 	}
 
