@@ -71,7 +71,7 @@ class RWGA_Assistant_Service {
 		$bundle = self::bundle();
 		$debug  = self::build_interpret_debug( $message, $raw, $bundle );
 
-		if ( empty( $raw['matched_action'] ) && empty( $raw['compound'] ) && empty( $raw['steps'] ) ) {
+		if ( empty( $raw['matched_action'] ) && empty( $raw['compound'] ) && empty( $raw['steps'] ) && empty( $raw['missing_information'] ) ) {
 			return array(
 				'success' => false,
 				'status'  => 'error',
@@ -80,17 +80,41 @@ class RWGA_Assistant_Service {
 			);
 		}
 
-		$proposal = self::format_proposal( $raw, $message );
-		$id       = RWGA_Proposal_Store::save( $proposal );
+		$proposal_ready = ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'];
+		$proposal       = self::format_proposal( $raw, $message );
+		$meta           = class_exists( 'RWGA_Interpretation_Status', false )
+			? RWGA_Interpretation_Status::from_result( $raw )
+			: array(
+				'status'        => $proposal_ready ? 'complete' : 'needs_clarification',
+				'source'        => (string) ( $raw['interpretation_source'] ?? '' ),
+				'confidence'    => (float) ( $raw['confidence'] ?? 0 ),
+				'can_execute'   => $proposal_ready,
+				'clarification' => array( 'question' => '', 'options' => array() ),
+				'memory'        => array(),
+				'learning'      => array(),
+			);
+		$id = ! empty( $meta['can_execute'] ) ? RWGA_Proposal_Store::save( $proposal ) : '';
+
+		$summary = (string) ( $proposal['summary'] ?? '' );
+		if ( ! empty( $meta['can_execute'] ) && 'create_geo_variant_plan' === ( $proposal['intent'] ?? '' ) ) {
+			$summary .= "\n\n" . __( 'Please confirm before I create anything.', 'reactwoo-geo-ai' );
+			$proposal['summary'] = $summary;
+		}
 
 		$response = array(
-			'success'     => true,
-			'status'      => 'proposal',
-			'message'     => self::format_message_with_badge( (string) ( $proposal['summary'] ?? '' ), $raw ),
-			'proposal_id' => $id,
-			'proposal'    => $proposal,
-			'actions'     => self::action_buttons(),
-			'badge'       => self::interpretation_badge( $raw ),
+			'success'       => true,
+			'status'        => (string) ( $meta['status'] ?? ( $proposal_ready ? 'complete' : 'needs_clarification' ) ),
+			'source'        => (string) ( $meta['source'] ?? '' ),
+			'confidence'    => (float) ( $meta['confidence'] ?? $proposal['confidence'] ?? 0 ),
+			'can_execute'   => ! empty( $meta['can_execute'] ),
+			'message'       => self::format_message_with_badge( $summary, $raw ),
+			'proposal_id'   => $id,
+			'proposal'      => $proposal,
+			'clarification' => $meta['clarification'] ?? array( 'question' => '', 'options' => array() ),
+			'memory'        => $meta['memory'] ?? array(),
+			'learning'      => $meta['learning'] ?? array(),
+			'actions'       => self::action_buttons( ! empty( $meta['can_execute'] ), $raw ),
+			'badge'         => self::interpretation_badge( $raw ),
 		);
 		if ( $include_debug ) {
 			$response['debug'] = $debug;
@@ -220,6 +244,25 @@ class RWGA_Assistant_Service {
 		$base['proposal'] = $raw;
 		$base['_interpretation_trace'] = isset( $raw['_interpretation_trace'] ) ? $raw['_interpretation_trace'] : array();
 		$base['interpretation_source'] = (string) ( $raw['interpretation_source'] ?? '' );
+		if ( class_exists( 'RWGA_Interpretation_Status', false ) ) {
+			$meta = RWGA_Interpretation_Status::from_result( $raw );
+			$base['interpretation_status'] = $meta['status'];
+			$base['can_execute']           = $meta['can_execute'];
+			$base['final']                 = array(
+				'source'     => $meta['source'],
+				'status'     => $meta['status'],
+				'validation' => ! empty( $meta['can_execute'] ) ? 'passed' : 'incomplete',
+			);
+			$base['memory'] = array(
+				'local_attempted'  => ! empty( $base['_interpretation_trace']['interpretation_memory']['attempted'] ),
+				'local_matched'    => ! empty( $base['_interpretation_trace']['interpretation_memory']['matched'] ),
+				'remote_attempted' => ! empty( $base['_interpretation_trace']['interpretation_memory']['attempted'] ),
+				'remote_matched'   => 'remote_memory' === ( $meta['source'] ?? '' ),
+			);
+			if ( ! empty( $parser_debug['countries_per_clause'] ) ) {
+				$base['clauses'] = $parser_debug['countries_per_clause'];
+			}
+		}
 		return $base;
 	}
 
@@ -228,15 +271,23 @@ class RWGA_Assistant_Service {
 	 * @return string
 	 */
 	private static function interpretation_badge( array $raw ) {
-		$source = (string) ( $raw['interpretation_source'] ?? '' );
-		if ( 'interpretation_memory' === $source ) {
+		$status = (string) ( $raw['interpretation_status'] ?? '' );
+		if ( in_array( $status, array( RWGA_Interpretation_Status::PARTIAL, RWGA_Interpretation_Status::NEEDS_CLARIFICATION, RWGA_Interpretation_Status::NEEDS_AI, RWGA_Interpretation_Status::AMBIGUOUS ), true ) ) {
+			return __( 'Needs clarification', 'reactwoo-geo-ai' );
+		}
+		$source = RWGA_Interpretation_Status::normalise_source( (string) ( $raw['interpretation_source'] ?? '' ) );
+		if ( 'local_memory' === $source || 'remote_memory' === $source ) {
 			return __( 'Learned interpretation', 'reactwoo-geo-ai' );
 		}
 		if ( 'ai_fallback' === $source ) {
 			return __( 'AI-assisted interpretation', 'reactwoo-geo-ai' );
 		}
-		if ( in_array( $source, array( 'local_parser', 'pattern_bundle' ), true ) ) {
-			return __( 'Local smart action', 'reactwoo-geo-ai' );
+		if ( in_array( $source, array( 'local_parser', 'pattern_bundle', 'parser_hints' ), true ) ) {
+			$ready = ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'];
+			if ( $ready && RWGA_Interpretation_Status::COMPLETE === ( $status ?: RWGA_Interpretation_Status::infer_status( $raw, (float) ( $raw['confidence'] ?? 0 ) ) ) ) {
+				return __( 'Local smart action', 'reactwoo-geo-ai' );
+			}
+			return __( 'Needs clarification', 'reactwoo-geo-ai' );
 		}
 		return '';
 	}
@@ -288,15 +339,32 @@ class RWGA_Assistant_Service {
 			if ( ! empty( $source['countries'] ) && class_exists( 'RWGA_Variant_Group_Extractor', false ) ) {
 				$src_label = (string) ( $source['targeting_label'] ?? RWGA_Variant_Group_Extractor::label_for_countries( (array) $source['countries'], $entities ) );
 			}
+			$source_weather_suffix = '';
+			if ( ! empty( $source['weather']['mode'] ) && 'any' === $source['weather']['mode'] ) {
+				$source_weather_suffix = ' + ' . __( 'all weather', 'reactwoo-geocore' );
+			} elseif ( ! empty( $source['weather']['condition'] ) ) {
+				$source_weather_suffix = ' + ' . (string) $source['weather']['condition'];
+			}
 			$source_targeting = array(
 				'label' => sprintf(
 					/* translators: %s: country targeting label */
 					__( 'Original: %s', 'reactwoo-geocore' ),
-					$src_label
+					$src_label . $source_weather_suffix
 				),
 			);
+			$dup_count = (int) ( $plan['params']['duplicate_count'] ?? count( (array) ( $plan['params']['variants'] ?? array() ) ) );
+			if ( $dup_count > 0 ) {
+				$keywords[] = array(
+					'text' => sprintf(
+						/* translators: %d: variant count */
+						__( 'Create %d variants', 'reactwoo-geocore' ),
+						$dup_count
+					),
+					'type' => 'version_signal',
+				);
+			}
 			$total_versions = (int) ( $plan['params']['total_version_count'] ?? 0 );
-			if ( $total_versions > 0 ) {
+			if ( $total_versions > 0 && empty( $keywords ) ) {
 				$keywords[] = array(
 					'text' => sprintf(
 						/* translators: %d: version count */
@@ -320,7 +388,13 @@ class RWGA_Assistant_Service {
 				$label = (string) ( $variant['label'] ?? '' );
 				$ordinal = (int) ( $variant['ordinal'] ?? 0 );
 				if ( $ordinal <= 0 ) {
-					$ordinal = count( $variant_groups ) + ( $source ? 2 : 1 );
+					$ordinal = count( $variant_groups ) + 1;
+				}
+				if ( '' === $label && ! empty( $variant['countries'] ) && class_exists( 'RWGA_Variant_Group_Extractor', false ) ) {
+					$label = RWGA_Variant_Group_Extractor::label_for_countries( (array) $variant['countries'], $entities );
+				}
+				if ( ! empty( $variant['weather']['condition'] ) ) {
+					$label .= ' + ' . (string) $variant['weather']['condition'];
 				}
 				$variant_groups[] = array(
 					'index' => $ordinal,
@@ -498,6 +572,11 @@ class RWGA_Assistant_Service {
 			'intent'                => (string) ( $raw['intent'] ?? '' ),
 			'matched_action'        => (string) ( $raw['matched_action'] ?? '' ),
 			'confidence'            => (float) ( $raw['confidence'] ?? 0 ),
+			'proposal_ready'        => ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'],
+			'can_execute'           => class_exists( 'RWGA_Interpretation_Status', false )
+				? RWGA_Interpretation_Status::from_result( $raw )['can_execute']
+				: ( ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'] ),
+			'interpretation_status' => (string) ( $raw['interpretation_status'] ?? '' ),
 			'requires_confirmation' => ! empty( $raw['requires_confirmation'] ),
 			'summary'               => (string) ( $raw['summary'] ?? '' ),
 			'setup_summary'         => self::format_setup_summary( $raw ),
@@ -537,7 +616,16 @@ class RWGA_Assistant_Service {
 				if ( '' === $label && ! empty( $source['countries'] ) ) {
 					$label = implode( ', ', (array) $source['countries'] );
 				}
-				$lines[] = $label;
+				$lines[] = $label . ' ' . __( 'only', 'reactwoo-geocore' );
+				if ( ! empty( $source['weather']['mode'] ) && 'any' === $source['weather']['mode'] ) {
+					$lines[] = __( 'All weather conditions', 'reactwoo-geocore' );
+				} elseif ( ! empty( $source['weather']['condition'] ) ) {
+					$lines[] = sprintf(
+						/* translators: %s: weather condition */
+						__( 'Weather: %s', 'reactwoo-geocore' ),
+						(string) $source['weather']['condition']
+					);
+				}
 			}
 			foreach ( (array) ( $raw['params']['variants'] ?? array() ) as $variant ) {
 				$ordinal = (int) ( $variant['ordinal'] ?? 0 );
@@ -551,8 +639,23 @@ class RWGA_Assistant_Service {
 					$ordinal
 				);
 				$lines[] = (string) ( $variant['label'] ?? implode( ', ', (array) ( $variant['countries'] ?? array() ) ) );
+				if ( ! empty( $variant['weather']['condition'] ) ) {
+					$lines[] = sprintf(
+						/* translators: %s: weather condition */
+						__( 'Weather: %s', 'reactwoo-geocore' ),
+						(string) $variant['weather']['condition']
+					);
+				} elseif ( ! empty( $variant['weather']['mode'] ) && 'any' === $variant['weather']['mode'] ) {
+					$lines[] = __( 'All weather conditions', 'reactwoo-geocore' );
+				}
 			}
+			$lines[] = '';
+			$lines[] = __( 'Status', 'reactwoo-geocore' );
+			$lines[] = __( 'Pending confirmation', 'reactwoo-geocore' );
 			return implode( "\n", $lines );
+		}
+		if ( 'weather_rule' === $intent ) {
+			return __( 'Weather rule', 'reactwoo-geocore' ) . "\n" . (string) ( $raw['summary'] ?? '' );
 		}
 		if ( 'create_geo_variants' === $intent && ! empty( $raw['params']['variants'] ) ) {
 			$page_ref = (string) ( $raw['params']['source_page_ref'] ?? $raw['params']['page_ref'] ?? 'page' );
@@ -576,15 +679,27 @@ class RWGA_Assistant_Service {
 	}
 
 	/**
+	 * @param bool                $proposal_ready Whether setup can be created.
+	 * @param array<string,mixed> $raw            Interpreter output.
 	 * @return array<int,array<string,string>>
 	 */
-	private static function action_buttons() {
-		return array(
-			array( 'key' => 'confirm', 'label' => __( 'Create setup', 'reactwoo-geocore' ) ),
-			array( 'key' => 'edit', 'label' => __( 'Edit setup', 'reactwoo-geocore' ) ),
-			array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) ),
-			array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) ),
-		);
+	private static function action_buttons( $proposal_ready = true, array $raw = array() ) {
+		$buttons = array();
+		if ( $proposal_ready ) {
+			$buttons[] = array( 'key' => 'confirm', 'label' => __( 'Create setup', 'reactwoo-geocore' ) );
+		} else {
+			if ( ! empty( $raw['suggested_options'] ) ) {
+				$buttons[] = array( 'key' => 'use_split', 'label' => __( 'Yes, use this split', 'reactwoo-geocore' ) );
+			}
+			if ( (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false ) ) {
+				$buttons[] = array( 'key' => 'ask_ai', 'label' => __( 'Ask AI', 'reactwoo-geocore' ) );
+			}
+			$buttons[] = array( 'key' => 'clarify', 'label' => __( 'Clarify split', 'reactwoo-geocore' ) );
+		}
+		$buttons[] = array( 'key' => 'edit', 'label' => __( 'Edit setup', 'reactwoo-geocore' ) );
+		$buttons[] = array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) );
+		$buttons[] = array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) );
+		return $buttons;
 	}
 
 	/**

@@ -69,6 +69,12 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 				$by_key[ $key ] = $row;
 			}
 		}
+		foreach ( self::essential_weather() as $row ) {
+			$key = $row['entity_type'] . ':' . $row['entity_key'];
+			if ( ! isset( $by_key[ $key ] ) ) {
+				$by_key[ $key ] = $row;
+			}
+		}
 		return array_values( $by_key );
 	}
 
@@ -98,6 +104,46 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 				'display_name' => $row[1],
 				'aliases'      => $row[2],
 				'value'        => $row[0],
+				'status'       => 'active',
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function essential_weather() {
+		$rows = array(
+			array(
+				'entity_key'   => 'rain',
+				'display_name' => 'Rain',
+				'aliases'      => array( 'rain', 'raining', 'rainy', 'wet weather', 'when its raining', "when it's raining" ),
+				'value'        => 'rain',
+			),
+			array(
+				'entity_key'   => 'sunny',
+				'display_name' => 'Sunny',
+				'aliases'      => array( 'sun', 'sunny', 'sunshine', 'when it is sunny', "when it's sunny", 'when its sunny' ),
+				'value'        => 'sunny',
+			),
+			array(
+				'entity_key'   => 'any',
+				'display_name' => 'Any weather',
+				'aliases'      => array( 'all weather', 'all weather conditions', 'any weather', 'regardless of weather' ),
+				'value'        => 'any',
+			),
+		);
+		$out = array();
+		foreach ( $rows as $idx => $row ) {
+			$out[] = array(
+				'id'           => 'bootstrap-weather-' . $idx,
+				'suite'        => 'geocore',
+				'entity_type'  => 'weather_condition',
+				'entity_key'   => $row['entity_key'],
+				'display_name' => $row['display_name'],
+				'aliases'      => $row['aliases'],
+				'value'        => $row['value'],
 				'status'       => 'active',
 			);
 		}
@@ -152,6 +198,30 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 				'status'                => 'active',
 			);
 		}
+		if ( ! isset( $by_key['geocore_create_variant_plan_with_conditions'] ) ) {
+			$by_key['geocore_create_variant_plan_with_conditions'] = array(
+				'action_key'            => 'geocore_create_variant_plan_with_conditions',
+				'name'                  => 'Create Variant Plan With Conditions',
+				'description'           => 'Apply source targeting and create variants with country and weather rules.',
+				'category'              => 'variant_creation',
+				'target_types'          => array( 'page', 'variant' ),
+				'required_params'       => array( 'source_page_ref' ),
+				'optional_params'       => array( 'duplicate_count', 'source_targeting', 'variants' ),
+				'requires_confirmation' => true,
+				'is_destructive'        => false,
+				'status'                => 'active',
+			);
+		}
+		if ( ! isset( $by_key['geocore_create_weather_rule'] ) ) {
+			$by_key['geocore_create_weather_rule'] = array(
+				'action_key'            => 'geocore_create_weather_rule',
+				'name'                  => 'Create Weather Rule',
+				'required_params'       => array( 'weather' ),
+				'optional_params'       => array( 'countries' ),
+				'requires_confirmation' => true,
+				'status'                => 'active',
+			);
+		}
 		return array_values( $by_key );
 	}
 
@@ -182,6 +252,15 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 				'min_confidence'  => 0.55,
 				'requires_context'=> false,
 				'status'          => 'active',
+			);
+		}
+		if ( ! isset( $by_key['weather_rule'] ) ) {
+			$by_key['weather_rule'] = array(
+				'intent_key'       => 'weather_rule',
+				'name'             => 'Weather targeting rule',
+				'min_confidence'   => 0.7,
+				'requires_context' => false,
+				'status'           => 'active',
 			);
 		}
 		return array_values( $by_key );

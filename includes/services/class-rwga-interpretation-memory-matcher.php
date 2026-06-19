@@ -244,6 +244,19 @@ class RWGA_Interpretation_Memory_Matcher {
 			return;
 		}
 		$shape = RWGA_Phrase_Shape_Normaliser::build( $message, $entities );
+		$source = (string) ( $result['interpretation_source'] ?? 'user_correction' );
+		if ( 'ai_fallback' === $source ) {
+			$source = 'ai_fallback';
+		} elseif ( in_array( $source, array( 'local_memory', 'remote_memory', 'interpretation_memory' ), true ) ) {
+			$source = 'promotion';
+		} else {
+			$source = 'user_correction';
+		}
+		$learned_rules = class_exists( 'RWGA_Parser_Hints_Service', false )
+			? RWGA_Parser_Hints_Service::extract_learned_rules( $message, $result )
+			: array();
+		$existing = RWGA_Interpretation_Memory_Store::find_by_shape( (string) ( $shape['phrase_shape'] ?? '' ) );
+		$success  = (int) ( is_array( $existing ) ? ( $existing['success_count'] ?? 0 ) : 0 );
 		RWGA_Interpretation_Memory_Store::upsert(
 			array(
 				'raw_phrase'              => (string) $message,
@@ -257,10 +270,16 @@ class RWGA_Interpretation_Memory_Matcher {
 				),
 				'resolved_params_example' => is_array( $result['params'] ) ? $result['params'] : array(),
 				'detected_entities'       => $shape['entity_map'] ?? array(),
+				'learned_rules'           => $learned_rules,
 				'confidence'              => (float) ( $result['confidence'] ?? 0.88 ),
+				'source'                  => $source,
+				'success_count'           => $success + 1,
 				'status'                  => 'active',
 				'scope'                   => 'site',
 			)
 		);
+		if ( class_exists( 'RWGA_Parser_Hints_Service', false ) && ! empty( $learned_rules ) ) {
+			RWGA_Parser_Hints_Service::merge_hints( $learned_rules );
+		}
 	}
 }

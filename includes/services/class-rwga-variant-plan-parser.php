@@ -85,10 +85,11 @@ class RWGA_Variant_Plan_Parser {
 
 		foreach ( $segments as $segment ) {
 			$countries = self::extract_country_list_from_segment( $segment['raw'], $entities );
+			$weather   = class_exists( 'RWGA_Segment_Condition_Extractor', false )
+				? RWGA_Segment_Condition_Extractor::extract_weather( $segment['raw'], $entities )
+				: null;
 			$mode      = self::detect_mode( $segment['raw'] );
-			$label     = class_exists( 'RWGA_Variant_Group_Extractor', false )
-				? RWGA_Variant_Group_Extractor::label_for_countries( $countries, $entities )
-				: implode( ' + ', $countries );
+			$label     = self::label_for_segment( $countries, $weather, $entities );
 
 			if ( empty( $countries ) ) {
 				continue;
@@ -101,6 +102,7 @@ class RWGA_Variant_Plan_Parser {
 					'label'     => __( 'Original homepage', 'reactwoo-geocore' ),
 					'countries' => $countries,
 					'mode'      => $mode,
+					'weather'   => $weather,
 				);
 				continue;
 			}
@@ -117,6 +119,7 @@ class RWGA_Variant_Plan_Parser {
 				'label'     => $label,
 				'mode'      => $mode,
 				'countries' => $countries,
+				'weather'   => $weather,
 			);
 		}
 
@@ -124,14 +127,19 @@ class RWGA_Variant_Plan_Parser {
 		$debug['detected_variant_clauses'] = $variants;
 		$debug['countries_per_clause']     = array_map(
 			static function ( $segment ) use ( $entities ) {
+				$raw = (string) ( $segment['raw'] ?? '' );
 				return array(
-					'raw'       => $segment['raw'] ?? '',
+					'raw'       => $raw,
 					'type'      => $segment['type'] ?? '',
-					'countries' => self::extract_country_list_from_segment( (string) ( $segment['raw'] ?? '' ), $entities ),
+					'countries' => self::extract_country_list_from_segment( $raw, $entities ),
+					'weather'   => class_exists( 'RWGA_Segment_Condition_Extractor', false )
+						? RWGA_Segment_Condition_Extractor::extract_weather( $raw, $entities )
+						: null,
 				);
 			},
 			$segments
 		);
+		$debug['mixed_conditions_detected'] = self::has_mixed_conditions( $segments, $entities );
 
 		if ( null === $source && self::has_original_marker( $phrase ) ) {
 			$legacy = class_exists( 'RWGA_Original_Source_Targeting_Extractor', false )
@@ -193,10 +201,14 @@ class RWGA_Variant_Plan_Parser {
 			if ( empty( $countries ) ) {
 				continue;
 			}
+			$weather = class_exists( 'RWGA_Segment_Condition_Extractor', false )
+				? RWGA_Segment_Condition_Extractor::extract_weather( $segment['raw'], $entities )
+				: null;
 			$enriched_segments[] = array_merge(
 				$segment,
 				array(
 					'countries' => $countries,
+					'weather'   => $weather,
 					'mode'      => self::detect_mode( $segment['raw'] ),
 				)
 			);
@@ -229,7 +241,7 @@ class RWGA_Variant_Plan_Parser {
 			$phrase
 		);
 		$has_targeting = (bool) preg_match(
-			'/\b(show in|show for|display in|display for|works in|target|only show|visible in|for users in|for visitors in|only display)\b/i',
+			'/\b(show in|show for|display in|display for|works in|fire in|trigger in|target|only show|visible in|for users in|for visitors in|only display|when its|when it is|when it\'s|all weather)\b/i',
 			$phrase
 		);
 		$has_creation = (bool) preg_match(
@@ -249,7 +261,7 @@ class RWGA_Variant_Plan_Parser {
 			return true;
 		}
 		return (bool) preg_match(
-			'/\b(?:update|keep|leave|make)\s+the\s+original\b|\bthe\s+original\b|\boriginal\s+(?:version|homepage|page)\b/i',
+			'/\b(?:update|keep|leave|make)\s+(?:the\s+)?original\b|\bthe\s+original\b|\boriginal\s+(?:version|homepage|page)\b|\bupdate\s+(?:the\s+)?homepage\b/i',
 			$phrase
 		);
 	}
@@ -423,7 +435,7 @@ class RWGA_Variant_Plan_Parser {
 	 * @return string source|variant
 	 */
 	private static function classify_clause_type( $clause ) {
-		if ( preg_match( '/\b(?:update|keep|leave|make)\s+the\s+original\b|\bthe\s+original\s+(?:version|homepage|page)\b|\boriginal\s+(?:should|will|would)\b/i', $clause ) ) {
+		if ( preg_match( '/\b(?:update|keep|leave|make)\s+(?:the\s+)?original\b|\bthe\s+original\s+(?:version|homepage|page)\b|\boriginal\s+(?:should|will|would|can)\b|\bupdate\s+(?:the\s+)?homepage\b|\bupdate\s+original\b/i', $clause ) ) {
 			return 'source';
 		}
 		return 'variant';
@@ -551,12 +563,16 @@ class RWGA_Variant_Plan_Parser {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private static function clause_boundary_patterns() {
-		$variant_should = '(?:(?:one|another|the\\s+other)\\s+should\\s+(?:show|display|will|would))';
-		$variant_will   = '(?:(?:one|another|the\\s+other)\\s+will\\s+(?:show|display))';
-		$variant_would  = '(?:(?:one|another|the\\s+other)\\s+would\\s+(?:show|display))';
-		$variant_for    = '(?:(?:one|another)\\s+for)';
-		$version_target = '(?:(?:one|another)\\s+(?:version|variant|variation)\\s+(?:should|will|would)\\s+(?:show|display))';
-		$ordinal_target = '(?:(?:the\\s+)?(?:3rd|third|2nd|second)\\s+(?:version|variant|variation)\\s+(?:should|will|would)\\s+(?:show|display))';
+		$verbs  = '(?:show|display|fire|trigger|work|activate|appear|serve|render)';
+		$modal  = '(?:should|can|will|would|needs\\s+to)';
+		$actor  = '(?:(?:one|another|the\\s+other)\\s+' . $modal . '\\s+' . $verbs . ')';
+		$variant_should = $actor;
+		$variant_will   = '(?:(?:one|another|the\\s+other)\\s+will\\s+' . $verbs . ')';
+		$variant_would  = '(?:(?:one|another|the\\s+other)\\s+would\\s+' . $verbs . ')';
+		$variant_for    = '(?:(?:one|another|the\\s+other)\\s+for)';
+		$version_target = '(?:(?:one|another)\\s+(?:version|variant|variation)\\s+(?:' . $modal . ')\\s+' . $verbs . ')';
+		$ordinal_target = '(?:(?:the\\s+)?(?:3rd|third|2nd|second)\\s+(?:version|variant|variation)\\s+(?:' . $modal . ')\\s+' . $verbs . ')';
+		$update_homepage = '(?:update\\s+(?:the\\s+)?homepage(?:\\s+to\\s+(?:show|display|for))?)';
 
 		return array(
 			array( 'pattern' => '/\band\s+(' . $variant_should . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one should', 'ordinal' => 0, 'priority' => 100 ),
@@ -564,7 +580,7 @@ class RWGA_Variant_Plan_Parser {
 			array( 'pattern' => '/\band\s+(' . $variant_would . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one would', 'ordinal' => 0, 'priority' => 100 ),
 			array( 'pattern' => '/\band\s+(' . $variant_for . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one for', 'ordinal' => 0, 'priority' => 100 ),
 			array( 'pattern' => '/\band\s+(' . $version_target . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one version should', 'ordinal' => 0, 'priority' => 99 ),
-			array( 'pattern' => '/\band\s+(another\s+should\s+(?:show|display|will|would))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and another should', 'ordinal' => 0, 'priority' => 99 ),
+			array( 'pattern' => '/\band\s+(another\\s+' . $modal . '\\s+' . $verbs . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and another should', 'ordinal' => 0, 'priority' => 99 ),
 			array( 'pattern' => '/\band\s+(another\s+for)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and another for', 'ordinal' => 0, 'priority' => 99 ),
 			array( 'pattern' => '/\band\s+(?:create\s+)?(one\s+(?:version|variant)\s+for)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and create one version for', 'ordinal' => 0, 'priority' => 98 ),
 			array( 'pattern' => '/\band\s+(' . $ordinal_target . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and ordinal version', 'ordinal' => 0, 'priority' => 98 ),
@@ -572,12 +588,16 @@ class RWGA_Variant_Plan_Parser {
 			array( 'pattern' => '/\band\s+((?:variant|variation|version)\s+(?:three|3))\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and variant three', 'ordinal' => 3, 'priority' => 95 ),
 			array( 'pattern' => '/\band\s+(the\s+second)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and the second', 'ordinal' => 2, 'priority' => 90 ),
 			array( 'pattern' => '/\band\s+(the\s+third)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and the third', 'ordinal' => 3, 'priority' => 90 ),
-			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+|\s)(the\s+original\s+(?:version|homepage|page)\s+(?:should|will|would)\s+(?:show|display|for))\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'the original version should', 'ordinal' => 0, 'priority' => 88 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+|\s)(the\s+original\s+(?:version|homepage|page)\s+(?:' . $modal . ')\\s+' . $verbs . '(?:\s+in)?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'the original version should', 'ordinal' => 0, 'priority' => 88 ),
 			array( 'pattern' => '/(?:^|\s)(keep\s+the\s+original(?:\s+homepage)?(?:\s+for)?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'keep the original', 'ordinal' => 0, 'priority' => 86 ),
 			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)(then\s+update\s+the\s+original(?:\s+homepage)?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'then update the original homepage', 'ordinal' => 0, 'priority' => 85 ),
+			array( 'pattern' => '/(?<=\s)(' . $update_homepage . ')\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update homepage', 'ordinal' => 0, 'priority' => 84 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)(' . $update_homepage . ')\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update homepage', 'ordinal' => 0, 'priority' => 83 ),
 			array( 'pattern' => '/(?<=\s)(update\s+the\s+original(?:\s+(?:homepage|page|version))?(?:\s+(?:to\s+)?(?:display|show|for))?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update the original', 'ordinal' => 0, 'priority' => 82 ),
 			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)(update\s+the\s+original(?:\s+(?:homepage|page|version))?(?:\s+(?:to\s+)?(?:display|show|for))?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update the original', 'ordinal' => 0, 'priority' => 80 ),
-			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)((?:keep|leave|make)\s+the\s+original)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'keep the original', 'ordinal' => 0, 'priority' => 80 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)(update\s+original(?:\s+for)?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update original', 'ordinal' => 0, 'priority' => 81 ),
+			array( 'pattern' => '/(?<=\s)(update\s+original(?:\s+for)?)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'update original', 'ordinal' => 0, 'priority' => 81 ),
+			array( 'pattern' => '/(?:^|[,\-]\s*|\band\s+)(keep\s+the\s+original\s+for)\b/i', 'capture' => 1, 'type' => 'source', 'marker' => 'keep the original for', 'ordinal' => 0, 'priority' => 79 ),
 			array( 'pattern' => '/(?<!\band\s)(' . $variant_should . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one should', 'ordinal' => 0, 'priority' => 50 ),
 			array( 'pattern' => '/(?<!\band\s)(' . $variant_will . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one will', 'ordinal' => 0, 'priority' => 50 ),
 			array( 'pattern' => '/(?<!\band\s)(' . $variant_would . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'one would', 'ordinal' => 0, 'priority' => 50 ),
@@ -592,6 +612,12 @@ class RWGA_Variant_Plan_Parser {
 			array( 'pattern' => '/(?<!\band\s)(the\s+third)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'the third', 'ordinal' => 3, 'priority' => 40 ),
 			array( 'pattern' => '/(?<!\band\s)(another(?:\s+(?:version|variant|variation))?)\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'another', 'ordinal' => 0, 'priority' => 35 ),
 		);
+
+		if ( class_exists( 'RWGA_Parser_Hints_Service', false ) ) {
+			$patterns = array_merge( $patterns, RWGA_Parser_Hints_Service::dynamic_boundary_patterns() );
+		}
+
+		return $patterns;
 	}
 
 	/**
@@ -609,14 +635,31 @@ class RWGA_Variant_Plan_Parser {
 	private static function build_matched_result( $phrase, $page_value, $source, array $variants, $total_version_count, $duplicate_count, array $segments, array $debug, array $entities ) {
 		$has_source       = is_array( $source ) && ! empty( $source['countries'] );
 		$source_countries = $has_source ? (array) ( $source['countries'] ?? array() ) : array();
+		$source_weather   = $has_source ? ( $source['weather'] ?? null ) : null;
 		$source_display   = $has_source
-			? ( class_exists( 'RWGA_Variant_Group_Extractor', false )
-				? RWGA_Variant_Group_Extractor::label_for_countries( $source_countries, $entities )
-				: implode( ', ', $source_countries ) )
+			? self::label_for_segment( $source_countries, $source_weather, $entities )
 			: '';
+		$has_weather      = null !== $source_weather;
+		foreach ( $variants as $variant ) {
+			if ( null !== ( $variant['weather'] ?? null ) ) {
+				$has_weather = true;
+				break;
+			}
+		}
+		$matched_action = $has_weather
+			? 'geocore_create_variant_plan_with_conditions'
+			: 'geocore_create_variant_plan_with_country_rules';
 
 		$steps = array();
 		if ( $has_source ) {
+			$step_params = array(
+				'source_page_ref' => $page_value,
+				'countries'       => $source_countries,
+				'mode'            => $source['mode'] ?? 'include_only',
+			);
+			if ( null !== $source_weather && class_exists( 'RWGA_Segment_Condition_Extractor', false ) ) {
+				$step_params['weather'] = RWGA_Segment_Condition_Extractor::weather_param( $source_weather );
+			}
 			$steps[] = array(
 				'label'  => sprintf(
 					/* translators: %s: country label */
@@ -624,24 +667,33 @@ class RWGA_Variant_Plan_Parser {
 					$source_display
 				),
 				'action' => 'geocore_apply_country_rule_to_source',
-				'params' => array(
-					'source_page_ref' => $page_value,
-					'countries'       => $source_countries,
-					'mode'            => $source['mode'] ?? 'include_only',
-				),
+				'params' => $step_params,
 			);
 		}
 
 		$variant_out = array();
 		foreach ( $variants as $variant ) {
-			$ordinal = (int) ( $variant['ordinal'] ?? 0 );
-			$label   = (string) ( $variant['label'] ?? '' );
-			$variant_out[] = array(
+			$ordinal       = (int) ( $variant['ordinal'] ?? 0 );
+			$label         = (string) ( $variant['label'] ?? '' );
+			$weather_key   = $variant['weather'] ?? null;
+			$variant_row   = array(
 				'ordinal'   => $ordinal,
 				'label'     => $label,
 				'mode'      => $variant['mode'] ?? 'include_only',
 				'countries' => $variant['countries'] ?? array(),
 			);
+			if ( null !== $weather_key && class_exists( 'RWGA_Segment_Condition_Extractor', false ) ) {
+				$variant_row['weather'] = RWGA_Segment_Condition_Extractor::weather_param( $weather_key );
+			}
+			$variant_out[] = $variant_row;
+			$step_params   = array(
+				'source_page_ref' => $page_value,
+				'countries'       => $variant['countries'] ?? array(),
+				'mode'            => $variant['mode'] ?? 'include_only',
+			);
+			if ( null !== $weather_key && class_exists( 'RWGA_Segment_Condition_Extractor', false ) ) {
+				$step_params['weather'] = RWGA_Segment_Condition_Extractor::weather_param( $weather_key );
+			}
 			$steps[] = array(
 				'label'  => sprintf(
 					/* translators: 1: variant number, 2: label */
@@ -650,11 +702,7 @@ class RWGA_Variant_Plan_Parser {
 					$label
 				),
 				'action' => 'geocore_duplicate_page_as_variant',
-				'params' => array(
-					'source_page_ref' => $page_value,
-					'countries'       => $variant['countries'] ?? array(),
-					'mode'            => $variant['mode'] ?? 'include_only',
-				),
+				'params' => $step_params,
 			);
 		}
 
@@ -669,28 +717,33 @@ class RWGA_Variant_Plan_Parser {
 			$variant_out
 		);
 
-		$summary = $has_source
-			? sprintf(
-				/* translators: 1: source countries, 2: variant labels */
-				__( 'Update the original homepage for %1$s visitors, then create variants for %2$s.', 'reactwoo-geocore' ),
-				$source_display,
-				implode( ' and ', array_filter( $variant_labels ) )
-			)
-			: sprintf(
-				/* translators: %s: variant labels */
-				__( 'Create variants for %s.', 'reactwoo-geocore' ),
-				implode( ' and ', array_filter( $variant_labels ) )
-			);
+		$summary = self::build_plan_summary( $has_source, $source_display, $source_weather, $variant_labels, $entities );
 
-		$debug['matched_action'] = 'geocore_create_variant_plan_with_country_rules';
+		$source_targeting_param = null;
+		if ( $has_source ) {
+			$source_targeting_param = array(
+				'label'           => __( 'Original homepage', 'reactwoo-geocore' ),
+				'targeting_label' => $source_display,
+				'mode'            => $source['mode'] ?? 'include_only',
+				'countries'       => $source_countries,
+			);
+			if ( null !== $source_weather && class_exists( 'RWGA_Segment_Condition_Extractor', false ) ) {
+				$source_targeting_param['weather'] = RWGA_Segment_Condition_Extractor::weather_param( $source_weather );
+			}
+		}
+
+		$debug['matched_action'] = $matched_action;
 		$debug['confidence']     = 0.88;
-		$debug['warnings']       = array();
+		$debug['warnings']       = $has_weather && ! (bool) apply_filters( 'rwgc_pro_enabled', false )
+			? array( __( 'Weather conditions may require Geo Core Pro for full runtime support.', 'reactwoo-geocore' ) )
+			: array();
 
 		return array(
 			'matched'          => true,
 			'intent'           => 'create_geo_variant_plan',
-			'matched_action'   => 'geocore_create_variant_plan_with_country_rules',
+			'matched_action'   => $matched_action,
 			'confidence'       => 0.88,
+			'proposal_ready'   => true,
 			'source_targeting' => $has_source ? $source : null,
 			'variant_groups'   => $variants,
 			'duplicate_count'  => $duplicate_count,
@@ -701,18 +754,82 @@ class RWGA_Variant_Plan_Parser {
 				'source_page_ref'     => $page_value,
 				'total_version_count' => $total_version_count > 0 ? $total_version_count : ( $has_source ? 1 + count( $variant_out ) : count( $variant_out ) ),
 				'duplicate_count'     => $duplicate_count,
-				'source_targeting'    => $has_source ? array(
-					'label'           => __( 'Original homepage', 'reactwoo-geocore' ),
-					'targeting_label' => $source_display,
-					'mode'            => $source['mode'] ?? 'include_only',
-					'countries'       => $source_countries,
-				) : null,
+				'source_targeting'    => $source_targeting_param,
 				'variants'            => $variant_out,
 			),
 			'steps'            => $steps,
 			'summary'          => $summary,
+			'warnings'         => $debug['warnings'],
 			'_debug'           => $debug,
 		);
+	}
+
+	/**
+	 * @param bool               $has_source      Whether source clause exists.
+	 * @param string             $source_display  Source label.
+	 * @param string|null        $source_weather  Source weather key.
+	 * @param array<int,string>  $variant_labels  Variant labels.
+	 * @param array<int,array>   $entities        Entities.
+	 * @return string
+	 */
+	private static function build_plan_summary( $has_source, $source_display, $source_weather, array $variant_labels, array $entities ) {
+		if ( $has_source ) {
+			$source_part = $source_display;
+			if ( null !== $source_weather && 'any' === $source_weather ) {
+				$source_part .= ' ' . __( 'with all weather conditions', 'reactwoo-geocore' );
+			}
+			return sprintf(
+				/* translators: 1: source targeting, 2: variant labels */
+				__( 'Update the original homepage for %1$s visitors, then create variants for %2$s.', 'reactwoo-geocore' ),
+				$source_part,
+				implode( ' and ', array_filter( $variant_labels ) )
+			);
+		}
+		return sprintf(
+			/* translators: %s: variant labels */
+			__( 'Create variants for %s.', 'reactwoo-geocore' ),
+			implode( ' and ', array_filter( $variant_labels ) )
+		);
+	}
+
+	/**
+	 * @param array<int,string>  $countries Country codes.
+	 * @param string|null        $weather   Weather key.
+	 * @param array<int,array>   $entities  Entities.
+	 * @return string
+	 */
+	private static function label_for_segment( array $countries, $weather, array $entities ) {
+		$country_label = class_exists( 'RWGA_Variant_Group_Extractor', false )
+			? RWGA_Variant_Group_Extractor::label_for_countries( $countries, $entities )
+			: implode( ' + ', $countries );
+		if ( null === $weather || '' === $weather ) {
+			return $country_label;
+		}
+		$weather_label = class_exists( 'RWGA_Segment_Condition_Extractor', false )
+			? RWGA_Segment_Condition_Extractor::weather_label( $weather, $entities )
+			: (string) $weather;
+		return $country_label . ' + ' . strtolower( $weather_label );
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $segments Segments.
+	 * @param array<int,array>               $entities Entities.
+	 * @return bool
+	 */
+	private static function has_mixed_conditions( array $segments, array $entities ) {
+		foreach ( $segments as $segment ) {
+			$raw = (string) ( $segment['raw'] ?? '' );
+			if ( '' === $raw ) {
+				continue;
+			}
+			$weather = class_exists( 'RWGA_Segment_Condition_Extractor', false )
+				? RWGA_Segment_Condition_Extractor::extract_weather( $raw, $entities )
+				: null;
+			if ( null !== $weather ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -783,27 +900,30 @@ class RWGA_Variant_Plan_Parser {
 	 */
 	private static function partial_clarification( $phrase, $page_value, array $countries, array $debug ) {
 		unset( $phrase );
+		$debug['reason'] = 'could_not_confidently_split_variant_conditions';
 		return array(
 			'matched'             => true,
 			'intent'              => 'create_geo_variant_plan',
 			'matched_action'      => 'geocore_create_variant_plan_with_country_rules',
 			'confidence'          => 0.58,
+			'proposal_ready'      => false,
+			'escalate'            => true,
 			'missing_information' => array(
 				array(
 					'key'      => 'variant_grouping',
-					'question' => __( 'I found a page and countries, but could not confidently split them into separate variants. How should I group these countries?', 'reactwoo-geocore' ),
+					'question' => __( 'I found a page, countries, and weather conditions, but I need to confirm the split before creating anything.', 'reactwoo-geocore' ),
 				),
 			),
 			'suggested_options'   => array(
-				__( 'Original homepage for UK, variant for France + Portugal, variant for Germany + Russia', 'reactwoo-geocore' ),
+				__( 'Original homepage for UK, Portugal variant when raining, Germany + Russia variant when sunny', 'reactwoo-geocore' ),
 				__( 'One shared rule for all listed countries', 'reactwoo-geocore' ),
-				__( 'Something else', 'reactwoo-geocore' ),
+				__( 'Edit manually', 'reactwoo-geocore' ),
 			),
 			'params'              => array(
 				'source_page_ref' => $page_value,
 				'countries'       => $countries,
 			),
-			'summary'             => __( 'I found a page and countries, but I could not confidently split them into separate variants.', 'reactwoo-geocore' ),
+			'summary'             => __( 'I found a page, countries, and weather conditions, but I need to confirm the split before creating anything.', 'reactwoo-geocore' ),
 			'_debug'              => $debug,
 		);
 	}

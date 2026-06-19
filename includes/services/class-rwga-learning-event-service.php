@@ -60,15 +60,36 @@ class RWGA_Learning_Event_Service {
 				}
 				RWGA_Interpretation_Memory_Matcher::remember(
 					(string) ( $payload['raw_phrase'] ?? $payload['normalised_phrase'] ?? '' ),
-					array(
-						'intent'          => (string) ( $payload['intent'] ?? $payload['intent_key'] ?? '' ),
-						'matched_action'  => (string) ( $payload['matched_action'] ?? $payload['action_key'] ?? '' ),
-						'params'          => isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array(),
-						'confidence'      => (float) ( $payload['confidence'] ?? 0.85 ),
+					array_merge(
+						$payload,
+						array(
+							'intent'         => (string) ( $payload['intent'] ?? $payload['intent_key'] ?? '' ),
+							'matched_action' => (string) ( $payload['matched_action'] ?? $payload['action_key'] ?? '' ),
+						)
 					),
 					$entities
 				);
 			}
+			if ( class_exists( 'RWGA_Parser_Hints_Service', false ) ) {
+				$rules = RWGA_Parser_Hints_Service::extract_learned_rules(
+					(string) ( $payload['raw_phrase'] ?? $payload['normalised_phrase'] ?? '' ),
+					$payload
+				);
+				RWGA_Parser_Hints_Service::merge_hints( $rules );
+			}
+		}
+
+		if ( class_exists( 'RWGA_Learning_Promotion_Service', false ) ) {
+			$raw = (string) ( $payload['raw_phrase'] ?? $payload['normalised_phrase'] ?? '' );
+			$entities = array();
+			if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
+				$bundle   = RWGA_Intelligence_Sync_Service::ensure_bundle();
+				$entities = is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
+			}
+			$shape = class_exists( 'RWGA_Phrase_Shape_Normaliser', false )
+				? (string) ( RWGA_Phrase_Shape_Normaliser::build( $raw, $entities )['phrase_shape'] ?? '' )
+				: '';
+			RWGA_Learning_Promotion_Service::record_outcome( $shape, (string) ( $payload['outcome'] ?? 'accepted' ) );
 		}
 
 		if ( ! self::is_enabled() ) {

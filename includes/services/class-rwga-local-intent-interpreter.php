@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class RWGA_Local_Intent_Interpreter {
 
+	const CONFIDENCE_THRESHOLD = 0.85;
+
 	/**
 	 * @param string              $raw_phrase User input.
 	 * @param array<string,mixed> $context    From RWGA_Context_Resolver.
@@ -41,34 +43,44 @@ class RWGA_Local_Intent_Interpreter {
 		$actions       = self::index_actions( is_array( $bundle['actions'] ) ? $bundle['actions'] : array() );
 		$intents       = self::index_intents( is_array( $bundle['intents'] ) ? $bundle['intents'] : array() );
 		$editor_opts   = self::editor_options( $context );
+		$deferred_plan = null;
 
 		if ( class_exists( 'RWGA_Variant_Plan_Interpreter', false ) ) {
 			$plan = RWGA_Variant_Plan_Interpreter::parse( $phrase, $flat_entities, $context );
-			$trace['local_parser']['parser'] = 'RWGA_Variant_Plan_Interpreter';
-			if ( ! empty( $plan['matched'] ) ) {
-				$trace['local_parser']['matched']    = true;
-				$trace['local_parser']['confidence'] = (float) ( $plan['confidence'] ?? 0.88 );
-				return self::attach_trace(
-					array_merge(
-						self::build_variant_plan_result( $plan, $context, $phrase ),
-						array( 'interpretation_source' => 'local_parser' )
-					),
-					$trace
-				);
+			$trace['local_parser']['parser']     = 'RWGA_Variant_Plan_Interpreter';
+			$trace['local_parser']['confidence'] = (float) ( $plan['confidence'] ?? 0 );
+			if ( is_array( $plan['_debug'] ?? null ) ) {
+				$trace['local_parser'] = array_merge( $trace['local_parser'], self::variant_plan_trace_fields( $plan['_debug'] ) );
 			}
-			$trace['local_parser']['reason'] = (string) ( $plan['reason'] ?? 'no_variant_plan_match' );
+			if ( ! empty( $plan['matched'] ) ) {
+				if ( self::is_ready_local_result( $plan ) ) {
+					$trace['local_parser']['matched'] = true;
+					return self::attach_trace(
+						array_merge(
+							self::build_variant_plan_result( $plan, $context, $phrase ),
+							array( 'interpretation_source' => 'local_parser', 'proposal_ready' => true )
+						),
+						$trace
+					);
+				}
+				$deferred_plan = $plan;
+				$trace['local_parser']['matched'] = false;
+				$trace['local_parser']['reason']  = (string) ( $plan['_debug']['reason'] ?? 'low_confidence_variant_plan' );
+			} else {
+				$trace['local_parser']['reason'] = (string) ( $plan['reason'] ?? 'no_variant_plan_match' );
+			}
 		}
 
 		if ( class_exists( 'RWGA_Multi_Variant_Interpreter', false ) ) {
 			$multi = RWGA_Multi_Variant_Interpreter::parse( $phrase, $flat_entities, $context );
-			if ( ! empty( $multi['matched'] ) ) {
+			if ( ! empty( $multi['matched'] ) && self::is_ready_local_result( $multi ) ) {
 				$trace['local_parser']['matched']    = true;
 				$trace['local_parser']['confidence'] = (float) ( $multi['confidence'] ?? 0.85 );
 				$trace['local_parser']['parser']     = 'RWGA_Multi_Variant_Interpreter';
 				return self::attach_trace(
 					array_merge(
 						self::build_multi_variant_result( $multi, $context, $phrase ),
-						array( 'interpretation_source' => 'local_parser' )
+						array( 'interpretation_source' => 'local_parser', 'proposal_ready' => true )
 					),
 					$trace
 				);
@@ -84,7 +96,23 @@ class RWGA_Local_Intent_Interpreter {
 				return self::attach_trace(
 					array_merge(
 						self::build_country_rule_result( $country_rule, $context, $phrase ),
-						array( 'interpretation_source' => 'local_parser' )
+						array( 'interpretation_source' => 'local_parser', 'proposal_ready' => true )
+					),
+					$trace
+				);
+			}
+		}
+
+		if ( class_exists( 'RWGA_Weather_Rule_Interpreter', false ) ) {
+			$weather_rule = RWGA_Weather_Rule_Interpreter::parse( $phrase, $flat_entities );
+			if ( ! empty( $weather_rule['matched'] ) ) {
+				$trace['local_parser']['matched']    = true;
+				$trace['local_parser']['confidence'] = (float) ( $weather_rule['confidence'] ?? 0.82 );
+				$trace['local_parser']['parser']     = 'RWGA_Weather_Rule_Interpreter';
+				return self::attach_trace(
+					array_merge(
+						self::build_weather_rule_result( $weather_rule, $context, $phrase ),
+						array( 'interpretation_source' => 'local_parser', 'proposal_ready' => true )
 					),
 					$trace
 				);
@@ -116,48 +144,173 @@ class RWGA_Local_Intent_Interpreter {
 			}
 		}
 
-		if ( ! $best ) {
-			$trace['pattern_bundle']['matched'] = false;
-			if ( ! empty( $compound['compound'] ) && ! empty( $compound['conditions'] ) ) {
-				return self::attach_trace(
-					array_merge(
-						self::build_compound_result( $compound, $context, $phrase ),
-						array( 'interpretation_source' => 'local_parser' )
-					),
-					$trace
-				);
-			}
+		if ( $best && $best_score >= self::CONFIDENCE_THRESHOLD ) {
+			$trace['pattern_bundle']['matched']    = true;
+			$trace['pattern_bundle']['confidence'] = round( $best_score, 2 );
+			$result = self::build_pattern_bundle_result( $best, $best_score, $actions, $intents, $context, $phrase, $compound );
+			$result['interpretation_source'] = 'pattern_bundle';
+			$result['proposal_ready']        = true;
+			return self::attach_trace( $result, $trace );
+		}
 
-			if ( class_exists( 'RWGA_Interpretation_Memory_Matcher', false ) ) {
-				$trace['interpretation_memory']['attempted'] = true;
-				$memory = RWGA_Interpretation_Memory_Matcher::match( $raw_phrase, $phrase, $flat_entities, $context );
-				$trace['interpretation_memory'] = array_merge( $trace['interpretation_memory'], $memory['trace'] ?? array() );
-				if ( ! empty( $memory['matched'] ) ) {
-					return self::attach_trace(
-						self::build_memory_result( $memory, $context, $phrase ),
-						$trace
-					);
-				}
-			}
-
-			$ai = self::try_ai_fallback( $raw_phrase, $phrase, $context, $flat_entities, $trace );
-			if ( null !== $ai ) {
-				return self::attach_trace( $ai, $trace );
-			}
-
-			$clarification = self::meaningful_entity_clarification( $phrase, $flat_entities );
-			if ( null !== $clarification ) {
-				return self::attach_trace( $clarification, $trace );
-			}
+		$trace['pattern_bundle']['matched'] = (bool) $best;
+		if ( ! empty( $compound['compound'] ) && ! empty( $compound['conditions'] ) ) {
 			return self::attach_trace(
-				self::empty_result( $phrase, __( 'No matching command pattern found.', 'reactwoo-geo-ai' ) ),
+				array_merge(
+					self::build_compound_result( $compound, $context, $phrase ),
+					array( 'interpretation_source' => 'local_parser', 'proposal_ready' => true )
+				),
 				$trace
 			);
 		}
 
-		$trace['pattern_bundle']['matched'] = true;
-		$trace['pattern_bundle']['confidence'] = round( $best_score, 2 );
+		$escalated = self::escalate_interpretation( $raw_phrase, $phrase, $context, $flat_entities, $trace, $deferred_plan );
+		if ( null !== $escalated ) {
+			return self::attach_trace( $escalated, $trace );
+		}
 
+		$clarification = self::focused_clarification_from_deferred( $deferred_plan, $phrase, $flat_entities );
+		if ( null !== $clarification ) {
+			return self::attach_trace( $clarification, $trace );
+		}
+
+		$clarification = self::meaningful_entity_clarification( $phrase, $flat_entities );
+		if ( null !== $clarification ) {
+			return self::attach_trace( $clarification, $trace );
+		}
+		return self::attach_trace(
+			self::empty_result( $phrase, __( 'No matching command pattern found.', 'reactwoo-geo-ai' ) ),
+			$trace
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $result Local parser result.
+	 * @return bool
+	 */
+	private static function is_ready_local_result( array $result ) {
+		if ( empty( $result['matched'] ) ) {
+			return false;
+		}
+		if ( isset( $result['proposal_ready'] ) && false === $result['proposal_ready'] ) {
+			return false;
+		}
+		if ( ! empty( $result['missing_information'] ) ) {
+			return false;
+		}
+		if ( ! empty( $result['escalate'] ) ) {
+			return false;
+		}
+		return (float) ( $result['confidence'] ?? 0 ) >= self::CONFIDENCE_THRESHOLD;
+	}
+
+	/**
+	 * @param array<string,mixed> $debug Parser debug payload.
+	 * @return array<string,mixed>
+	 */
+	private static function variant_plan_trace_fields( array $debug ) {
+		$fields = array();
+		foreach ( array( 'parser_used', 'variant_plan_terms_detected', 'mixed_conditions_detected', 'raw_clauses', 'segments', 'countries_detected', 'reason' ) as $key ) {
+			if ( isset( $debug[ $key ] ) ) {
+				$fields[ $key ] = $debug[ $key ];
+			}
+		}
+		if ( isset( $debug['countries_per_clause'] ) ) {
+			$fields['clauses'] = $debug['countries_per_clause'];
+		}
+		return $fields;
+	}
+
+	/**
+	 * Memory and AI escalation when local parsing is uncertain.
+	 *
+	 * @param string                   $raw_phrase    Raw phrase.
+	 * @param string                   $phrase        Normalised phrase.
+	 * @param array<string,mixed>      $context       Context.
+	 * @param array<int,array>         $flat_entities Entities.
+	 * @param array<string,mixed>      $trace         Trace (by ref).
+	 * @param array<string,mixed>|null $deferred_plan Weak local plan hint.
+	 * @return array<string,mixed>|null
+	 */
+	private static function escalate_interpretation( $raw_phrase, $phrase, array $context, array $flat_entities, array &$trace, $deferred_plan = null ) {
+		if ( class_exists( 'RWGA_Interpretation_Memory_Matcher', false ) ) {
+			$trace['interpretation_memory']['attempted'] = true;
+			$memory = RWGA_Interpretation_Memory_Matcher::match( $raw_phrase, $phrase, $flat_entities, $context );
+			$trace['interpretation_memory'] = array_merge( $trace['interpretation_memory'], $memory['trace'] ?? array() );
+			if ( ! empty( $memory['matched'] ) && (float) ( $memory['confidence'] ?? 0 ) >= self::CONFIDENCE_THRESHOLD ) {
+				$source = 'local_memory';
+				if ( ! empty( $memory['trace']['source'] ) && 'global' !== $memory['trace']['source'] ) {
+					$scope = (string) $memory['trace']['source'];
+					$source = in_array( $scope, array( 'global', 'license' ), true ) ? 'remote_memory' : 'local_memory';
+				}
+				return array_merge(
+					self::build_memory_result( $memory, $context, $phrase ),
+					array(
+						'proposal_ready'          => true,
+						'interpretation_source'   => $source,
+						'interpretation_status'   => RWGA_Interpretation_Status::COMPLETE,
+					)
+				);
+			}
+		}
+
+		$ai_reason = 'local_parser_low_confidence';
+		if ( is_array( $deferred_plan ) && ! empty( $deferred_plan['_debug']['countries_detected'] ) ) {
+			$ai_reason = 'local_parser_low_confidence_with_entities';
+		}
+		$trace['ai_fallback']['reason'] = $ai_reason;
+		$ai = self::try_ai_fallback( $raw_phrase, $phrase, $context, $flat_entities, $trace, $deferred_plan );
+		if ( null !== $ai ) {
+			$ai['proposal_ready'] = true;
+			$ai['interpretation_status'] = RWGA_Interpretation_Status::COMPLETE;
+			if ( 'ai_fallback' === ( $ai['interpretation_source'] ?? '' ) ) {
+				$ai['summary'] = __( 'I could not split this locally, so I checked the ReactWoo intelligence layer.', 'reactwoo-geo-ai' )
+					. ' ' . (string) ( $ai['summary'] ?? '' );
+			}
+			return $ai;
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param array<string,mixed>|null $deferred_plan Deferred local plan.
+	 * @param string                   $phrase        Normalised phrase.
+	 * @param array<int,array>         $entities      Entities.
+	 * @return array<string,mixed>|null
+	 */
+	private static function focused_clarification_from_deferred( $deferred_plan, $phrase, array $entities ) {
+		if ( ! is_array( $deferred_plan ) || empty( $deferred_plan['matched'] ) ) {
+			return null;
+		}
+		$result = self::build_variant_plan_result( $deferred_plan, array(), $phrase );
+		$result['proposal_ready']        = false;
+		$result['interpretation_source'] = 'clarification';
+		$result['interpretation_status'] = RWGA_Interpretation_Status::NEEDS_CLARIFICATION;
+		$result['requires_confirmation'] = false;
+		if ( empty( $result['suggested_options'] ) ) {
+			$result['suggested_options'] = array(
+				__( 'Use this split', 'reactwoo-geo-ai' ),
+				__( 'Edit setup', 'reactwoo-geo-ai' ),
+				__( 'Ask AI', 'reactwoo-geo-ai' ),
+				__( 'Cancel', 'reactwoo-geo-ai' ),
+			);
+		}
+		unset( $entities );
+		return $result;
+	}
+
+	/**
+	 * @param array<string,mixed> $best       Best pattern match.
+	 * @param float               $best_score Score.
+	 * @param array<string,array> $actions    Actions.
+	 * @param array<string,array> $intents    Intents.
+	 * @param array<string,mixed> $context    Context.
+	 * @param string              $phrase     Phrase.
+	 * @param array<string,mixed> $compound   Compound parse.
+	 * @return array<string,mixed>
+	 */
+	private static function build_pattern_bundle_result( array $best, $best_score, array $actions, array $intents, array $context, $phrase, array $compound ) {
 		$pattern_row = $best['pattern'];
 		$intent_key  = (string) ( $pattern_row['intent_key'] ?? '' );
 		$action_key  = (string) ( $pattern_row['action_key'] ?? '' );
@@ -215,9 +368,7 @@ class RWGA_Local_Intent_Interpreter {
 			'normalised_phrase'     => $phrase,
 		);
 
-		$result['interpretation_source'] = 'pattern_bundle';
-
-		return self::attach_trace( self::merge_compound_into_result( $result, $compound, $phrase ), $trace );
+		return self::merge_compound_into_result( $result, $compound, $phrase );
 	}
 
 	/**
@@ -227,6 +378,12 @@ class RWGA_Local_Intent_Interpreter {
 	 */
 	private static function attach_trace( array $result, array $trace ) {
 		$result['_interpretation_trace'] = $trace;
+		if ( empty( $result['interpretation_status'] ) ) {
+			$result['interpretation_status'] = RWGA_Interpretation_Status::infer_status(
+				$result,
+				(float) ( $result['confidence'] ?? 0 )
+			);
+		}
 		if ( class_exists( 'RWGA_Interpreter_Debug', false ) && RWGA_Interpreter_Debug::is_enabled() ) {
 			RWGA_Interpreter_Debug::log(
 				'interpret',
@@ -267,7 +424,9 @@ class RWGA_Local_Intent_Interpreter {
 			'summary'               => (string) ( $memory['summary'] ?? __( 'Learned interpretation.', 'reactwoo-geo-ai' ) ),
 			'warnings'              => array(),
 			'normalised_phrase'     => $phrase,
-			'interpretation_source' => 'interpretation_memory',
+			'interpretation_source' => 'local_memory',
+			'interpretation_status' => RWGA_Interpretation_Status::COMPLETE,
+			'proposal_ready'        => true,
 			'memory_id'             => (string) ( $memory['memory_id'] ?? '' ),
 			'memory_scope'          => (string) ( $memory['scope'] ?? '' ),
 		);
@@ -283,11 +442,11 @@ class RWGA_Local_Intent_Interpreter {
 	 * @param array<string,mixed> $trace      Trace (by ref).
 	 * @return array<string,mixed>|null
 	 */
-	private static function try_ai_fallback( $raw_phrase, $phrase, array $context, array $entities, array &$trace ) {
+	private static function try_ai_fallback( $raw_phrase, $phrase, array $context, array $entities, array &$trace, $deferred_plan = null ) {
 		$trace['ai_fallback']['called'] = true;
 		$enabled = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
 		if ( ! $enabled ) {
-			$trace['ai_fallback']['reason'] = 'not_enabled';
+			$trace['ai_fallback']['reason'] = (string) ( $trace['ai_fallback']['reason'] ?? 'not_enabled' );
 			return null;
 		}
 		$result = apply_filters(
@@ -296,7 +455,8 @@ class RWGA_Local_Intent_Interpreter {
 			$raw_phrase,
 			$phrase,
 			$context,
-			$entities
+			$entities,
+			$deferred_plan
 		);
 		if ( ! is_array( $result ) || empty( $result['matched_action'] ) ) {
 			$trace['ai_fallback']['matched'] = false;
@@ -402,8 +562,9 @@ class RWGA_Local_Intent_Interpreter {
 			'suggested_options'     => isset( $plan['suggested_options'] ) && is_array( $plan['suggested_options'] ) ? $plan['suggested_options'] : array(),
 			'requires_confirmation' => true,
 			'summary'               => (string) ( $plan['summary'] ?? '' ),
-			'warnings'              => array(),
+			'warnings'              => isset( $plan['warnings'] ) && is_array( $plan['warnings'] ) ? $plan['warnings'] : array(),
 			'normalised_phrase'     => $phrase,
+			'proposal_ready'        => ! isset( $plan['proposal_ready'] ) || false !== $plan['proposal_ready'],
 			'_debug_entities'       => array_merge(
 				array(
 					'matched_terms'    => $plan['matched_terms'] ?? array(),
@@ -438,6 +599,7 @@ class RWGA_Local_Intent_Interpreter {
 			'intent'                => 'create_geo_variant_plan',
 			'matched_action'        => 'geocore_create_variant_plan_with_country_rules',
 			'confidence'            => 0.55,
+			'proposal_ready'        => false,
 			'target_reference'      => 'this',
 			'resolved_target'       => null,
 			'params'                => array(
@@ -447,16 +609,17 @@ class RWGA_Local_Intent_Interpreter {
 			'missing_information'   => array(
 				array(
 					'key'      => 'variant_grouping',
-					'question' => __( 'I found a page and countries, but could not confidently split them into separate variants. How should I group these countries?', 'reactwoo-geo-ai' ),
+					'question' => __( 'I found a page, countries, and weather conditions, but I need to confirm the split before creating anything.', 'reactwoo-geo-ai' ),
 				),
 			),
 			'suggested_options'     => array(
-				__( 'Split into separate variants per country group', 'reactwoo-geo-ai' ),
-				__( 'One shared rule for all listed countries', 'reactwoo-geo-ai' ),
-				__( 'Something else', 'reactwoo-geo-ai' ),
+				__( 'Use this split', 'reactwoo-geo-ai' ),
+				__( 'Edit setup', 'reactwoo-geo-ai' ),
+				__( 'Ask AI', 'reactwoo-geo-ai' ),
+				__( 'Cancel', 'reactwoo-geo-ai' ),
 			),
-			'requires_confirmation' => true,
-			'summary'               => __( 'I found a page and countries, but I could not confidently split them into separate variants.', 'reactwoo-geo-ai' ),
+			'requires_confirmation' => false,
+			'summary'               => __( 'I found a page, countries, and weather conditions, but I need to confirm the split before creating anything.', 'reactwoo-geo-ai' ),
 			'warnings'              => array(),
 			'normalised_phrase'     => $phrase,
 		);
@@ -481,6 +644,30 @@ class RWGA_Local_Intent_Interpreter {
 			'summary'               => (string) ( $rule['summary'] ?? '' ),
 			'warnings'              => array(),
 			'normalised_phrase'     => $phrase,
+			'proposal_ready'        => true,
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $rule    Weather rule parse result.
+	 * @param array<string,mixed> $context Context.
+	 * @param string              $phrase  Normalised phrase.
+	 * @return array<string,mixed>
+	 */
+	private static function build_weather_rule_result( array $rule, array $context, $phrase ) {
+		return array(
+			'intent'                => (string) ( $rule['intent'] ?? 'weather_rule' ),
+			'matched_action'        => (string) ( $rule['matched_action'] ?? 'geocore_create_weather_rule' ),
+			'confidence'            => round( (float) ( $rule['confidence'] ?? 0.82 ), 2 ),
+			'target_reference'      => 'this',
+			'resolved_target'       => RWGA_Context_Resolver::resolve_reference( 'this', $context ),
+			'params'                => isset( $rule['params'] ) && is_array( $rule['params'] ) ? $rule['params'] : array(),
+			'missing_information'   => array(),
+			'requires_confirmation' => true,
+			'summary'               => (string) ( $rule['summary'] ?? '' ),
+			'warnings'              => array(),
+			'normalised_phrase'     => $phrase,
+			'proposal_ready'        => true,
 		);
 	}
 

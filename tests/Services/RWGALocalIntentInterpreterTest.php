@@ -47,6 +47,8 @@ final class RWGALocalIntentInterpreterTest extends TestCase {
 		require_once $base . 'services/class-rwga-country-rule-interpreter.php';
 		require_once $base . 'services/class-rwga-multi-variant-interpreter.php';
 		require_once $base . 'services/class-rwga-variant-plan-parser.php';
+		require_once $base . 'services/class-rwga-segment-condition-extractor.php';
+		require_once $base . 'services/class-rwga-weather-rule-interpreter.php';
 		require_once $base . 'services/class-rwga-variant-plan-interpreter.php';
 		require_once $base . 'services/class-rwga-local-intent-interpreter.php';
 	}
@@ -242,5 +244,52 @@ final class RWGALocalIntentInterpreterTest extends TestCase {
 		$result = RWGA_Local_Intent_Interpreter::interpret( $phrase, array() );
 		$this->assertSame( 'create_geo_variant_plan', $result['intent'] );
 		$this->assertNotSame( __( 'No matching command pattern found.', 'reactwoo-geo-ai' ), $result['summary'] );
+	}
+
+	public function test_mixed_weather_variant_plan_portugal_rain_russia_germany_sunny_uk(): void {
+		$phrase = 'i would like you to create two variants of the homepage, one should fire in portugal only when its raining the other can trigger in russia and germany when it is sunny, update homepage to show in uk with all weather conditions';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ), (string) ( $result['summary'] ?? $result['reason'] ?? 'no match' ) );
+		$this->assertSame( 'create_geo_variant_plan', $result['intent'] );
+		$this->assertSame( 'geocore_create_variant_plan_with_conditions', $result['matched_action'] );
+		$this->assertSame( 'homepage', $result['params']['source_page_ref'] );
+		$this->assertSame( array( 'GB' ), $result['params']['source_targeting']['countries'] );
+		$this->assertSame( 'any', $result['params']['source_targeting']['weather']['mode'] );
+		$this->assertCount( 2, $result['params']['variants'] );
+		$this->assertSame( array( 'PT' ), $result['params']['variants'][0]['countries'] );
+		$this->assertSame( 'rain', $result['params']['variants'][0]['weather']['condition'] );
+		$this->assertEqualsCanonicalizing( array( 'RU', 'DE' ), $result['params']['variants'][1]['countries'] );
+		$this->assertSame( 'sunny', $result['params']['variants'][1]['weather']['condition'] );
+	}
+
+	public function test_mixed_weather_variant_plan_similar_wording(): void {
+		$phrase = 'create 2 homepage variants one for portugal when rainy and the other for germany and russia when sunny keep the original for uk all weather';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ), (string) ( $result['summary'] ?? $result['reason'] ?? 'no match' ) );
+		$this->assertSame( array( 'GB' ), $result['params']['source_targeting']['countries'] );
+		$this->assertSame( 'any', $result['params']['source_targeting']['weather']['mode'] );
+		$this->assertSame( array( 'PT' ), $result['params']['variants'][0]['countries'] );
+		$this->assertSame( 'rain', $result['params']['variants'][0]['weather']['condition'] );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'RU' ), $result['params']['variants'][1]['countries'] );
+		$this->assertSame( 'sunny', $result['params']['variants'][1]['weather']['condition'] );
+	}
+
+	public function test_country_only_variant_plan_still_works(): void {
+		$phrase = 'create 2 variants of the homepage one for portugal and one for germany and russia update original for uk';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ) );
+		$this->assertSame( 'geocore_create_variant_plan_with_country_rules', $result['matched_action'] );
+		$this->assertSame( array( 'GB' ), $result['params']['source_targeting']['countries'] );
+		$this->assertSame( array( 'PT' ), $result['params']['variants'][0]['countries'] );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'RU' ), $result['params']['variants'][1]['countries'] );
+	}
+
+	public function test_simple_weather_product_rule_portugal_rain(): void {
+		$phrase = 'show this product when it is raining in portugal';
+		$result = RWGA_Weather_Rule_Interpreter::parse( $phrase, $this->entities() );
+		$this->assertTrue( ! empty( $result['matched'] ) );
+		$this->assertSame( 'weather_rule', $result['intent'] );
+		$this->assertSame( array( 'PT' ), $result['params']['countries'] );
+		$this->assertSame( 'rain', $result['params']['weather']['condition'] );
 	}
 }

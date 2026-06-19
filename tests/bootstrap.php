@@ -89,7 +89,31 @@ if ( ! function_exists( 'esc_url_raw' ) ) {
 
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value, ...$args ) {
+		if ( empty( $GLOBALS['rwga_test_filters'][ $hook ] ) ) {
+			return $value;
+		}
+		foreach ( $GLOBALS['rwga_test_filters'][ $hook ] as $callback ) {
+			$value = $callback( $value, ...$args );
+		}
 		return $value;
+	}
+}
+
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+		unset( $priority, $accepted_args );
+		if ( ! isset( $GLOBALS['rwga_test_filters'] ) ) {
+			$GLOBALS['rwga_test_filters'] = array();
+		}
+		$GLOBALS['rwga_test_filters'][ $hook ][] = $callback;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'remove_all_filters' ) ) {
+	function remove_all_filters( $hook ) {
+		unset( $GLOBALS['rwga_test_filters'][ $hook ] );
+		return true;
 	}
 }
 

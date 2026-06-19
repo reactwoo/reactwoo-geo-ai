@@ -150,11 +150,16 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-group-extractor.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-original-source-targeting-extractor.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-country-rule-interpreter.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-segment-condition-extractor.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-weather-rule-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-phrase-shape-normaliser.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-memory-store.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-memory-client.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-memory-matcher.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpreter-debug.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-status.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-parser-hints-service.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-learning-promotion-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-parser.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-multi-variant-interpreter.php';
