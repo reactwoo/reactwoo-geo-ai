@@ -81,7 +81,18 @@ class RWGA_Assistant_Service {
 		}
 
 		$proposal_ready = ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'];
-		$proposal       = self::format_proposal( $raw, $message );
+		$entities       = array();
+		if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
+			$bundle   = RWGA_Intelligence_Sync_Service::ensure_bundle();
+			$entities = is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
+		}
+		$inferred_plan  = class_exists( 'RWGA_Inferred_Plan_Builder', false )
+			? RWGA_Inferred_Plan_Builder::from_interpreter_result( $raw, $entities )
+			: null;
+		if ( is_array( $inferred_plan ) ) {
+			$raw['inferred_plan'] = $inferred_plan;
+		}
+		$proposal       = self::format_proposal( $raw, $message, $entities, $inferred_plan );
 		$meta           = class_exists( 'RWGA_Interpretation_Status', false )
 			? RWGA_Interpretation_Status::from_result( $raw )
 			: array(
@@ -100,6 +111,8 @@ class RWGA_Assistant_Service {
 			$summary .= "\n\n" . __( 'Please confirm before I create anything.', 'reactwoo-geo-ai' );
 			$proposal['summary'] = $summary;
 		}
+		$display_message = self::format_message_with_badge( $summary, $raw, $inferred_plan, $entities );
+		$ai_available    = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
 
 		$response = array(
 			'success'       => true,
@@ -107,17 +120,144 @@ class RWGA_Assistant_Service {
 			'source'        => (string) ( $meta['source'] ?? '' ),
 			'confidence'    => (float) ( $meta['confidence'] ?? $proposal['confidence'] ?? 0 ),
 			'can_execute'   => ! empty( $meta['can_execute'] ),
-			'message'       => self::format_message_with_badge( $summary, $raw ),
+			'message'       => $display_message,
 			'proposal_id'   => $id,
 			'proposal'      => $proposal,
+			'inferred_plan' => $inferred_plan,
 			'clarification' => $meta['clarification'] ?? array( 'question' => '', 'options' => array() ),
 			'memory'        => $meta['memory'] ?? array(),
 			'learning'      => $meta['learning'] ?? array(),
-			'actions'       => self::action_buttons( ! empty( $meta['can_execute'] ), $raw ),
+			'ai_available'  => $ai_available,
+			'actions'       => self::action_buttons( $meta, $raw, $inferred_plan, $ai_available ),
 			'badge'         => self::interpretation_badge( $raw ),
 		);
 		if ( $include_debug ) {
 			$response['debug'] = $debug;
+		}
+		return $response;
+	}
+
+	/**
+	 * Build an assistant response from a pre-interpreted raw result (e.g. forced AI).
+	 *
+	 * @param string              $message Raw user message.
+	 * @param array<string,mixed> $raw     Interpreter output.
+	 * @param array<string,mixed> $context Admin context.
+	 * @param bool                $include_debug Include debug block.
+	 * @return array<string,mixed>
+	 */
+	public static function interpret_from_raw( $message, array $raw, array $context = array(), $include_debug = false ) {
+		$bundle = self::bundle();
+		$debug  = self::build_interpret_debug( $message, $raw, $bundle );
+		$entities = array();
+		if ( is_array( $bundle['entities'] ?? null ) ) {
+			$entities = $bundle['entities'];
+		}
+		$inferred_plan = class_exists( 'RWGA_Inferred_Plan_Builder', false )
+			? RWGA_Inferred_Plan_Builder::from_interpreter_result( $raw, $entities )
+			: null;
+		if ( is_array( $inferred_plan ) ) {
+			$raw['inferred_plan'] = $inferred_plan;
+		}
+		$meta     = class_exists( 'RWGA_Interpretation_Status', false )
+			? RWGA_Interpretation_Status::from_result( $raw )
+			: array( 'status' => 'complete', 'can_execute' => true, 'clarification' => array( 'question' => '', 'options' => array() ), 'memory' => array(), 'learning' => array(), 'source' => '', 'confidence' => 0 );
+		$proposal = self::format_proposal( $raw, $message, $entities, $inferred_plan );
+		$id       = ! empty( $meta['can_execute'] ) ? RWGA_Proposal_Store::save( $proposal ) : '';
+		$ai_available = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
+		$response = array(
+			'success'       => true,
+			'status'        => (string) ( $meta['status'] ?? 'complete' ),
+			'source'        => (string) ( $meta['source'] ?? ( $raw['interpretation_source'] ?? '' ) ),
+			'confidence'    => (float) ( $meta['confidence'] ?? $proposal['confidence'] ?? 0 ),
+			'can_execute'   => ! empty( $meta['can_execute'] ),
+			'message'       => self::format_message_with_badge( (string) ( $proposal['summary'] ?? '' ), $raw, $inferred_plan, $entities ),
+			'proposal_id'   => $id,
+			'proposal'      => $proposal,
+			'inferred_plan' => $inferred_plan,
+			'clarification' => $meta['clarification'] ?? array( 'question' => '', 'options' => array() ),
+			'memory'        => $meta['memory'] ?? array(),
+			'learning'      => $meta['learning'] ?? array(),
+			'ai_available'  => $ai_available,
+			'actions'       => self::action_buttons( $meta, $raw, $inferred_plan, $ai_available ),
+			'badge'         => self::interpretation_badge( $raw ),
+		);
+		if ( $include_debug ) {
+			$response['debug'] = $debug;
+		}
+		return $response;
+	}
+
+	/**
+	 * Confirm an inferred split and return an executable proposal.
+	 *
+	 * @param string              $message       Original user message.
+	 * @param array<string,mixed> $inferred_plan Inferred plan payload.
+	 * @param array<string,mixed> $context       Admin context.
+	 * @param string              $source        Interpretation source key.
+	 * @param bool                $include_debug Include debug block.
+	 * @return array<string,mixed>
+	 */
+	public static function confirm_inferred_split( $message, array $inferred_plan, array $context = array(), $source = 'local_parser', $include_debug = false ) {
+		$entities = array();
+		if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
+			$bundle   = RWGA_Intelligence_Sync_Service::ensure_bundle();
+			$entities = is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
+		}
+		$params = class_exists( 'RWGA_Inferred_Plan_Builder', false )
+			? RWGA_Inferred_Plan_Builder::to_confirmed_params( $inferred_plan, $entities )
+			: array();
+		$action = (string) ( $params['_matched_action'] ?? 'geocore_create_variant_plan_with_conditions' );
+		unset( $params['_matched_action'] );
+
+		$raw = array(
+			'intent'                => 'create_geo_variant_plan',
+			'matched_action'        => $action,
+			'confidence'            => 0.9,
+			'proposal_ready'        => true,
+			'interpretation_source' => $source,
+			'interpretation_status' => RWGA_Interpretation_Status::COMPLETE,
+			'params'                => $params,
+			'summary'               => __( 'Split confirmed. You can create the setup when ready.', 'reactwoo-geo-ai' ),
+			'inferred_plan'         => $inferred_plan,
+		);
+
+		if ( class_exists( 'RWGA_Variant_Plan_Interpreter', false ) ) {
+			$plan = RWGA_Variant_Plan_Interpreter::parse( RWGA_Local_Intent_Interpreter::normalise( $message ), $entities, self::resolve_context( $context ) );
+			if ( ! empty( $plan['matched'] ) && ! empty( $plan['steps'] ) ) {
+				$raw['steps']   = $plan['steps'];
+				$raw['summary'] = (string) ( $plan['summary'] ?? $raw['summary'] );
+			}
+		}
+
+		$proposal = self::format_proposal( $raw, $message, $entities, $inferred_plan );
+		$id       = RWGA_Proposal_Store::save( $proposal );
+		$ai_available = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
+		$response = array(
+			'success'       => true,
+			'status'        => RWGA_Interpretation_Status::COMPLETE,
+			'source'        => RWGA_Interpretation_Status::normalise_source( $source ),
+			'confidence'    => (float) ( $raw['confidence'] ?? 0.9 ),
+			'can_execute'   => true,
+			'message'       => (string) ( $raw['summary'] ?? '' ),
+			'proposal_id'   => $id,
+			'proposal'      => $proposal,
+			'inferred_plan' => $inferred_plan,
+			'clarification' => array( 'question' => '', 'options' => array() ),
+			'ai_available'  => $ai_available,
+			'actions'       => self::action_buttons(
+				array(
+					'status'      => RWGA_Interpretation_Status::COMPLETE,
+					'can_execute' => true,
+				),
+				$raw,
+				$inferred_plan,
+				$ai_available
+			),
+			'badge'         => self::interpretation_badge( $raw ),
+		);
+		if ( $include_debug ) {
+			$response['debug'] = self::build_interpret_debug( $message, $raw, self::bundle() );
 		}
 		return $response;
 	}
@@ -248,6 +388,9 @@ class RWGA_Assistant_Service {
 			$meta = RWGA_Interpretation_Status::from_result( $raw );
 			$base['interpretation_status'] = $meta['status'];
 			$base['can_execute']           = $meta['can_execute'];
+			$base['inferred_plan']         = $raw['inferred_plan'] ?? null;
+			$base['ai_available']          = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
+			$base['ai_called']             = ! empty( $base['_interpretation_trace']['ai_fallback']['called'] );
 			$base['final']                 = array(
 				'source'     => $meta['source'],
 				'status'     => $meta['status'],
@@ -293,11 +436,23 @@ class RWGA_Assistant_Service {
 	}
 
 	/**
-	 * @param string              $summary Summary text.
-	 * @param array<string,mixed> $raw     Raw interpreter output.
+	 * @param string                   $summary       Summary text.
+	 * @param array<string,mixed>      $raw           Raw interpreter output.
+	 * @param array<string,mixed>|null $inferred_plan Inferred plan.
+	 * @param array<int,array>         $entities      Entities.
 	 * @return string
 	 */
-	private static function format_message_with_badge( $summary, array $raw ) {
+	private static function format_message_with_badge( $summary, array $raw, $inferred_plan = null, array $entities = array() ) {
+		unset( $entities );
+		$status = (string) ( $raw['interpretation_status'] ?? '' );
+		if ( is_array( $inferred_plan ) && in_array( $status, array( RWGA_Interpretation_Status::NEEDS_CLARIFICATION, RWGA_Interpretation_Status::PARTIAL, RWGA_Interpretation_Status::NEEDS_AI ), true ) ) {
+			$message = (string) ( $raw['summary'] ?? $summary );
+			$badge   = self::interpretation_badge( $raw );
+			if ( '' !== $badge ) {
+				$message .= "\n\n" . $badge;
+			}
+			return $message;
+		}
 		$badge = self::interpretation_badge( $raw );
 		if ( '' === $badge ) {
 			return $summary;
@@ -539,11 +694,13 @@ class RWGA_Assistant_Service {
 	}
 
 	/**
-	 * @param array<string,mixed> $raw     Interpreter output.
-	 * @param string              $message Original message.
+	 * @param array<string,mixed>      $raw           Interpreter output.
+	 * @param string                   $message       Original message.
+	 * @param array<int,array>         $entities      Entity rows.
+	 * @param array<string,mixed>|null $inferred_plan Inferred plan.
 	 * @return array<string,mixed>
 	 */
-	private static function format_proposal( array $raw, $message ) {
+	private static function format_proposal( array $raw, $message, array $entities = array(), $inferred_plan = null ) {
 		$steps = isset( $raw['steps'] ) && is_array( $raw['steps'] ) ? $raw['steps'] : array();
 		if ( empty( $steps ) && ! empty( $raw['params']['variants'] ) ) {
 			foreach ( (array) $raw['params']['variants'] as $idx => $variant ) {
@@ -568,18 +725,25 @@ class RWGA_Assistant_Service {
 			}
 		}
 
+		$can_execute = class_exists( 'RWGA_Interpretation_Status', false )
+			? RWGA_Interpretation_Status::from_result( $raw )['can_execute']
+			: ( ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'] );
+		$status_label = $can_execute
+			? __( 'Pending confirmation', 'reactwoo-geocore' )
+			: __( 'Needs confirmation', 'reactwoo-geocore' );
+		$setup_summary = self::format_setup_summary( $raw, $inferred_plan, $entities, $status_label );
+
 		return array(
 			'intent'                => (string) ( $raw['intent'] ?? '' ),
 			'matched_action'        => (string) ( $raw['matched_action'] ?? '' ),
 			'confidence'            => (float) ( $raw['confidence'] ?? 0 ),
 			'proposal_ready'        => ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'],
-			'can_execute'           => class_exists( 'RWGA_Interpretation_Status', false )
-				? RWGA_Interpretation_Status::from_result( $raw )['can_execute']
-				: ( ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'] ),
+			'can_execute'           => $can_execute,
 			'interpretation_status' => (string) ( $raw['interpretation_status'] ?? '' ),
 			'requires_confirmation' => ! empty( $raw['requires_confirmation'] ),
 			'summary'               => (string) ( $raw['summary'] ?? '' ),
-			'setup_summary'         => self::format_setup_summary( $raw ),
+			'setup_summary'         => $setup_summary,
+			'inferred_plan'         => is_array( $inferred_plan ) ? $inferred_plan : null,
 			'params'                => isset( $raw['params'] ) && is_array( $raw['params'] ) ? $raw['params'] : array(),
 			'steps'                 => $steps,
 			'warnings'              => isset( $raw['warnings'] ) && is_array( $raw['warnings'] ) ? $raw['warnings'] : array(),
@@ -598,10 +762,25 @@ class RWGA_Assistant_Service {
 	/**
 	 * Human-readable setup panel summary (not raw condition syntax).
 	 *
-	 * @param array<string,mixed> $raw Interpreter output.
+	 * @param array<string,mixed>      $raw           Interpreter output.
+	 * @param array<string,mixed>|null $inferred_plan Inferred plan.
+	 * @param array<int,array>         $entities      Entities.
+	 * @param string                   $status_label  Status label.
 	 * @return string
 	 */
-	private static function format_setup_summary( array $raw ) {
+	private static function format_setup_summary( array $raw, $inferred_plan = null, array $entities = array(), $status_label = '' ) {
+		if ( is_array( $inferred_plan ) && class_exists( 'RWGA_Inferred_Plan_Builder', false ) ) {
+			$can_execute = class_exists( 'RWGA_Interpretation_Status', false )
+				? RWGA_Interpretation_Status::from_result( $raw )['can_execute']
+				: ( ! isset( $raw['proposal_ready'] ) || false !== $raw['proposal_ready'] );
+			if ( ! $can_execute ) {
+				return RWGA_Inferred_Plan_Builder::setup_summary(
+					$inferred_plan,
+					$entities,
+					'' !== $status_label ? $status_label : __( 'Needs confirmation', 'reactwoo-geocore' )
+				);
+			}
+		}
 		$intent = (string) ( $raw['intent'] ?? '' );
 		if ( 'create_geo_variant_plan' === $intent ) {
 			$page_ref = (string) ( $raw['params']['source_page_ref'] ?? 'homepage' );
@@ -651,7 +830,7 @@ class RWGA_Assistant_Service {
 			}
 			$lines[] = '';
 			$lines[] = __( 'Status', 'reactwoo-geocore' );
-			$lines[] = __( 'Pending confirmation', 'reactwoo-geocore' );
+			$lines[] = '' !== $status_label ? $status_label : __( 'Pending confirmation', 'reactwoo-geocore' );
 			return implode( "\n", $lines );
 		}
 		if ( 'weather_rule' === $intent ) {
@@ -679,27 +858,66 @@ class RWGA_Assistant_Service {
 	}
 
 	/**
-	 * @param bool                $proposal_ready Whether setup can be created.
-	 * @param array<string,mixed> $raw            Interpreter output.
+	 * @param array<string,mixed>      $meta          Status meta from RWGA_Interpretation_Status.
+	 * @param array<string,mixed>      $raw           Interpreter output.
+	 * @param array<string,mixed>|null $inferred_plan Inferred plan.
+	 * @param bool                     $ai_available  Whether AI fallback is enabled.
 	 * @return array<int,array<string,string>>
 	 */
-	private static function action_buttons( $proposal_ready = true, array $raw = array() ) {
-		$buttons = array();
-		if ( $proposal_ready ) {
-			$buttons[] = array( 'key' => 'confirm', 'label' => __( 'Create setup', 'reactwoo-geocore' ) );
-		} else {
-			if ( ! empty( $raw['suggested_options'] ) ) {
-				$buttons[] = array( 'key' => 'use_split', 'label' => __( 'Yes, use this split', 'reactwoo-geocore' ) );
+	private static function action_buttons( array $meta, array $raw = array(), $inferred_plan = null, $ai_available = false ) {
+		$status      = (string) ( $meta['status'] ?? '' );
+		$can_execute = ! empty( $meta['can_execute'] );
+		$has_inferred = is_array( $inferred_plan );
+
+		if ( $can_execute && RWGA_Interpretation_Status::COMPLETE === $status ) {
+			return array(
+				array( 'key' => 'confirm', 'label' => __( 'Create setup', 'reactwoo-geocore' ) ),
+				array( 'key' => 'edit', 'label' => __( 'Edit setup', 'reactwoo-geocore' ) ),
+				array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) ),
+				array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) ),
+			);
+		}
+
+		if ( RWGA_Interpretation_Status::NEEDS_CLARIFICATION === $status && $has_inferred ) {
+			$buttons = array(
+				array( 'key' => 'use_split', 'label' => __( 'Yes, use this split', 'reactwoo-geocore' ) ),
+				array( 'key' => 'edit_split', 'label' => __( 'Edit split', 'reactwoo-geocore' ) ),
+			);
+			if ( $ai_available ) {
+				$buttons[] = array( 'key' => 'ask_ai', 'label' => __( 'Ask AI to check', 'reactwoo-geocore' ) );
 			}
-			if ( (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false ) ) {
+			$buttons[] = array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) );
+			return $buttons;
+		}
+
+		if ( RWGA_Interpretation_Status::NEEDS_CLARIFICATION === $status ) {
+			$buttons = array(
+				array( 'key' => 'choose_split', 'label' => __( 'Choose split', 'reactwoo-geocore' ) ),
+			);
+			if ( $ai_available ) {
 				$buttons[] = array( 'key' => 'ask_ai', 'label' => __( 'Ask AI', 'reactwoo-geocore' ) );
 			}
-			$buttons[] = array( 'key' => 'clarify', 'label' => __( 'Clarify split', 'reactwoo-geocore' ) );
+			$buttons[] = array( 'key' => 'edit_manually', 'label' => __( 'Edit manually', 'reactwoo-geocore' ) );
+			$buttons[] = array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) );
+			return $buttons;
 		}
-		$buttons[] = array( 'key' => 'edit', 'label' => __( 'Edit setup', 'reactwoo-geocore' ) );
-		$buttons[] = array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) );
-		$buttons[] = array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) );
-		return $buttons;
+
+		if ( RWGA_Interpretation_Status::PARTIAL === $status ) {
+			$buttons = array();
+			if ( $ai_available ) {
+				$buttons[] = array( 'key' => 'ask_ai', 'label' => __( 'Ask AI', 'reactwoo-geocore' ) );
+			}
+			$buttons[] = array( 'key' => 'edit_manually', 'label' => __( 'Edit manually', 'reactwoo-geocore' ) );
+			$buttons[] = array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) );
+			return $buttons;
+		}
+
+		unset( $raw );
+		return array(
+			array( 'key' => 'edit', 'label' => __( 'Edit setup', 'reactwoo-geocore' ) ),
+			array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) ),
+			array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) ),
+		);
 	}
 
 	/**

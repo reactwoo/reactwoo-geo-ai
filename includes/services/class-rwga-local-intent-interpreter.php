@@ -185,6 +185,44 @@ class RWGA_Local_Intent_Interpreter {
 	}
 
 	/**
+	 * Force AI fallback interpretation (user-initiated "Ask AI to check").
+	 *
+	 * @param string              $raw_phrase User input.
+	 * @param array<string,mixed> $context    Context.
+	 * @return array<string,mixed>
+	 */
+	public static function interpret_with_ai_fallback( $raw_phrase, array $context = array() ) {
+		$phrase = self::normalise( $raw_phrase );
+		$trace  = array(
+			'local_parser'          => array( 'attempted' => false, 'matched' => false ),
+			'pattern_bundle'        => array( 'attempted' => false, 'matched' => false ),
+			'interpretation_memory' => array( 'attempted' => false, 'matched' => false ),
+			'ai_fallback'           => array( 'called' => false, 'reason' => 'user_requested' ),
+		);
+		$bundle = class_exists( 'RWGA_Intelligence_Sync_Service', false )
+			? RWGA_Intelligence_Sync_Service::ensure_bundle()
+			: null;
+		$flat_entities = is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
+		$deferred      = null;
+		if ( class_exists( 'RWGA_Variant_Plan_Interpreter', false ) ) {
+			$plan = RWGA_Variant_Plan_Interpreter::parse( $phrase, $flat_entities, $context );
+			if ( ! empty( $plan['matched'] ) ) {
+				$deferred = $plan;
+			}
+		}
+		$ai = self::try_ai_fallback( $raw_phrase, $phrase, $context, $flat_entities, $trace, $deferred );
+		if ( null === $ai ) {
+			return self::attach_trace(
+				self::empty_result( $phrase, __( 'AI fallback is not available or could not interpret that command.', 'reactwoo-geo-ai' ) ),
+				$trace
+			);
+		}
+		$ai['proposal_ready']        = true;
+		$ai['interpretation_status'] = RWGA_Interpretation_Status::COMPLETE;
+		return self::attach_trace( $ai, $trace );
+	}
+
+	/**
 	 * @param array<string,mixed> $result Local parser result.
 	 * @return bool
 	 */
@@ -284,11 +322,25 @@ class RWGA_Local_Intent_Interpreter {
 			return null;
 		}
 		$result = self::build_variant_plan_result( $deferred_plan, array(), $phrase );
-		$result['proposal_ready']        = false;
-		$result['interpretation_source'] = 'clarification';
-		$result['interpretation_status'] = RWGA_Interpretation_Status::NEEDS_CLARIFICATION;
-		$result['requires_confirmation'] = false;
-		if ( empty( $result['suggested_options'] ) ) {
+		$result['proposal_ready']          = false;
+		$result['interpretation_source']   = 'local_parser';
+		$result['interpretation_status']   = RWGA_Interpretation_Status::NEEDS_CLARIFICATION;
+		$result['requires_confirmation']   = false;
+		$inferred                          = class_exists( 'RWGA_Inferred_Plan_Builder', false )
+			? RWGA_Inferred_Plan_Builder::from_interpreter_result( array_merge( $deferred_plan, $result ), $entities )
+			: null;
+		if ( is_array( $inferred ) ) {
+			$result['inferred_plan'] = $inferred;
+			$result['summary']       = __( 'I found a likely split, but need you to confirm it before creating anything.', 'reactwoo-geo-ai' );
+			if ( empty( $result['missing_information'] ) ) {
+				$result['missing_information'] = array(
+					array(
+						'key'      => 'variant_grouping',
+						'question' => __( 'Is this split correct?', 'reactwoo-geo-ai' ),
+					),
+				);
+			}
+		} elseif ( empty( $result['suggested_options'] ) ) {
 			$result['suggested_options'] = array(
 				__( 'Use this split', 'reactwoo-geo-ai' ),
 				__( 'Edit setup', 'reactwoo-geo-ai' ),
@@ -296,7 +348,6 @@ class RWGA_Local_Intent_Interpreter {
 				__( 'Cancel', 'reactwoo-geo-ai' ),
 			);
 		}
-		unset( $entities );
 		return $result;
 	}
 

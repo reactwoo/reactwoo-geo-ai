@@ -140,21 +140,125 @@ class RWGA_Interpretation_Status {
 				'options'  => array(),
 			);
 		}
-		$question = '';
+
 		$missing  = isset( $result['missing_information'] ) && is_array( $result['missing_information'] )
 			? $result['missing_information']
 			: array();
-		if ( ! empty( $missing[0]['question'] ) ) {
-			$question = (string) $missing[0]['question'];
-		} elseif ( self::NEEDS_CLARIFICATION === $status || self::PARTIAL === $status ) {
-			$question = __( 'I found the page, countries, and weather conditions, but I need to confirm how to split them.', 'reactwoo-geo-ai' );
+		$question = ! empty( $missing[0]['question'] )
+			? (string) $missing[0]['question']
+			: __( 'I found the page, countries, and weather conditions, but I need to confirm how to split them.', 'reactwoo-geo-ai' );
+
+		$inferred     = self::has_inferred_plan( $result );
+		$ai_available = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
+
+		if ( self::NEEDS_CLARIFICATION === $status && $inferred ) {
+			$options = array(
+				array(
+					'key'   => 'accept_inferred_split',
+					'label' => __( 'Yes, use this split', 'reactwoo-geocore' ),
+				),
+				array(
+					'key'   => 'edit_split',
+					'label' => __( 'Edit split', 'reactwoo-geocore' ),
+				),
+			);
+			if ( $ai_available ) {
+				$options[] = array(
+					'key'   => 'ask_ai',
+					'label' => __( 'Ask AI to check', 'reactwoo-geocore' ),
+				);
+			}
+			$options[] = array(
+				'key'   => 'cancel',
+				'label' => __( 'Cancel', 'reactwoo-geocore' ),
+			);
+			return array(
+				'question' => __( 'Is this split correct?', 'reactwoo-geo-ai' ),
+				'options'  => $options,
+			);
 		}
-		$options = isset( $result['suggested_options'] ) && is_array( $result['suggested_options'] )
+
+		if ( self::NEEDS_CLARIFICATION === $status ) {
+			$options = array(
+				array(
+					'key'   => 'choose_split',
+					'label' => __( 'Choose split', 'reactwoo-geocore' ),
+				),
+			);
+			if ( $ai_available ) {
+				$options[] = array(
+					'key'   => 'ask_ai',
+					'label' => __( 'Ask AI', 'reactwoo-geocore' ),
+				);
+			}
+			$options[] = array(
+				'key'   => 'edit_manually',
+				'label' => __( 'Edit manually', 'reactwoo-geocore' ),
+			);
+			$options[] = array(
+				'key'   => 'cancel',
+				'label' => __( 'Cancel', 'reactwoo-geocore' ),
+			);
+			return array(
+				'question' => $question,
+				'options'  => $options,
+			);
+		}
+
+		if ( self::PARTIAL === $status ) {
+			$options = array();
+			if ( $ai_available ) {
+				$options[] = array(
+					'key'   => 'ask_ai',
+					'label' => __( 'Ask AI', 'reactwoo-geocore' ),
+				);
+			}
+			$options[] = array(
+				'key'   => 'edit_manually',
+				'label' => __( 'Edit manually', 'reactwoo-geocore' ),
+			);
+			$options[] = array(
+				'key'   => 'cancel',
+				'label' => __( 'Cancel', 'reactwoo-geocore' ),
+			);
+			return array(
+				'question' => $question,
+				'options'  => $options,
+			);
+		}
+
+		$legacy = isset( $result['suggested_options'] ) && is_array( $result['suggested_options'] )
 			? array_values( $result['suggested_options'] )
 			: array();
+		$options = array();
+		foreach ( $legacy as $idx => $label ) {
+			$options[] = array(
+				'key'   => 'option_' . ( $idx + 1 ),
+				'label' => (string) $label,
+			);
+		}
 		return array(
 			'question' => $question,
 			'options'  => $options,
 		);
+	}
+
+	/**
+	 * @param array<string,mixed> $result Interpreter result.
+	 * @return bool
+	 */
+	public static function has_inferred_plan( array $result ) {
+		if ( ! empty( $result['inferred_plan'] ) && is_array( $result['inferred_plan'] ) ) {
+			return true;
+		}
+		if ( ! class_exists( 'RWGA_Inferred_Plan_Builder', false ) ) {
+			return false;
+		}
+		$entities = array();
+		if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
+			$bundle   = RWGA_Intelligence_Sync_Service::ensure_bundle();
+			$entities = is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
+		}
+		return null !== RWGA_Inferred_Plan_Builder::from_interpreter_result( $result, $entities );
 	}
 }

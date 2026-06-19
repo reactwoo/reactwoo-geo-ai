@@ -901,29 +901,72 @@ class RWGA_Variant_Plan_Parser {
 	private static function partial_clarification( $phrase, $page_value, array $countries, array $debug ) {
 		unset( $phrase );
 		$debug['reason'] = 'could_not_confidently_split_variant_conditions';
+		$entities        = array();
+		if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
+			$bundle   = RWGA_Intelligence_Sync_Service::ensure_bundle();
+			$entities = is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
+		}
+		$inferred = class_exists( 'RWGA_Inferred_Plan_Builder', false )
+			? RWGA_Inferred_Plan_Builder::from_debug( (string) $page_value, $debug, $entities )
+			: null;
+
+		if ( is_array( $inferred ) ) {
+			$summary = __( 'I found a likely split, but need you to confirm it before creating anything.', 'reactwoo-geo-ai' );
+			return array(
+				'matched'             => true,
+				'intent'              => 'create_geo_variant_plan',
+				'matched_action'      => 'geocore_create_variant_plan_with_conditions',
+				'confidence'          => 0.62,
+				'proposal_ready'      => false,
+				'escalate'            => true,
+				'inferred_plan'       => $inferred,
+				'missing_information' => array(
+					array(
+						'key'      => 'variant_grouping',
+						'question' => __( 'Is this split correct?', 'reactwoo-geo-ai' ),
+					),
+				),
+				'params'              => array(
+					'source_page_ref' => $page_value,
+					'countries'       => $countries,
+				),
+				'summary'             => $summary,
+				'_debug'              => $debug,
+			);
+		}
+
+		$country_names = class_exists( 'RWGA_Inferred_Plan_Builder', false )
+			? RWGA_Inferred_Plan_Builder::countries_label( $countries, $entities )
+			: implode( ', ', $countries );
+		$summary       = sprintf(
+			/* translators: %s: detected country list */
+			__( 'I found %s, but I could not tell which conditions belong to which variant. Which split should I use?', 'reactwoo-geo-ai' ),
+			$country_names
+		);
+
 		return array(
 			'matched'             => true,
 			'intent'              => 'create_geo_variant_plan',
 			'matched_action'      => 'geocore_create_variant_plan_with_country_rules',
-			'confidence'          => 0.58,
+			'confidence'          => 0.48,
 			'proposal_ready'      => false,
 			'escalate'            => true,
 			'missing_information' => array(
 				array(
 					'key'      => 'variant_grouping',
-					'question' => __( 'I found a page, countries, and weather conditions, but I need to confirm the split before creating anything.', 'reactwoo-geocore' ),
+					'question' => $summary,
 				),
 			),
 			'suggested_options'   => array(
-				__( 'Original homepage for UK, Portugal variant when raining, Germany + Russia variant when sunny', 'reactwoo-geocore' ),
-				__( 'One shared rule for all listed countries', 'reactwoo-geocore' ),
-				__( 'Edit manually', 'reactwoo-geocore' ),
+				__( 'Original UK, Portugal rain, Russia + Germany sunny', 'reactwoo-geocore' ),
+				__( 'Two variants only', 'reactwoo-geocore' ),
+				__( 'One shared rule', 'reactwoo-geocore' ),
 			),
 			'params'              => array(
 				'source_page_ref' => $page_value,
 				'countries'       => $countries,
 			),
-			'summary'             => __( 'I found a page, countries, and weather conditions, but I need to confirm the split before creating anything.', 'reactwoo-geocore' ),
+			'summary'             => $summary,
 			'_debug'              => $debug,
 		);
 	}

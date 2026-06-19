@@ -587,6 +587,38 @@ class RWGA_REST {
 
 		register_rest_route(
 			self::NS,
+			'/interpret/confirm-split',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_assistant_confirm_split' ),
+				'permission_callback' => array( __CLASS__, 'permission_assistant' ),
+				'args'                => array(
+					'message' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'inferred_plan' => array(
+						'required' => true,
+						'type'     => 'object',
+					),
+					'source' => array(
+						'default'           => 'local_parser',
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'context' => array(
+						'default' => array(),
+					),
+					'debug'   => array(
+						'default' => false,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/intelligence/command/bundle',
 			array(
 				'methods'             => 'GET',
@@ -1767,7 +1799,40 @@ class RWGA_REST {
 		}
 		$context['screen'] = 'targeting_assistant';
 		$debug             = rest_sanitize_boolean( $request->get_param( 'debug' ) );
+		if ( ! empty( $context['force_ai'] ) && class_exists( 'RWGA_Local_Intent_Interpreter', false ) ) {
+			$raw = RWGA_Local_Intent_Interpreter::interpret_with_ai_fallback( $message, $context );
+			if ( ! empty( $raw['matched_action'] ) ) {
+				return rest_ensure_response( RWGA_Assistant_Service::interpret_from_raw( $message, $raw, $context, $debug ) );
+			}
+		}
 		return rest_ensure_response( RWGA_Assistant_Service::interpret( $message, $context, $debug ) );
+	}
+
+	/**
+	 * POST /geo-ai/v1/interpret/confirm-split
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_assistant_confirm_split( $request ) {
+		if ( ! class_exists( 'RWGA_Assistant_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Assistant service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$message = (string) $request->get_param( 'message' );
+		$plan    = $request->get_param( 'inferred_plan' );
+		if ( ! is_array( $plan ) ) {
+			return new WP_Error( 'rwga_invalid_plan', __( 'Inferred plan is required.', 'reactwoo-geo-ai' ), array( 'status' => 400 ) );
+		}
+		$context = $request->get_param( 'context' );
+		if ( ! is_array( $context ) ) {
+			$context = array();
+		}
+		$context['screen'] = 'targeting_assistant';
+		$source            = (string) $request->get_param( 'source' );
+		$debug             = rest_sanitize_boolean( $request->get_param( 'debug' ) );
+		return rest_ensure_response(
+			RWGA_Assistant_Service::confirm_inferred_split( $message, $plan, $context, $source, $debug )
+		);
 	}
 
 	/**

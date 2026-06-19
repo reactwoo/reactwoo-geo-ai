@@ -51,7 +51,7 @@ class RWGA_Learning_Event_Service {
 		$event = self::build_event( $payload );
 		self::append_local_log( $event );
 
-		if ( ! empty( $payload['outcome'] ) && in_array( (string) $payload['outcome'], array( 'accepted', 'executed', 'corrected' ), true ) ) {
+		if ( ! empty( $payload['outcome'] ) && in_array( (string) $payload['outcome'], array( 'accepted', 'executed', 'corrected', 'accepted_inferred_split', 'accepted_ai_split' ), true ) ) {
 			if ( class_exists( 'RWGA_Interpretation_Memory_Matcher', false ) ) {
 				$entities = array();
 				if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {

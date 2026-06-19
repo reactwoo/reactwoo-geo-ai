@@ -158,6 +158,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-memory-matcher.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpreter-debug.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-status.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-inferred-plan-builder.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-parser-hints-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-learning-promotion-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-parser.php';
