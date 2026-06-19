@@ -245,7 +245,24 @@ class RWGA_Variant_Plan_Parser {
 	 * @return int
 	 */
 	public static function detect_total_version_count( $phrase ) {
-		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))\s+(?:variations?|variants?|versions?)\b/i', $phrase, $m ) ) {
+		$new_count = self::detect_create_variant_count( $phrase );
+		if ( $new_count <= 0 ) {
+			return 0;
+		}
+		// "create 2 new variants" means N new copies plus the original when the source is named explicitly.
+		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))\s+new\s+(?:variations?|variants?|versions?)\b/i', $phrase )
+			&& self::has_original_marker( $phrase ) ) {
+			return $new_count + 1;
+		}
+		return $new_count;
+	}
+
+	/**
+	 * @param string $phrase Normalised phrase.
+	 * @return int
+	 */
+	public static function detect_create_variant_count( $phrase ) {
+		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))(?:\s+new)?\s+(?:variations?|variants?|versions?)\b/i', $phrase, $m ) ) {
 			$key = strtolower( $m[1] );
 			return self::COUNT_MAP[ $key ] ?? (int) $key;
 		}
@@ -257,6 +274,10 @@ class RWGA_Variant_Plan_Parser {
 	 * @return int
 	 */
 	public static function detect_duplicate_count( $phrase ) {
+		$create_count = self::detect_create_variant_count( $phrase );
+		if ( $create_count > 0 ) {
+			return $create_count;
+		}
 		if ( preg_match( '/\b(?:duplicate|copy|clone)\s+(?:the\s+)?[\w\s-]+?\s+twice\b/i', $phrase ) ) {
 			return 2;
 		}
@@ -335,6 +356,9 @@ class RWGA_Variant_Plan_Parser {
 	 */
 	private static function segment_markers() {
 		return array(
+			array( 'pattern' => '/\bthen\s+update\s+the\s+original\s+homepage\b/i', 'type' => 'source', 'marker' => 'then update the original homepage', 'ordinal' => 0 ),
+			array( 'pattern' => '/\bthe\s+other\s+should\s+(?:show|display)\b/i', 'type' => 'variant', 'marker' => 'the other should display', 'ordinal' => 2 ),
+			array( 'pattern' => '/\bone\s+should\s+(?:show|display)\b/i', 'type' => 'variant', 'marker' => 'one should display', 'ordinal' => 1 ),
 			array( 'pattern' => '/\bupdate\s+the\s+original\b/i', 'type' => 'source', 'marker' => 'update the original', 'ordinal' => 0 ),
 			array( 'pattern' => '/\b(?:keep|leave|make)\s+the\s+original\b/i', 'type' => 'source', 'marker' => 'keep the original', 'ordinal' => 0 ),
 			array( 'pattern' => '/\bthe\s+original\s+(?:version|homepage|page)\b/i', 'type' => 'source', 'marker' => 'the original version', 'ordinal' => 0 ),

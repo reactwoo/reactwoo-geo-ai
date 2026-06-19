@@ -140,6 +140,21 @@ final class RWGALocalIntentInterpreterTest extends TestCase {
 		$this->assertEqualsCanonicalizing( array( 'DE', 'RU' ), $result['params']['variants'][1]['countries'] );
 	}
 
+	public function test_create_two_new_variants_ireland_france_uk_regression(): void {
+		$phrase = 'create 2 new variant of homepage one should display in ireland the other should display in france and then update the original homepage to display in uk';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ), 'Expected variant plan match: ' . ( $result['summary'] ?? ( $result['reason'] ?? 'unknown' ) ) );
+		$this->assertSame( 'create_geo_variant_plan', $result['intent'] );
+		$this->assertSame( 'geocore_create_variant_plan_with_country_rules', $result['matched_action'] );
+		$this->assertSame( 'homepage', $result['params']['source_page_ref'] );
+		$this->assertSame( 3, $result['params']['total_version_count'] );
+		$this->assertSame( 2, $result['params']['duplicate_count'] );
+		$this->assertSame( array( 'GB' ), $result['params']['source_targeting']['countries'] );
+		$this->assertCount( 2, $result['params']['variants'] );
+		$this->assertSame( array( 'IE' ), $result['params']['variants'][0]['countries'] );
+		$this->assertSame( array( 'FR' ), $result['params']['variants'][1]['countries'] );
+	}
+
 	public function test_duplicate_twice_with_original_segment_parser(): void {
 		$phrase = 'duplicate the homepage twice the original version should show in uk one version should show in germany and another should show in france and portugal';
 		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );

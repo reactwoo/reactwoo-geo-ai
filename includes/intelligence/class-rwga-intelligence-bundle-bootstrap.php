@@ -79,6 +79,7 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 		$rows = array(
 			array( 'AU', 'Australia', array( 'Australia', 'Australian', 'AU', 'australia' ) ),
 			array( 'GB', 'United Kingdom', array( 'UK', 'Britain', 'Great Britain', 'United Kingdom', 'GB' ) ),
+			array( 'IE', 'Ireland', array( 'Ireland', 'Irish', 'IE', 'ireland' ) ),
 			array( 'CA', 'Canada', array( 'Canada', 'Canadian', 'CA' ) ),
 			array( 'US', 'United States', array( 'US', 'USA', 'America', 'United States', 'American' ) ),
 			array( 'ZA', 'South Africa', array( 'South Africa', 'South African', 'ZA' ) ),

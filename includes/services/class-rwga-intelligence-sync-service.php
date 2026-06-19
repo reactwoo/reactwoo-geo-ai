@@ -22,7 +22,7 @@ class RWGA_Intelligence_Sync_Service {
 	 * @return void
 	 */
 	public static function init() {
-		add_action( 'rwga_loaded', array( __CLASS__, 'maybe_auto_sync' ), 30 );
+		add_action( 'init', array( __CLASS__, 'maybe_auto_sync' ), 20 );
 		add_action( 'rwga_loaded', array( __CLASS__, 'ensure_bundle_on_load' ), 5 );
 	}
 

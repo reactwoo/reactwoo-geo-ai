@@ -55,7 +55,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/class-rwga-updates-diagnostics.php';
 		RWGA_Updates_Diagnostics::init();
 
-		add_action( 'init', array( __CLASS__, 'register_satellite_updater' ), 1 );
+		add_action( 'init', array( __CLASS__, 'register_satellite_updater' ), 2 );
 
 		$this->load_workflow_engine();
 
