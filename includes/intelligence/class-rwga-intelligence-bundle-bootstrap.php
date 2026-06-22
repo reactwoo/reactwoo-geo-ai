@@ -84,7 +84,7 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 	private static function essential_countries() {
 		$rows = array(
 			array( 'AU', 'Australia', array( 'Australia', 'Australian', 'AU', 'australia' ) ),
-			array( 'GB', 'United Kingdom', array( 'UK', 'Britain', 'Great Britain', 'United Kingdom', 'GB' ) ),
+			array( 'GB', 'United Kingdom', array( 'UK', 'Britain', 'Great Britain', 'United Kingdom', 'GB', 'England', 'england' ) ),
 			array( 'IE', 'Ireland', array( 'Ireland', 'Irish', 'IE', 'ireland' ) ),
 			array( 'CA', 'Canada', array( 'Canada', 'Canadian', 'CA' ) ),
 			array( 'US', 'United States', array( 'US', 'USA', 'America', 'United States', 'American' ) ),

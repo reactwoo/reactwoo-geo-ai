@@ -112,7 +112,12 @@ class RWGA_Inferred_Plan_Builder {
 			return null;
 		}
 
-		return self::build_plan( $page_ref, $source_row, $variants, $entities );
+		$plan = self::build_plan( $page_ref, $source_row, $variants, $entities );
+		if ( is_array( $plan ) ) {
+			$plan['variant_source_page'] = (string) ( $params['variant_source_page'] ?? $page_ref );
+			$plan['original_page_ref']   = (string) ( $params['original_page_ref'] ?? '' );
+		}
+		return $plan;
 	}
 
 	/**
@@ -180,8 +185,10 @@ class RWGA_Inferred_Plan_Builder {
 			);
 
 		return array(
-			'source_page_ref'  => (string) ( $plan['source_page_ref'] ?? 'homepage' ),
-			'source_targeting' => $source_param,
+			'source_page_ref'     => (string) ( $plan['source_page_ref'] ?? 'homepage' ),
+			'variant_source_page' => (string) ( $plan['variant_source_page'] ?? $plan['source_page_ref'] ?? 'homepage' ),
+			'original_page_ref'   => (string) ( $plan['original_page_ref'] ?? '' ),
+			'source_targeting'    => $source_param,
 			'variants'         => $variants_out,
 			'duplicate_count'  => count( $variants_out ),
 			'total_version_count' => ( $source_param ? 1 : 0 ) + count( $variants_out ),
@@ -248,10 +255,19 @@ class RWGA_Inferred_Plan_Builder {
 	public static function setup_summary( array $inferred_plan, array $entities = array(), $status_label = '' ) {
 		$plan = self::normalise_plan( $inferred_plan, $entities );
 		$page = (string) ( $plan['source_page_ref'] ?? 'homepage' );
-		$lines = array(
-			ucfirst( $page ) . ' ' . __( 'targeting plan', 'reactwoo-geocore' ),
-			'',
-		);
+		$variant_page = (string) ( $plan['variant_source_page'] ?? $page );
+		$original_page = (string) ( $plan['original_page_ref'] ?? '' );
+		$lines = array();
+		if ( $variant_page && ( ! $original_page || $original_page !== $variant_page ) ) {
+			$lines[] = sprintf(
+				/* translators: %s: page ref */
+				__( 'Page: %s', 'reactwoo-geocore' ),
+				ucfirst( $variant_page )
+			);
+		} else {
+			$lines[] = ucfirst( $page ) . ' ' . __( 'targeting plan', 'reactwoo-geocore' );
+		}
+		$lines[] = '';
 
 		if ( ! empty( $plan['source_targeting'] ) ) {
 			$lines[] = (string) ( $plan['source_targeting']['label'] ?? __( 'Original homepage', 'reactwoo-geocore' ) );
@@ -382,9 +398,11 @@ class RWGA_Inferred_Plan_Builder {
 		}
 
 		return array(
-			'source_page_ref'  => (string) $page_ref,
-			'source_targeting' => $source_out,
-			'variants'         => $variants_out,
+			'source_page_ref'     => (string) $page_ref,
+			'variant_source_page' => (string) ( $params['variant_source_page'] ?? $page_ref ),
+			'original_page_ref'   => (string) ( $params['original_page_ref'] ?? '' ),
+			'source_targeting'    => $source_out,
+			'variants'            => $variants_out,
 		);
 	}
 

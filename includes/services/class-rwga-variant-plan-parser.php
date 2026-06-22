@@ -50,7 +50,8 @@ class RWGA_Variant_Plan_Parser {
 			);
 		}
 
-		$page_value          = self::detect_page_ref( $phrase );
+		$page_context        = self::detect_page_context( $phrase );
+		$page_value          = (string) ( $page_context['variant_source'] ?? $page_context['primary'] ?? 'homepage' );
 		$total_version_count = self::detect_total_version_count( $phrase );
 		$duplicate_count     = self::detect_duplicate_count( $phrase );
 		$segments            = self::split_segments_from_boundaries( $phrase );
@@ -74,6 +75,7 @@ class RWGA_Variant_Plan_Parser {
 		}
 
 		$debug['source_page_ref']      = $page_value;
+		$debug['page_context']         = $page_context;
 		$debug['total_version_count']  = $total_version_count;
 		$debug['duplicate_count']      = $duplicate_count;
 		$debug['raw_clauses']          = $raw_clauses;
@@ -99,7 +101,7 @@ class RWGA_Variant_Plan_Parser {
 				$source = array(
 					'raw'       => $segment['raw'],
 					'marker'    => $segment['marker'] ?? 'original',
-					'label'     => __( 'Original homepage', 'reactwoo-geocore' ),
+					'label'     => self::original_page_label( (string) ( $page_context['original_page'] ?? 'homepage' ) ),
 					'countries' => $countries,
 					'mode'      => $mode,
 					'weather'   => $weather,
@@ -122,6 +124,8 @@ class RWGA_Variant_Plan_Parser {
 				'weather'   => $weather,
 			);
 		}
+
+		$variants = self::expand_one_other_variants( $variants, $entities );
 
 		$debug['detected_source_clause']   = $source;
 		$debug['detected_variant_clauses'] = $variants;
@@ -215,7 +219,7 @@ class RWGA_Variant_Plan_Parser {
 		}
 		$debug['segments'] = $enriched_segments;
 
-		$result = self::build_matched_result( $phrase, $page_value, $source, $variants, $total_version_count, $duplicate_count, $enriched_segments, $debug, $entities );
+		$result = self::build_matched_result( $phrase, $page_value, $source, $variants, $total_version_count, $duplicate_count, $enriched_segments, $debug, $entities, $page_context );
 		self::log_parse_result( $phrase, $debug, $result );
 		return $result;
 	}
@@ -291,13 +295,72 @@ class RWGA_Variant_Plan_Parser {
 	 * @return string
 	 */
 	private static function detect_page_ref( $phrase ) {
-		if ( class_exists( 'RWGA_Page_Reference_Resolver', false ) ) {
-			$page = RWGA_Page_Reference_Resolver::detect( $phrase );
+		$ctx = self::detect_page_context( $phrase );
+		return (string) ( $ctx['variant_source'] ?? $ctx['primary'] ?? 'homepage' );
+	}
+
+	/**
+	 * Resolve variant source page vs original page references.
+	 *
+	 * @param string $phrase Normalised phrase.
+	 * @return array<string,mixed>
+	 */
+	public static function detect_page_context( $phrase ) {
+		$variant_source = null;
+		$original_page  = null;
+
+		if ( preg_match( '/\bvariants?\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s+page|homepage|checkout|cart)\b/i', $phrase, $m ) ) {
+			$variant_source = self::normalise_page_token( (string) $m[1] );
+		}
+		if ( preg_match( '/\boriginal\s+(shop(?:\s+page)?|home\s+page|homepage|checkout|cart)\b/i', $phrase, $m ) ) {
+			$original_page = self::normalise_page_token( (string) $m[1] );
+		} elseif ( preg_match( '/\bupdate\s+(?:the\s+)?(homepage|shop(?:\s+page)?|home\s+page)\b/i', $phrase, $m ) ) {
+			$original_page = self::normalise_page_token( (string) $m[1] );
+		}
+
+		if ( ! $variant_source && class_exists( 'RWGA_Page_Reference_Resolver', false ) ) {
+			$head = $phrase;
+			if ( preg_match( '/^(.*?)(?:\b(?:one(?:\s+(?:variant|variation|version))?|update\s+(?:the\s+)?original)\b)/i', $phrase, $m ) ) {
+				$head = (string) $m[1];
+			}
+			$page = RWGA_Page_Reference_Resolver::detect( $head );
 			if ( is_array( $page ) && ! empty( $page['value'] ) ) {
-				return (string) $page['value'];
+				$variant_source = (string) $page['value'];
 			}
 		}
-		return 'homepage';
+
+		if ( ! $original_page && preg_match( '/\b(?:update|keep)\s+(?:the\s+)?original\b/i', $phrase ) ) {
+			$original_page = 'homepage';
+		}
+
+		$primary = $variant_source ?: $original_page ?: 'homepage';
+		return array(
+			'variant_source' => $variant_source,
+			'original_page'  => $original_page,
+			'primary'        => $primary,
+			'has_mismatch'   => $variant_source && $original_page && $variant_source !== $original_page,
+		);
+	}
+
+	/**
+	 * @param string $token Raw page token.
+	 * @return string
+	 */
+	private static function normalise_page_token( $token ) {
+		$token = strtolower( trim( (string) $token ) );
+		if ( in_array( $token, array( 'shop', 'shop page' ), true ) ) {
+			return 'shop';
+		}
+		if ( in_array( $token, array( 'homepage', 'home page', 'home' ), true ) ) {
+			return 'homepage';
+		}
+		if ( 'checkout' === $token ) {
+			return 'checkout';
+		}
+		if ( 'cart' === $token ) {
+			return 'cart';
+		}
+		return $token;
 	}
 
 	/**
@@ -323,7 +386,7 @@ class RWGA_Variant_Plan_Parser {
 	 * @return int
 	 */
 	public static function detect_create_new_variant_count( $phrase ) {
-		if ( preg_match( '/\b(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))(?:\s+new)?\s+variants\b/i', $phrase, $m ) ) {
+		if ( preg_match( '/\b(?:create|make|build)\s+(?:an\s+)?(?:additional\s+)?(?:(\d+|one|two|three|four|five))(?:\s+new)?\s+variants\b/i', $phrase, $m ) ) {
 			$key = strtolower( $m[1] );
 			return self::COUNT_MAP[ $key ] ?? (int) $m[1];
 		}
@@ -565,16 +628,18 @@ class RWGA_Variant_Plan_Parser {
 	private static function clause_boundary_patterns() {
 		$verbs  = '(?:show|display|fire|trigger|work|activate|appear|serve|render)';
 		$modal  = '(?:should|can|will|would|needs\\s+to)';
-		$actor  = '(?:(?:one|another|the\\s+other)\\s+' . $modal . '\\s+' . $verbs . ')';
+		$actor  = '(?:(?:one|another|the\\s+other)(?:\\s+(?:variant|variation|version))?\\s+' . $modal . '\\s+' . $verbs . ')';
 		$variant_should = $actor;
-		$variant_will   = '(?:(?:one|another|the\\s+other)\\s+will\\s+' . $verbs . ')';
-		$variant_would  = '(?:(?:one|another|the\\s+other)\\s+would\\s+' . $verbs . ')';
-		$variant_for    = '(?:(?:one|another|the\\s+other)\\s+for)';
-		$version_target = '(?:(?:one|another)\\s+(?:version|variant|variation)\\s+(?:' . $modal . ')\\s+' . $verbs . ')';
+		$variant_will   = '(?:(?:one|another|the\\s+other)(?:\\s+(?:variant|variation|version))?\\s+will\\s+' . $verbs . ')';
+		$variant_would  = '(?:(?:one|another|the\\s+other)(?:\\s+(?:variant|variation|version))?\\s+would\\s+' . $verbs . ')';
+		$variant_for    = '(?:(?:one|another|the\\s+other)(?:\\s+(?:variant|variation|version))?\\s+for)';
+		$variant_in     = '(?:the\\s+other\\s+(?:in|for|to))';
+		$version_target = '(?:(?:one|another)(?:\\s+(?:variant|variation|version))?\\s+(?:' . $modal . ')\\s+' . $verbs . ')';
 		$ordinal_target = '(?:(?:the\\s+)?(?:3rd|third|2nd|second)\\s+(?:version|variant|variation)\\s+(?:' . $modal . ')\\s+' . $verbs . ')';
 		$update_homepage = '(?:update\\s+(?:the\\s+)?homepage(?:\\s+to\\s+(?:show|display|for))?)';
 
 		return array(
+			array( 'pattern' => '/\band\s+(' . $variant_in . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and the other in', 'ordinal' => 2, 'priority' => 115 ),
 			array( 'pattern' => '/\band\s+(' . $variant_should . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one should', 'ordinal' => 0, 'priority' => 100 ),
 			array( 'pattern' => '/\band\s+(' . $variant_will . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one will', 'ordinal' => 0, 'priority' => 100 ),
 			array( 'pattern' => '/\band\s+(' . $variant_would . ')\b/i', 'capture' => 1, 'type' => 'variant', 'marker' => 'and one would', 'ordinal' => 0, 'priority' => 100 ),
@@ -630,9 +695,10 @@ class RWGA_Variant_Plan_Parser {
 	 * @param array<int,array>               $segments            Segments.
 	 * @param array<string,mixed>            $debug               Debug.
 	 * @param array<int,array>               $entities            Entities.
+	 * @param array<string,mixed>            $page_context        Page context.
 	 * @return array<string,mixed>
 	 */
-	private static function build_matched_result( $phrase, $page_value, $source, array $variants, $total_version_count, $duplicate_count, array $segments, array $debug, array $entities ) {
+	private static function build_matched_result( $phrase, $page_value, $source, array $variants, $total_version_count, $duplicate_count, array $segments, array $debug, array $entities, array $page_context = array() ) {
 		$has_source       = is_array( $source ) && ! empty( $source['countries'] );
 		$source_countries = $has_source ? (array) ( $source['countries'] ?? array() ) : array();
 		$source_weather   = $has_source ? ( $source['weather'] ?? null ) : null;
@@ -651,9 +717,10 @@ class RWGA_Variant_Plan_Parser {
 			: 'geocore_create_variant_plan_with_country_rules';
 
 		$steps = array();
+		$source_label = self::original_page_label( (string) ( $page_context['original_page'] ?? 'homepage' ) );
 		if ( $has_source ) {
 			$step_params = array(
-				'source_page_ref' => $page_value,
+				'source_page_ref' => (string) ( $page_context['original_page'] ?? $page_value ),
 				'countries'       => $source_countries,
 				'mode'            => $source['mode'] ?? 'include_only',
 			);
@@ -663,8 +730,9 @@ class RWGA_Variant_Plan_Parser {
 			$steps[] = array(
 				'label'  => sprintf(
 					/* translators: %s: country label */
-					__( 'Apply %s targeting to original homepage', 'reactwoo-geocore' ),
-					$source_display
+					__( 'Apply %s targeting to %s', 'reactwoo-geocore' ),
+					$source_display,
+					strtolower( $source_label )
 				),
 				'action' => 'geocore_apply_country_rule_to_source',
 				'params' => $step_params,
@@ -722,7 +790,7 @@ class RWGA_Variant_Plan_Parser {
 		$source_targeting_param = null;
 		if ( $has_source ) {
 			$source_targeting_param = array(
-				'label'           => __( 'Original homepage', 'reactwoo-geocore' ),
+				'label'           => $source_label,
 				'targeting_label' => $source_display,
 				'mode'            => $source['mode'] ?? 'include_only',
 				'countries'       => $source_countries,
@@ -738,12 +806,30 @@ class RWGA_Variant_Plan_Parser {
 			? array( __( 'Weather conditions may require Geo Core Pro for full runtime support.', 'reactwoo-geocore' ) )
 			: array();
 
+		$has_page_mismatch = ! empty( $page_context['has_mismatch'] );
+		$proposal_ready    = ! $has_page_mismatch;
+		$missing           = array();
+		if ( $has_page_mismatch ) {
+			$variant_page  = self::page_display_name( (string) ( $page_context['variant_source'] ?? $page_value ) );
+			$original_page = self::page_display_name( (string) ( $page_context['original_page'] ?? 'homepage' ) );
+			$missing[]     = array(
+				'key'      => 'page_mismatch',
+				'question' => sprintf(
+					/* translators: 1: variant source page, 2: original page */
+					__( 'You asked for variants of the %1$s, but said the original %2$s should be updated. Should the original page be the %1$s, or did you mean the %2$s?', 'reactwoo-geo-ai' ),
+					$variant_page,
+					$original_page
+				),
+			);
+		}
+
 		return array(
 			'matched'          => true,
 			'intent'           => 'create_geo_variant_plan',
 			'matched_action'   => $matched_action,
-			'confidence'       => 0.88,
-			'proposal_ready'   => true,
+			'confidence'       => $has_page_mismatch ? 0.72 : 0.88,
+			'proposal_ready'   => $proposal_ready,
+			'interpretation_status' => $has_page_mismatch ? 'needs_clarification' : '',
 			'source_targeting' => $has_source ? $source : null,
 			'variant_groups'   => $variants,
 			'duplicate_count'  => $duplicate_count,
@@ -752,6 +838,9 @@ class RWGA_Variant_Plan_Parser {
 			}, $segments ) ),
 			'params'           => array(
 				'source_page_ref'     => $page_value,
+				'variant_source_page' => (string) ( $page_context['variant_source'] ?? $page_value ),
+				'original_page_ref'   => (string) ( $page_context['original_page'] ?? '' ),
+				'page_context'        => $page_context,
 				'total_version_count' => $total_version_count > 0 ? $total_version_count : ( $has_source ? 1 + count( $variant_out ) : count( $variant_out ) ),
 				'duplicate_count'     => $duplicate_count,
 				'source_targeting'    => $source_targeting_param,
@@ -760,8 +849,100 @@ class RWGA_Variant_Plan_Parser {
 			'steps'            => $steps,
 			'summary'          => $summary,
 			'warnings'         => $debug['warnings'],
+			'missing_information' => $missing,
+			'page_context'     => $page_context,
 			'_debug'           => $debug,
 		);
+	}
+
+	/**
+	 * @param string $page_ref Page ref slug.
+	 * @return string
+	 */
+	private static function original_page_label( $page_ref ) {
+		if ( 'shop' === $page_ref ) {
+			return __( 'Original shop page', 'reactwoo-geocore' );
+		}
+		if ( 'checkout' === $page_ref ) {
+			return __( 'Original checkout', 'reactwoo-geocore' );
+		}
+		return __( 'Original homepage', 'reactwoo-geocore' );
+	}
+
+	/**
+	 * @param string $page_ref Page ref slug.
+	 * @return string
+	 */
+	private static function page_display_name( $page_ref ) {
+		if ( 'shop' === $page_ref ) {
+			return __( 'shop page', 'reactwoo-geocore' );
+		}
+		if ( 'homepage' === $page_ref ) {
+			return __( 'homepage', 'reactwoo-geocore' );
+		}
+		return $page_ref;
+	}
+
+	/**
+	 * When a single variant segment contains "one … the other …", split into two variant rows.
+	 *
+	 * @param array<int,array<string,mixed>> $variants Variants.
+	 * @param array<int,array>               $entities Entities.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function expand_one_other_variants( array $variants, array $entities ) {
+		if ( 1 !== count( $variants ) ) {
+			return $variants;
+		}
+		$pair = self::split_one_other_pair( (string) ( $variants[0]['raw'] ?? '' ), $entities );
+		if ( count( $pair ) < 2 ) {
+			return $variants;
+		}
+		return $pair;
+	}
+
+	/**
+	 * @param string           $raw      Clause text.
+	 * @param array<int,array> $entities Entities.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function split_one_other_pair( $raw, array $entities ) {
+		$raw = trim( (string) $raw );
+		$patterns = array(
+			'/^(?:one(?:\s+(?:variant|variation|version))?\s+(?:should|can|will|would|needs\s+to)?\s*(?:display|show|fire|trigger|work|activate|appear|serve|render)?\s*(?:in|for)?\s*)(.+?)\s+and\s+the\s+other\s+(?:in|for|to)\s+(.+)$/i',
+			'/^(?:one(?:\s+(?:variant|variation|version))?\s+(?:should|can|will|would)?\s*(?:display|show|fire|trigger|work)?\s*(?:in|for)?\s*)(.+?)\s+and\s+the\s+other\s+(.+)$/i',
+		);
+		foreach ( $patterns as $pattern ) {
+			if ( ! preg_match( $pattern, $raw, $m ) ) {
+				continue;
+			}
+			$first  = self::extract_country_list_from_segment( trim( $m[1] ), $entities );
+			$second = self::extract_country_list_from_segment( trim( $m[2] ), $entities );
+			if ( empty( $first ) || empty( $second ) ) {
+				continue;
+			}
+			return array(
+				array(
+					'ordinal'   => 1,
+					'raw'       => trim( $m[1] ),
+					'marker'    => 'one should',
+					'label'     => self::label_for_segment( $first, null, $entities ),
+					'mode'      => 'include_only',
+					'countries' => $first,
+					'weather'   => null,
+				),
+				array(
+					'ordinal'   => 2,
+					'raw'       => trim( $m[2] ),
+					'marker'    => 'the other in',
+					'label'     => self::label_for_segment( $second, null, $entities ),
+					'mode'      => 'include_only',
+					'countries' => $second,
+					'weather'   => null,
+				),
+			);
+		}
+		return array();
 	}
 
 	/**
@@ -899,16 +1080,60 @@ class RWGA_Variant_Plan_Parser {
 	 * @return array<string,mixed>
 	 */
 	private static function partial_clarification( $phrase, $page_value, array $countries, array $debug ) {
-		unset( $phrase );
 		$debug['reason'] = 'could_not_confidently_split_variant_conditions';
 		$entities        = array();
 		if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
 			$bundle   = RWGA_Intelligence_Sync_Service::ensure_bundle();
 			$entities = is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
 		}
+
+		$page_context = is_array( $debug['page_context'] ?? null ) ? $debug['page_context'] : self::detect_page_context( $phrase );
+		foreach ( (array) ( $debug['raw_clauses'] ?? array() ) as $clause ) {
+			$pair = self::split_one_other_pair( (string) $clause, $entities );
+			if ( count( $pair ) >= 2 ) {
+				$debug['detected_variant_clauses'] = $pair;
+				$inferred = class_exists( 'RWGA_Inferred_Plan_Builder', false )
+					? RWGA_Inferred_Plan_Builder::from_debug( (string) $page_value, $debug, $entities )
+					: null;
+				if ( is_array( $inferred ) ) {
+					return array(
+						'matched'             => true,
+						'intent'              => 'create_geo_variant_plan',
+						'matched_action'      => 'geocore_create_variant_plan_with_country_rules',
+						'confidence'          => 0.68,
+						'proposal_ready'      => false,
+						'escalate'            => true,
+						'inferred_plan'       => $inferred,
+						'missing_information' => array(
+							array(
+								'key'      => 'variant_grouping',
+								'question' => __( 'Is this split correct?', 'reactwoo-geo-ai' ),
+							),
+						),
+						'params'              => array(
+							'source_page_ref' => $page_value,
+							'page_context'    => $page_context,
+						),
+						'summary'             => __( 'I found a likely split, but need you to confirm it before creating anything.', 'reactwoo-geo-ai' ),
+						'_debug'              => $debug,
+					);
+				}
+			}
+		}
+
 		$inferred = class_exists( 'RWGA_Inferred_Plan_Builder', false )
 			? RWGA_Inferred_Plan_Builder::from_debug( (string) $page_value, $debug, $entities )
 			: null;
+
+		if ( is_array( $inferred ) && ! empty( $inferred['variants'] ) && 1 === count( $inferred['variants'] ) ) {
+			$all_codes = array();
+			foreach ( (array) ( $inferred['variants'][0]['countries'] ?? array() ) as $code ) {
+				$all_codes[] = (string) $code;
+			}
+			if ( count( $all_codes ) >= 3 ) {
+				$inferred = null;
+			}
+		}
 
 		if ( is_array( $inferred ) ) {
 			$summary = __( 'I found a likely split, but need you to confirm it before creating anything.', 'reactwoo-geo-ai' );

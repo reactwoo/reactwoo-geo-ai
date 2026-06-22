@@ -178,6 +178,24 @@ final class RWGALocalIntentInterpreterTest extends TestCase {
 		);
 	}
 
+	public function test_shop_page_two_variants_homepage_england_page_mismatch(): void {
+		$phrase = 'i would like you to create an additional two variants of shop page, one variant should display in portugal and the other in germany and russia — update the original homepage to show in england';
+		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
+		$this->assertTrue( ! empty( $result['matched'] ), (string) ( $result['summary'] ?? $result['reason'] ?? 'no match' ) );
+		$this->assertSame( 'create_geo_variant_plan', $result['intent'] );
+		$this->assertSame( 'shop', $result['params']['source_page_ref'] );
+		$this->assertTrue( ! empty( $result['params']['page_context']['has_mismatch'] ) );
+		$this->assertFalse( $result['proposal_ready'] );
+		$this->assertCount( 2, $result['params']['variants'] );
+		$this->assertSame( array( 'PT' ), $result['params']['variants'][0]['countries'] );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'RU' ), $result['params']['variants'][1]['countries'] );
+		$this->assertSame( array( 'GB' ), $result['params']['source_targeting']['countries'] );
+		$this->assertNotSame(
+			'Portugal + Germany + Russia',
+			$result['params']['variants'][0]['label'] ?? ''
+		);
+	}
+
 	public function test_create_two_variants_one_for_portugal_germany_russia_uk(): void {
 		$phrase = 'create 2 variants of the homepage one for portugal and one for germany and russia update the original for uk';
 		$result = RWGA_Variant_Plan_Interpreter::parse( $phrase, $this->entities(), array() );
