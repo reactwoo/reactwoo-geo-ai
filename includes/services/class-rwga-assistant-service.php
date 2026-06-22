@@ -310,6 +310,15 @@ class RWGA_Assistant_Service {
 			RWGA_Interpretation_Memory_Matcher::remember( $message, $raw, $entities );
 		}
 
+		if ( class_exists( 'RWGA_Planner_Learned_Patterns', false ) ) {
+			$plan = isset( $payload['interpretation_plan'] ) && is_array( $payload['interpretation_plan'] )
+				? $payload['interpretation_plan']
+				: ( isset( $raw['interpretation_plan'] ) && is_array( $raw['interpretation_plan'] ) ? $raw['interpretation_plan'] : null );
+			if ( is_array( $plan ) ) {
+				RWGA_Planner_Learned_Patterns::save_from_plan( $plan );
+			}
+		}
+
 		unset( $raw['ambiguities'] );
 		$raw['interpretation_status'] = RWGA_Interpretation_Status::COMPLETE;
 		$raw['proposal_ready']        = true;
@@ -848,7 +857,9 @@ class RWGA_Assistant_Service {
 		$status_label = $can_execute
 			? __( 'Pending confirmation', 'reactwoo-geocore' )
 			: __( 'Needs confirmation', 'reactwoo-geocore' );
-		$setup_summary = self::format_setup_summary( $raw, $inferred_plan, $entities, $status_label );
+		$setup_summary = ! empty( $raw['setup_summary'] )
+			? (string) $raw['setup_summary']
+			: self::format_setup_summary( $raw, $inferred_plan, $entities, $status_label );
 
 		return array(
 			'intent'                => (string) ( $raw['intent'] ?? '' ),
@@ -861,6 +872,7 @@ class RWGA_Assistant_Service {
 			'summary'               => (string) ( $raw['summary'] ?? '' ),
 			'setup_summary'         => $setup_summary,
 			'inferred_plan'         => is_array( $inferred_plan ) ? $inferred_plan : null,
+			'interpretation_plan'   => isset( $raw['interpretation_plan'] ) && is_array( $raw['interpretation_plan'] ) ? $raw['interpretation_plan'] : null,
 			'ambiguities'           => isset( $raw['ambiguities'] ) && is_array( $raw['ambiguities'] ) ? $raw['ambiguities'] : array(),
 			'ai_interpretation'     => isset( $raw['ai_interpretation'] ) && is_array( $raw['ai_interpretation'] ) ? $raw['ai_interpretation'] : null,
 			'target'                => isset( $raw['ai_interpretation']['proposal_draft']['target'] ) ? $raw['ai_interpretation']['proposal_draft']['target'] : null,

@@ -53,6 +53,26 @@ class RWGA_Local_Intent_Interpreter {
 			'context'  => $context,
 		);
 
+		if ( class_exists( 'RWGA_Geo_Assistant_Planner', false ) ) {
+			$planner_result = RWGA_Geo_Assistant_Planner::interpret_as_legacy( $raw_phrase, $context, $flat_entities );
+			if ( is_array( $planner_result ) && ! empty( $planner_result['matched'] ) ) {
+				$trace['local_parser']['matched']    = true;
+				$trace['local_parser']['parser']       = 'RWGA_Geo_Assistant_Planner';
+				$trace['local_parser']['confidence']   = (float) ( $planner_result['confidence'] ?? 0 );
+				$trace['local_parser']['action_count'] = count( (array) ( $planner_result['interpretation_plan']['actions'] ?? array() ) );
+				return self::attach_trace(
+					array_merge(
+						$planner_result,
+						array(
+							'interpretation_source' => 'geo_assistant_planner',
+							'proposal_ready'        => ! isset( $planner_result['proposal_ready'] ) || false !== $planner_result['proposal_ready'],
+						)
+					),
+					$trace
+				);
+			}
+		}
+
 		if ( class_exists( 'RWGA_Variant_Plan_Interpreter', false ) ) {
 			$plan = RWGA_Variant_Plan_Interpreter::parse( $phrase, $flat_entities, $context );
 			$trace['local_parser']['parser']     = 'RWGA_Variant_Plan_Interpreter';
