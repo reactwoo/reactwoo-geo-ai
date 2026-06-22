@@ -51,7 +51,7 @@ class RWGA_Learning_Event_Service {
 		$event = self::build_event( $payload );
 		self::append_local_log( $event );
 
-		if ( ! empty( $payload['outcome'] ) && in_array( (string) $payload['outcome'], array( 'accepted', 'executed', 'corrected', 'accepted_inferred_split', 'accepted_ai_split' ), true ) ) {
+		if ( ! empty( $payload['outcome'] ) && in_array( (string) $payload['outcome'], array( 'accepted', 'executed', 'corrected', 'accepted_inferred_split', 'accepted_ai_split', 'accepted_likely_interpretation' ), true ) ) {
 			if ( class_exists( 'RWGA_Interpretation_Memory_Matcher', false ) ) {
 				$entities = array();
 				if ( class_exists( 'RWGA_Intelligence_Sync_Service', false ) ) {
@@ -188,6 +188,13 @@ class RWGA_Learning_Event_Service {
 			'confidence'           => (float) ( $payload['confidence'] ?? 0 ),
 			'outcome'              => (string) ( $payload['outcome'] ?? 'accepted' ),
 			'correction'           => isset( $payload['correction'] ) && is_array( $payload['correction'] ) ? $payload['correction'] : null,
+			'ambiguities'          => isset( $payload['ambiguities'] ) && is_array( $payload['ambiguities'] ) ? $payload['ambiguities'] : array(),
+			'ai_likely_interpretation' => isset( $payload['ai_likely_interpretation'] ) && is_array( $payload['ai_likely_interpretation'] )
+				? $payload['ai_likely_interpretation']
+				: ( isset( $payload['ai_interpretation'] ) && is_array( $payload['ai_interpretation'] ) ? $payload['ai_interpretation'] : null ),
+			'user_confirmed_interpretation' => isset( $payload['user_confirmed_interpretation'] ) && is_array( $payload['user_confirmed_interpretation'] )
+				? $payload['user_confirmed_interpretation']
+				: null,
 			'approved_by_user'     => ! empty( $payload['approved_by_user'] ),
 		);
 	}

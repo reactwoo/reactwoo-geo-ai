@@ -11,6 +11,9 @@ class RWGA_Local_Intent_Interpreter {
 
 	const CONFIDENCE_THRESHOLD = 0.85;
 
+	/** @var array<string,mixed> */
+	private static $gate_bag = array();
+
 	/**
 	 * @param string              $raw_phrase User input.
 	 * @param array<string,mixed> $context    From RWGA_Context_Resolver.
@@ -44,6 +47,11 @@ class RWGA_Local_Intent_Interpreter {
 		$intents       = self::index_intents( is_array( $bundle['intents'] ) ? $bundle['intents'] : array() );
 		$editor_opts   = self::editor_options( $context );
 		$deferred_plan = null;
+		self::$gate_bag = array(
+			'raw'      => $raw_phrase,
+			'entities' => $flat_entities,
+			'context'  => $context,
+		);
 
 		if ( class_exists( 'RWGA_Variant_Plan_Interpreter', false ) ) {
 			$plan = RWGA_Variant_Plan_Interpreter::parse( $phrase, $flat_entities, $context );
@@ -177,6 +185,12 @@ class RWGA_Local_Intent_Interpreter {
 		$clarification = self::meaningful_entity_clarification( $phrase, $flat_entities );
 		if ( null !== $clarification ) {
 			return self::attach_trace( $clarification, $trace );
+		}
+		if ( class_exists( 'RWGA_Ambiguity_Gate', false ) ) {
+			$standalone = RWGA_Ambiguity_Gate::build_standalone( $raw_phrase, $phrase, $flat_entities, $context, $trace );
+			if ( is_array( $standalone ) ) {
+				return self::attach_trace( $standalone, $trace );
+			}
 		}
 		return self::attach_trace(
 			self::empty_result( $phrase, __( 'No matching command pattern found.', 'reactwoo-geo-ai' ) ),
@@ -428,6 +442,21 @@ class RWGA_Local_Intent_Interpreter {
 	 * @return array<string,mixed>
 	 */
 	private static function attach_trace( array $result, array $trace ) {
+		if ( ! empty( self::$gate_bag ) && class_exists( 'RWGA_Ambiguity_Gate', false ) ) {
+			$phrase = (string) ( $result['normalised_phrase'] ?? '' );
+			if ( '' === $phrase && ! empty( self::$gate_bag['raw'] ) ) {
+				$phrase = self::normalise( (string) self::$gate_bag['raw'] );
+				$result['normalised_phrase'] = $phrase;
+			}
+			$result = RWGA_Ambiguity_Gate::apply(
+				$result,
+				(string) self::$gate_bag['raw'],
+				$phrase,
+				(array) self::$gate_bag['entities'],
+				(array) self::$gate_bag['context'],
+				$trace
+			);
+		}
 		$result['_interpretation_trace'] = $trace;
 		if ( empty( $result['interpretation_status'] ) ) {
 			$result['interpretation_status'] = RWGA_Interpretation_Status::infer_status(

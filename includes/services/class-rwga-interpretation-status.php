@@ -15,6 +15,7 @@ class RWGA_Interpretation_Status {
 	const UNSUPPORTED          = 'unsupported';
 	const NEEDS_AI             = 'needs_ai';
 	const NEEDS_CLARIFICATION  = 'needs_clarification';
+	const NEEDS_CONFIRMATION   = 'needs_confirmation';
 	const FAILED               = 'failed';
 
 	/**
@@ -32,7 +33,8 @@ class RWGA_Interpretation_Status {
 		$can_execute = self::COMPLETE === $status
 			&& ! empty( $result['matched_action'] )
 			&& ( ! isset( $result['proposal_ready'] ) || false !== $result['proposal_ready'] )
-			&& empty( $result['missing_information'] );
+			&& empty( $result['missing_information'] )
+			&& empty( $result['ambiguities'] );
 
 		$trace = is_array( $result['_interpretation_trace'] ?? null ) ? $result['_interpretation_trace'] : array();
 		$shape = '';
@@ -80,6 +82,9 @@ class RWGA_Interpretation_Status {
 	 * @return string
 	 */
 	public static function infer_status( array $result, $confidence ) {
+		if ( ! empty( $result['ambiguities'] ) || self::NEEDS_CONFIRMATION === ( $result['interpretation_status'] ?? '' ) ) {
+			return self::NEEDS_CONFIRMATION;
+		}
 		if ( empty( $result['intent'] ) && empty( $result['matched_action'] ) && empty( $result['missing_information'] ) ) {
 			return self::FAILED;
 		}
@@ -134,6 +139,34 @@ class RWGA_Interpretation_Status {
 	 * @return array<string,mixed>
 	 */
 	private static function clarification_payload( array $result, $status ) {
+		if ( self::NEEDS_CONFIRMATION === $status ) {
+			$ai_available = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
+			$options      = array(
+				array(
+					'key'   => 'accept_likely_interpretation',
+					'label' => __( 'Use this interpretation', 'reactwoo-geocore' ),
+				),
+				array(
+					'key'   => 'edit_ambiguities',
+					'label' => __( 'Choose location/audience', 'reactwoo-geocore' ),
+				),
+			);
+			if ( $ai_available ) {
+				$options[] = array(
+					'key'   => 'ask_ai_again',
+					'label' => __( 'Ask AI again', 'reactwoo-geocore' ),
+				);
+			}
+			$options[] = array(
+				'key'   => 'cancel',
+				'label' => __( 'Cancel', 'reactwoo-geocore' ),
+			);
+			return array(
+				'question' => __( 'Is this interpretation correct?', 'reactwoo-geo-ai' ),
+				'options'  => $options,
+			);
+		}
+
 		if ( ! in_array( $status, array( self::PARTIAL, self::AMBIGUOUS, self::NEEDS_CLARIFICATION, self::NEEDS_AI ), true ) ) {
 			return array(
 				'question' => '',

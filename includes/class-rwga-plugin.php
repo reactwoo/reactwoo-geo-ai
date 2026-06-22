@@ -159,6 +159,10 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpreter-debug.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-interpretation-status.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-inferred-plan-builder.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-site-interpretation-preferences.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-ambiguity-detector.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-ai-interpretation-builder.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-ambiguity-gate.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-parser-hints-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-learning-promotion-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-parser.php';

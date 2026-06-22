@@ -619,6 +619,46 @@ class RWGA_REST {
 
 		register_rest_route(
 			self::NS,
+			'/interpret/confirm-interpretation',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'handle_assistant_confirm_interpretation' ),
+				'permission_callback' => array( __CLASS__, 'permission_assistant' ),
+				'args'                => array(
+					'message' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'ambiguities' => array(
+						'default' => array(),
+					),
+					'resolutions' => array(
+						'default' => array(),
+					),
+					'ai_interpretation' => array(
+						'default' => array(),
+					),
+					'base' => array(
+						'default' => array(),
+					),
+					'source' => array(
+						'default'           => 'local_parser',
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'context' => array(
+						'default' => array(),
+					),
+					'debug'   => array(
+						'default' => false,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/intelligence/command/bundle',
 			array(
 				'methods'             => 'GET',
@@ -1832,6 +1872,40 @@ class RWGA_REST {
 		$debug             = rest_sanitize_boolean( $request->get_param( 'debug' ) );
 		return rest_ensure_response(
 			RWGA_Assistant_Service::confirm_inferred_split( $message, $plan, $context, $source, $debug )
+		);
+	}
+
+	/**
+	 * POST /geo-ai/v1/interpret/confirm-interpretation
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_assistant_confirm_interpretation( $request ) {
+		if ( ! class_exists( 'RWGA_Assistant_Service', false ) ) {
+			return new WP_Error( 'rwga_not_loaded', __( 'Assistant service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
+		}
+		$message = (string) $request->get_param( 'message' );
+		$payload = array(
+			'ambiguities'       => $request->get_param( 'ambiguities' ),
+			'resolutions'       => $request->get_param( 'resolutions' ),
+			'ai_interpretation' => $request->get_param( 'ai_interpretation' ),
+			'base'              => $request->get_param( 'base' ),
+		);
+		foreach ( array( 'ambiguities', 'resolutions', 'ai_interpretation', 'base' ) as $key ) {
+			if ( ! is_array( $payload[ $key ] ) ) {
+				$payload[ $key ] = array();
+			}
+		}
+		$context = $request->get_param( 'context' );
+		if ( ! is_array( $context ) ) {
+			$context = array();
+		}
+		$context['screen'] = 'targeting_assistant';
+		$source            = (string) $request->get_param( 'source' );
+		$debug             = rest_sanitize_boolean( $request->get_param( 'debug' ) );
+		return rest_ensure_response(
+			RWGA_Assistant_Service::confirm_interpretation( $message, $payload, $context, $source, $debug )
 		);
 	}
 

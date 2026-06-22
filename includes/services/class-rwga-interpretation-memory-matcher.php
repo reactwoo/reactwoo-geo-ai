@@ -240,7 +240,10 @@ class RWGA_Interpretation_Memory_Matcher {
 	 * @return void
 	 */
 	public static function remember( $message, array $result, array $entities = array() ) {
-		if ( empty( $result['intent'] ) || empty( $result['matched_action'] ) || empty( $result['params'] ) ) {
+		if ( empty( $result['intent'] ) || empty( $result['matched_action'] ) ) {
+			return;
+		}
+		if ( empty( $result['params'] ) && empty( $result['portable_rule_set'] ) ) {
 			return;
 		}
 		$shape = RWGA_Phrase_Shape_Normaliser::build( $message, $entities );
@@ -257,6 +260,15 @@ class RWGA_Interpretation_Memory_Matcher {
 			: array();
 		$existing = RWGA_Interpretation_Memory_Store::find_by_shape( (string) ( $shape['phrase_shape'] ?? '' ) );
 		$success  = (int) ( is_array( $existing ) ? ( $existing['success_count'] ?? 0 ) : 0 );
+		$resolutions = array();
+		if ( ! empty( $result['ambiguities'] ) && is_array( $result['ambiguities'] ) ) {
+			foreach ( $result['ambiguities'] as $row ) {
+				$field = (string) ( $row['field'] ?? '' );
+				if ( '' !== $field && ! empty( $row['likely'] ) ) {
+					$resolutions[ $field ] = (string) $row['likely'];
+				}
+			}
+		}
 		RWGA_Interpretation_Memory_Store::upsert(
 			array(
 				'raw_phrase'              => (string) $message,
@@ -276,6 +288,8 @@ class RWGA_Interpretation_Memory_Matcher {
 				'success_count'           => $success + 1,
 				'status'                  => 'active',
 				'scope'                   => 'site',
+				'ambiguity_resolutions'   => $resolutions,
+				'ai_interpretation'       => is_array( $result['ai_interpretation'] ?? null ) ? $result['ai_interpretation'] : array(),
 			)
 		);
 		if ( class_exists( 'RWGA_Parser_Hints_Service', false ) && ! empty( $learned_rules ) ) {
