@@ -219,6 +219,17 @@ class RWGA_Planner_Action_Clause_Splitter {
 			);
 		}
 
+		if ( preg_match( '/^(.*?)[,.]\s*then\s+(hide|show)\s+(.+)$/is', $block, $m ) ) {
+			$block = trim( (string) $m[1] );
+			array_unshift(
+				$trailing,
+				array(
+					'raw'  => trim( (string) $m[2] ) . ' ' . trim( (string) $m[3] ),
+					'type' => 'rule',
+				)
+			);
+		}
+
 		if ( preg_match( '/^(.*?)(?:\s*-\s*|\s*,\s*)(?:update|change)\s+(?:the\s+)?original\b(.+)$/is', $block, $m ) ) {
 			$block = trim( (string) $m[1] );
 			$trailing[] = array(

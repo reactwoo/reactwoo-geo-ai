@@ -35,31 +35,34 @@ class RWGA_Planner_Ordinal_Variant_Resolver {
 			return array();
 		}
 
-		if ( preg_match( '/\b(?:first|another|the\s+last|last\s+one)\b/i', $remainder ) ) {
-			$parts = preg_split(
-				'/\s*,\s*(?=(?:another|the\s+other|the\s+last\s+one|last\s+one|second|third|fourth)\b)|\s+and\s+(?=the\s+last\s+one|last\s+one)\b/i',
-				$remainder
-			);
-			if ( is_array( $parts ) && count( $parts ) >= 2 ) {
-				return self::normalise_child_parts( $parts );
-			}
+		if ( ! preg_match( self::ordinal_lookahead(), $remainder ) ) {
+			return array();
 		}
 
-		if ( preg_match( '/\band\s+(?:the\s+)?last\s+one\b/i', $remainder ) ) {
-			$head_tail = preg_split( '/\s+and\s+(?=the\s+last\s+one|last\s+one)\b/i', $remainder, 2 );
-			if ( is_array( $head_tail ) && 2 === count( $head_tail ) ) {
-				$left_parts = preg_split( '/\s*,\s*(?=another\b)/i', trim( (string) $head_tail[0] ) );
-				if ( ! is_array( $left_parts ) ) {
-					$left_parts = array( trim( (string) $head_tail[0] ) );
-				}
-				$left_parts[] = trim( (string) $head_tail[1] );
-				if ( count( $left_parts ) >= 2 ) {
-					return self::normalise_child_parts( $left_parts );
-				}
-			}
+		$parts = preg_split(
+			'/(?:,\s*and\s+|,\s*|\.\s*and\s+|\s+and\s+|\.\s+)(?=' . self::ordinal_lookahead_body() . ')/i',
+			$remainder
+		);
+
+		if ( is_array( $parts ) && count( $parts ) >= 2 ) {
+			return self::normalise_child_parts( $parts );
 		}
 
 		return array();
+	}
+
+	/**
+	 * @return string Regex (with delimiters) matching any ordinal marker.
+	 */
+	private static function ordinal_lookahead() {
+		return '/' . self::ordinal_lookahead_body() . '/i';
+	}
+
+	/**
+	 * @return string Bare regex body matching ordinal markers at a clause start.
+	 */
+	private static function ordinal_lookahead_body() {
+		return '(?:the\s+)?(?:first|second|third|fourth|fifth)(?:\s+one)?\b|another\b|the\s+other\b|(?:the\s+)?last(?:\s+one)?\b';
 	}
 
 	/**

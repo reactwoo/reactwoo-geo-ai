@@ -410,4 +410,58 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertSame( array( 'mobile' ), $include_banner['devices'] );
 		$this->assertSame( array( 'rainy' ), array_values( array_filter( (array) ( $exclude_banner['weather'] ?? array() ) ) ) );
 	}
+
+	public function test_two_homepage_variants_with_rule_and_diagnose(): void {
+		$input = "Create two versions of the homepage: the first should only show to returning visitors in Canada, and the second should show to new visitors in Australia on mobile. Then hide the newsletter popup on /checkout for users in France, and diagnose what a desktop visitor from Germany would see on the homepage.";
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
+
+		$variant_one = $plan['actions'][0];
+		$variant_two = $plan['actions'][1];
+		$rule        = $plan['actions'][2];
+		$diagnose    = $plan['actions'][3];
+
+		$this->assertSame( 'create_variant', $variant_one['type'] );
+		$this->assertSame( 1, $variant_one['variant']['index'] ?? null );
+		$this->assertStringContainsString( 'homepage', strtolower( (string) ( $variant_one['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'only_show', $variant_one['operation']['visibility'] );
+		$include_one = $this->include_of( $variant_one );
+		$this->assertSame( array( 'CA' ), $include_one['countries'] );
+		$this->assertSame( array( 'returning_visitors' ), $include_one['audiences'] );
+		$this->assertNotContains( 'AU', $include_one['countries'] );
+
+		$this->assertSame( 'create_variant', $variant_two['type'] );
+		$this->assertSame( 2, $variant_two['variant']['index'] ?? null );
+		$include_two = $this->include_of( $variant_two );
+		$this->assertSame( array( 'AU' ), $include_two['countries'] );
+		$this->assertSame( array( 'mobile' ), $include_two['devices'] );
+		$this->assertSame( array( 'new_visitors' ), $include_two['audiences'] );
+		$this->assertNotContains( 'CA', $include_two['countries'] );
+
+		$this->assertSame( 'create_rule', $rule['type'] );
+		$this->assertSame( 'popup', $rule['target']['type'] );
+		$this->assertStringContainsString( 'newsletter popup', strtolower( (string) ( $rule['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'hide', $rule['operation']['visibility'] );
+		$include_rule = $this->include_of( $rule );
+		$this->assertSame( array( 'FR' ), $include_rule['countries'] );
+		$this->assertSame( array( '/checkout' ), $include_rule['urls'] );
+
+		$this->assertSame( 'diagnose', $diagnose['type'] );
+		$this->assertStringContainsString( 'homepage', strtolower( (string) ( $diagnose['target']['label'] ?? '' ) ) );
+		$include_diag = $this->include_of( $diagnose );
+		$this->assertSame( array( 'DE' ), $include_diag['countries'] );
+		$this->assertSame( array( 'desktop' ), $include_diag['devices'] );
+	}
+
+	public function test_two_versions_with_single_variant_fails_safe(): void {
+		$input = 'Create two versions of the homepage for returning visitors in Canada and Australia.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$this->assertSame( 'plan_validation_failed', $plan['clarification']['type'] ?? '' );
+		$this->assertContains( 'variant_count_mismatch', (array) ( $plan['clarification']['issues'] ?? array() ) );
+		$this->assertSame( array(), $plan['actions'] );
+	}
 }

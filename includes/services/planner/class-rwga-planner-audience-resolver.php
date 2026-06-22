@@ -23,6 +23,9 @@ class RWGA_Planner_Audience_Resolver {
 		if ( preg_match( '/\bfirst[-\s]?time\s+visitors?\b/i', $text ) ) {
 			$audiences[] = 'first_time_visitors';
 		}
+		if ( preg_match( '/\bnew\s+visitors?\b/i', $text ) ) {
+			$audiences[] = 'new_visitors';
+		}
 
 		return array_values( array_unique( $audiences ) );
 	}

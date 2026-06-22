@@ -35,6 +35,19 @@ class RWGA_Planner_Plan_Validator {
 			$issues[] = 'action_count_mismatch';
 		}
 
+		$declared_variants = self::declared_variant_count( $phrase );
+		if ( $declared_variants >= 2 ) {
+			$variant_actions = 0;
+			foreach ( $actions as $action ) {
+				if ( is_array( $action ) && RWGA_Geo_Action_Types::CREATE_VARIANT === (string) ( $action['type'] ?? '' ) ) {
+					++$variant_actions;
+				}
+			}
+			if ( $variant_actions < $declared_variants ) {
+				$issues[] = 'variant_count_mismatch';
+			}
+		}
+
 		foreach ( array_keys( $phrase_entities['countries'] ) as $code ) {
 			$owners = (array) ( $attached['country_slots'][ $code ] ?? array() );
 			if ( count( $owners ) !== 1 ) {
@@ -109,6 +122,23 @@ class RWGA_Planner_Plan_Validator {
 	}
 
 	/**
+	 * Number of variants explicitly requested ("two versions of the homepage").
+	 *
+	 * @param string $phrase Normalised phrase.
+	 * @return int
+	 */
+	public static function declared_variant_count( $phrase ) {
+		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+		if ( class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false ) ) {
+			$parent = RWGA_Planner_Parent_Variant_Resolver::detect_parent( $phrase );
+			if ( is_array( $parent ) ) {
+				return (int) ( $parent['count'] ?? 0 );
+			}
+		}
+		return 0;
+	}
+
+	/**
 	 * Only fail-safe on phrases where wrong automation is especially risky.
 	 *
 	 * @param string $phrase Normalised phrase.
@@ -116,6 +146,10 @@ class RWGA_Planner_Plan_Validator {
 	 */
 	public static function should_use_safe_failure( $phrase ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+
+		if ( self::declared_variant_count( $phrase ) >= 2 ) {
+			return true;
+		}
 
 		if ( class_exists( 'RWGA_Planner_Campaign_Resolver', false )
 			&& RWGA_Planner_Campaign_Resolver::is_campaign_targeting_clause( $phrase ) ) {
