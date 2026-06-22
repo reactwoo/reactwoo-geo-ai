@@ -39,6 +39,17 @@ class RWGA_Planner_Action_Type_Detector {
 			);
 		}
 
+		if ( preg_match( '/\b(?:update|change|edit|modify|tweak|adjust)\s+(?:the\s+)?(?:existing\s+)?[\w\s-]*?\bvariant\b/i', $clause )
+			&& ! preg_match( '/\b(?:create|make|build|add|duplicate)\b/i', $clause ) ) {
+			$visibility = self::is_only_show_clause( $clause ) ? 'only_show' : 'show';
+			return array(
+				'type'       => RWGA_Geo_Action_Types::UPDATE_VARIANT,
+				'visibility' => $visibility,
+				'mode'       => 'update',
+				'confidence' => 0.9,
+			);
+		}
+
 		if ( 'variant_version' === (string) ( $clause_row['type'] ?? '' )
 			|| 'variant_create' === (string) ( $clause_row['type'] ?? '' )
 			|| ( class_exists( 'RWGA_Planner_Second_Version_Resolver', false )
@@ -165,10 +176,12 @@ class RWGA_Planner_Action_Type_Detector {
 			);
 		}
 		if ( preg_match( '/\b(?:create|make|build|duplicate|copy|clone)\s+(?:an?\s+)?(?:additional\s+)?(?:\d+|one|two|three|four|five)?\s*(?:new\s+)?(?:variants?|variations?|versions?)\b/i', $clause )
+			|| preg_match( '/\b(?:create|make|build|duplicate|copy|clone)\b[\w\s-]*?\b(?:variants?|variations?|versions?)\b/i', $clause )
 			|| preg_match( '/\b(?:one|another)\s+(?:variant|variation|version)\b/i', $clause ) ) {
+			$visibility = self::is_only_show_clause( $clause ) ? 'only_show' : 'show';
 			return array(
 				'type'       => RWGA_Geo_Action_Types::CREATE_VARIANT,
-				'visibility' => 'show',
+				'visibility' => $visibility,
 				'mode'       => 'create',
 				'confidence' => 0.88,
 			);
@@ -206,7 +219,7 @@ class RWGA_Planner_Action_Type_Detector {
 	 */
 	private static function is_only_show_clause( $clause ) {
 		return (bool) preg_match(
-			'/\bonly\s+(?:to|show|display|for)\b|\bshow\s+only\b|\bonly\s+shows?\b/i',
+			'/\bonly\s+(?:to|show|display|for|in)\b|\bshows?\s+only\b|\bonly\s+shows?\b|\bdisplays?\s+only\b/i',
 			$clause
 		);
 	}

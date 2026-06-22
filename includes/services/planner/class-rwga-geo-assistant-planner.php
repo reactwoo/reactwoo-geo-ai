@@ -234,6 +234,9 @@ class RWGA_Geo_Assistant_Planner {
 		$relationship = RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING === $type_row['type'] ? 'original' : 'variant';
 		$variant_idx  = RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type'] ? 1 : null;
 		$variant_lbl  = '';
+		$variant_src  = '' !== (string) ( $target['sourcePage'] ?? '' )
+			? (string) $target['sourcePage']
+			: (string) ( $target['label'] ?? '' );
 
 		if ( RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type']
 			&& class_exists( 'RWGA_Planner_Second_Version_Resolver', false ) ) {
@@ -257,7 +260,7 @@ class RWGA_Geo_Assistant_Planner {
 			'variant'             => array(
 				'index'        => $variant_idx,
 				'label'        => $variant_lbl,
-				'sourcePage'   => (string) ( $target['label'] ?? '' ),
+				'sourcePage'   => $variant_src,
 				'relationship' => $relationship,
 			),
 			'conditions'          => $cond['conditions'],

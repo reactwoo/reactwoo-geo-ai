@@ -273,7 +273,30 @@ class RWGA_Multi_Variant_Interpreter {
 			$aliases[] = strtolower( (string) ( $row['display_name'] ?? '' ) );
 			$aliases[] = $code;
 			$aliases[] = strtolower( $code );
-			$out[ $code ] = array_values( array_unique( array_filter( $aliases ) ) );
+			$out[ $code ] = array_values( array_unique( array_filter( self::filter_ambiguous_aliases( $aliases ) ) ) );
+		}
+		return $out;
+	}
+
+	/**
+	 * Drop 2-letter ISO codes that collide with common English words ("IT", "NO", "AT", "IN", "US", "BE").
+	 *
+	 * @param array<int,string> $aliases Alias list.
+	 * @return array<int,string>
+	 */
+	private static function filter_ambiguous_aliases( array $aliases ) {
+		$stopwords = array(
+			'it', 'no', 'in', 'be', 'at', 'am', 'as', 'by', 'do', 'go',
+			'he', 'if', 'me', 'my', 'of', 'on', 'or', 'so', 'to', 'oh', 'hi',
+			'id', 're', 'we', 'an', 'is', 'up', 'pm',
+		);
+		$out = array();
+		foreach ( $aliases as $alias ) {
+			$normalised = strtolower( trim( (string) $alias ) );
+			if ( 2 === strlen( $normalised ) && in_array( $normalised, $stopwords, true ) ) {
+				continue;
+			}
+			$out[] = $alias;
 		}
 		return $out;
 	}

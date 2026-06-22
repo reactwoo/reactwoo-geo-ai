@@ -22,6 +22,13 @@ class RWGA_Planner_Target_Resolver {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
 		$session = is_array( $context['session'] ?? null ) ? $context['session'] : array();
 
+		if ( RWGA_Geo_Action_Types::UPDATE_VARIANT === $action_type ) {
+			$variant_target = self::existing_variant_target( $clause );
+			if ( null !== $variant_target ) {
+				return $variant_target;
+			}
+		}
+
 		if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
 			$inherited = RWGA_Planner_Inherited_Target_Resolver::detect_named_target( $clause, $phrase, $session );
 			if ( is_array( $inherited ) ) {
@@ -134,6 +141,65 @@ class RWGA_Planner_Target_Resolver {
 	}
 
 	/**
+	 * Resolve an existing/named variant target ("the existing Christmas homepage variant").
+	 *
+	 * @param string $clause Clause text.
+	 * @return array{type:string,label:string,slug:string,sourcePage:string,source:string}|null
+	 */
+	private static function existing_variant_target( $clause ) {
+		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
+		if ( ! preg_match( '/\b(?:the\s+)?(?:existing\s+)?([\w\s-]+?)\s+variant\b/i', $clause, $m ) ) {
+			return null;
+		}
+
+		$name = trim( (string) $m[1] );
+		$prev = '';
+		while ( $prev !== $name ) {
+			$prev = $name;
+			$name = trim( (string) preg_replace( '/^(?:update|change|edit|modify|tweak|adjust|the|existing|a|an|new)\s+/i', '', $name ) );
+		}
+		$name = trim( (string) preg_replace( '/\s+/', ' ', $name ) );
+		if ( '' === $name ) {
+			return null;
+		}
+
+		$label = $name . ' variant';
+		return array(
+			'type'       => 'variant',
+			'label'      => $label,
+			'slug'       => sanitize_title( $label ),
+			'sourcePage' => self::variant_source_page( $name ),
+			'source'     => 'existing_variant',
+		);
+	}
+
+	/**
+	 * @param string $name Variant name.
+	 * @return string
+	 */
+	private static function variant_source_page( $name ) {
+		$name = strtolower( (string) $name );
+		$map  = array(
+			'homepage' => 'homepage',
+			'home page' => 'homepage',
+			'checkout' => 'checkout',
+			'cart'     => 'cart',
+			'basket'   => 'cart',
+			'shop'     => 'shop',
+			'landing'  => 'landing',
+			'pricing'  => 'pricing',
+			'contact'  => 'contact',
+			'product'  => 'product',
+		);
+		foreach ( $map as $token => $slug ) {
+			if ( false !== strpos( $name, $token ) ) {
+				return $slug;
+			}
+		}
+		return '';
+	}
+
+	/**
 	 * @param string $clause Clause text.
 	 * @return string
 	 */
@@ -187,6 +253,10 @@ class RWGA_Planner_Target_Resolver {
 			$label = 'contact page';
 		} elseif ( 'landing' === $slug ) {
 			$label = 'landing page';
+		} elseif ( 'checkout' === $slug ) {
+			$label = 'checkout page';
+		} elseif ( 'cart' === $slug ) {
+			$label = 'cart page';
 		} elseif ( preg_match( '/\s+page$/', $token ) ) {
 			$label = $token;
 		}

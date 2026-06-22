@@ -186,6 +186,14 @@ class RWGA_Planner_Action_Clause_Splitter {
 			);
 		}
 
+		if ( preg_match( '/^(.*?)(?:[,.]\s*|\s*,\s*)(?:and\s+)?(?:preview|see|simulate)\s+(?:what|how)\b(.+)$/is', $block, $m ) ) {
+			$block      = trim( (string) $m[1] );
+			$trailing[] = array(
+				'raw'  => 'preview what' . ( ' ' . ltrim( (string) $m[2] ) ),
+				'type' => 'diagnose',
+			);
+		}
+
 		if ( preg_match( '/^(.*?)(?:[,.]\s*|\s*,\s*)(?:also|and)\s+(hide|show)\s+(?:the\s+)?(.+)$/is', $block, $m ) ) {
 			$block = trim( (string) $m[1] );
 			array_unshift(

@@ -455,6 +455,69 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertSame( array( 'desktop' ), $include_diag['devices'] );
 	}
 
+	public function test_existing_variant_update_with_rule_and_preview(): void {
+		$input = "Update the existing Christmas homepage variant so it shows only in Norway and Sweden when it's snowing, but don't show it to tablet users. Then create a new checkout page variant for mobile visitors in Denmark, hide the discount popup for users in Finland, and preview what a desktop visitor from Italy would see on the checkout page.";
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
+
+		$update   = $plan['actions'][0];
+		$variant  = $plan['actions'][1];
+		$rule     = $plan['actions'][2];
+		$preview  = $plan['actions'][3];
+
+		$this->assertSame( 'update_variant', $update['type'] );
+		$this->assertSame( 'variant', $update['target']['type'] );
+		$this->assertStringContainsString( 'christmas homepage variant', strtolower( (string) ( $update['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'homepage', $update['variant']['sourcePage'] ?? '' );
+		$this->assertSame( 'only_show', $update['operation']['visibility'] );
+		$include_update = $this->include_of( $update );
+		$exclude_update = $this->exclude_of( $update );
+		$this->assertEqualsCanonicalizing( array( 'NO', 'SE' ), $include_update['countries'] );
+		$this->assertNotContains( 'IT', $include_update['countries'] );
+		$this->assertSame( array( 'snow' ), array_values( array_filter( (array) ( $include_update['weather'] ?? array() ) ) ) );
+		$this->assertSame( array( 'tablet' ), $exclude_update['devices'] );
+
+		$this->assertSame( 'create_variant', $variant['type'] );
+		$this->assertStringContainsString( 'checkout', strtolower( (string) ( $variant['target']['label'] ?? '' ) ) );
+		$include_variant = $this->include_of( $variant );
+		$this->assertSame( array( 'DK' ), $include_variant['countries'] );
+		$this->assertSame( array( 'mobile' ), $include_variant['devices'] );
+
+		$this->assertSame( 'create_rule', $rule['type'] );
+		$this->assertSame( 'popup', $rule['target']['type'] );
+		$this->assertStringContainsString( 'discount popup', strtolower( (string) ( $rule['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'hide', $rule['operation']['visibility'] );
+		$include_rule = $this->include_of( $rule );
+		$this->assertSame( array( 'FI' ), $include_rule['countries'] );
+
+		$this->assertSame( 'diagnose', $preview['type'] );
+		$this->assertSame( 'page', $preview['target']['type'] );
+		$this->assertStringContainsString( 'checkout', strtolower( (string) ( $preview['target']['label'] ?? '' ) ) );
+		$include_preview = $this->include_of( $preview );
+		$this->assertSame( array( 'IT' ), $include_preview['countries'] );
+		$this->assertSame( array( 'desktop' ), $include_preview['devices'] );
+	}
+
+	public function test_preview_target_mismatch_fails_safe(): void {
+		$actions = array(
+			array(
+				'type'       => 'diagnose',
+				'target'     => array( 'type' => 'popup', 'label' => 'discount popup' ),
+				'operation'  => array( 'visibility' => 'show', 'mode' => 'diagnose' ),
+				'conditions' => array(
+					'include' => array( 'countries' => array( 'IT' ), 'devices' => array( 'desktop' ) ),
+					'exclude' => array(),
+				),
+			),
+		);
+		$phrase     = 'preview what a desktop visitor from italy would see on the checkout page';
+		$validation = RWGA_Planner_Plan_Validator::validate( $phrase, $actions, $this->entities(), array() );
+		$this->assertIsArray( $validation );
+		$this->assertContains( 'preview_target_mismatch', (array) ( $validation['issues'] ?? array() ) );
+	}
+
 	public function test_two_versions_with_single_variant_fails_safe(): void {
 		$input = 'Create two versions of the homepage for returning visitors in Canada and Australia.';
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );

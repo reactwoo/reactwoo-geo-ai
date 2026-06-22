@@ -85,6 +85,10 @@ class RWGA_Planner_Plan_Validator {
 			$issues[] = 'unresolved_clause_markers';
 		}
 
+		if ( self::has_preview_target_mismatch( $phrase, $actions ) ) {
+			$issues[] = 'preview_target_mismatch';
+		}
+
 		if ( empty( $issues ) ) {
 			return null;
 		}
@@ -148,6 +152,14 @@ class RWGA_Planner_Plan_Validator {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
 
 		if ( self::declared_variant_count( $phrase ) >= 2 ) {
+			return true;
+		}
+
+		if ( preg_match( '/\b(?:preview|test|check|simulate)\b.*\bwould\s+see\b/i', $phrase ) ) {
+			return true;
+		}
+
+		if ( preg_match( '/\bexisting\s+[\w\s-]+\bvariant\b/i', $phrase ) ) {
 			return true;
 		}
 
@@ -262,7 +274,7 @@ class RWGA_Planner_Plan_Validator {
 				$region_slots[ (string) $code ]   = (array) ( $region_slots[ (string) $code ] ?? array() );
 				$region_slots[ (string) $code ][] = $slot;
 			}
-			foreach ( (array) ( $include['devices'] ?? array() ) as $device ) {
+			foreach ( array_merge( (array) ( $include['devices'] ?? array() ), (array) ( $exclude['devices'] ?? array() ) ) as $device ) {
 				$device_slots[ (string) $device ]   = (array) ( $device_slots[ (string) $device ] ?? array() );
 				$device_slots[ (string) $device ][] = $slot;
 			}
@@ -303,6 +315,36 @@ class RWGA_Planner_Plan_Validator {
 			return false;
 		}
 		return count( $clauses ) < self::expected_action_count( $phrase );
+	}
+
+	/**
+	 * Reject when "preview/test what ... would see on [page]" but the diagnose
+	 * action targets a popup/banner (context bleed from a previous clause).
+	 *
+	 * @param string                         $phrase  Phrase.
+	 * @param array<int,array<string,mixed>> $actions Actions.
+	 * @return bool
+	 */
+	private static function has_preview_target_mismatch( $phrase, array $actions ) {
+		if ( ! preg_match( '/\b(?:preview|test|check|simulate)\b.*\bwould\s+see\s+(?:on|in)\s+(?:the\s+)?[\w\s-]*?\bpage\b/i', $phrase ) ) {
+			return false;
+		}
+
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			$type = (string) ( $action['type'] ?? '' );
+			if ( RWGA_Geo_Action_Types::DIAGNOSE !== $type && RWGA_Geo_Action_Types::CREATE_TEST !== $type ) {
+				continue;
+			}
+			$target_type = (string) ( $action['target']['type'] ?? '' );
+			if ( in_array( $target_type, array( 'popup', 'banner' ), true ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

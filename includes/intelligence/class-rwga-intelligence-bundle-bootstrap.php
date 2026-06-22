@@ -95,6 +95,22 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 			array( 'RU', 'Russia', array( 'Russia', 'Russian', 'RU', 'russia' ) ),
 			array( 'PT', 'Portugal', array( 'Portugal', 'Portuguese', 'PT' ) ),
 			array( 'ES', 'Spain', array( 'Spain', 'Spanish', 'ES' ) ),
+			array( 'IT', 'Italy', array( 'Italy', 'Italian', 'IT' ) ),
+			array( 'NL', 'Netherlands', array( 'Netherlands', 'Holland', 'Dutch', 'NL' ) ),
+			array( 'BE', 'Belgium', array( 'Belgium', 'Belgian', 'BE' ) ),
+			array( 'NO', 'Norway', array( 'Norway', 'Norwegian', 'NO' ) ),
+			array( 'SE', 'Sweden', array( 'Sweden', 'Swedish', 'SE' ) ),
+			array( 'DK', 'Denmark', array( 'Denmark', 'Danish', 'DK' ) ),
+			array( 'FI', 'Finland', array( 'Finland', 'Finnish', 'FI' ) ),
+			array( 'PL', 'Poland', array( 'Poland', 'Polish', 'PL' ) ),
+			array( 'CH', 'Switzerland', array( 'Switzerland', 'Swiss', 'CH' ) ),
+			array( 'GR', 'Greece', array( 'Greece', 'Greek', 'GR' ) ),
+			array( 'CZ', 'Czechia', array( 'Czechia', 'Czech Republic', 'Czech', 'CZ' ) ),
+			array( 'NZ', 'New Zealand', array( 'New Zealand', 'NZ' ) ),
+			array( 'JP', 'Japan', array( 'Japan', 'Japanese', 'JP' ) ),
+			array( 'BR', 'Brazil', array( 'Brazil', 'Brazilian', 'BR' ) ),
+			array( 'MX', 'Mexico', array( 'Mexico', 'Mexican', 'MX' ) ),
+			array( 'IN', 'India', array( 'India', 'Indian', 'IN' ) ),
 		);
 		$out = array();
 		foreach ( $rows as $idx => $row ) {
@@ -128,6 +144,18 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 				'display_name' => 'Sunny',
 				'aliases'      => array( 'sun', 'sunny', 'sunshine', 'when it is sunny', "when it's sunny", 'when its sunny' ),
 				'value'        => 'sunny',
+			),
+			array(
+				'entity_key'   => 'snow',
+				'display_name' => 'Snow',
+				'aliases'      => array( 'snow', 'snowing', 'snowy', 'when it is snowing', "when it's snowing", 'when its snowing' ),
+				'value'        => 'snow',
+			),
+			array(
+				'entity_key'   => 'cloudy',
+				'display_name' => 'Cloudy',
+				'aliases'      => array( 'cloud', 'cloudy', 'overcast', 'when it is cloudy', "when it's cloudy" ),
+				'value'        => 'cloudy',
 			),
 			array(
 				'entity_key'   => 'any',

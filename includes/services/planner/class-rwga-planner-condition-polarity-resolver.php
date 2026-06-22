@@ -70,10 +70,44 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 			}
 		}
 
+		// Pronoun-hide exclusions ("but don't show it to tablet users") only split
+		// off when a substantial positive instruction remains; otherwise the clause
+		// itself is the hide action and the condition stays in the include group.
+		if ( '' === $exclude ) {
+			$pronoun_patterns = array(
+				'/\bbut\s+(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+(.+)$/i',
+				'/\b(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+(.+)$/i',
+				'/\bbut\s+(?:hide|exclude)\s+it\s+from\s+(.+)$/i',
+			);
+			foreach ( $pronoun_patterns as $pattern ) {
+				if ( ! preg_match( $pattern, $include, $m ) ) {
+					continue;
+				}
+				$candidate_exclude = trim( (string) $m[1] );
+				$candidate_include = trim( (string) preg_replace( $pattern, '', $include ) );
+				if ( self::is_substantial_include( $candidate_include ) ) {
+					$exclude = $candidate_exclude;
+					$include = $candidate_include;
+				}
+				break;
+			}
+		}
+
 		return array(
 			'include_text' => trim( $include, " \t\n\r\0\x0B,." ),
 			'exclude_text' => trim( $exclude, " \t\n\r\0\x0B,." ),
 		);
+	}
+
+	/**
+	 * @param string $text Candidate include remainder.
+	 * @return bool
+	 */
+	private static function is_substantial_include( $text ) {
+		$text = strtolower( (string) $text );
+		$text = (string) preg_replace( '/\b(?:but|and|then|so|it|to|the|a|an|that|which|should|will|would)\b/i', ' ', $text );
+		$text = trim( (string) preg_replace( '/\s+/', ' ', $text ) );
+		return strlen( $text ) > 3;
 	}
 
 	/**
