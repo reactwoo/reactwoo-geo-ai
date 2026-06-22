@@ -47,24 +47,93 @@ class RWGA_Planner_Action_Clause_Splitter {
 			return array();
 		}
 
-		$coarse = self::coarse_split( $phrase );
-		if ( count( $coarse ) >= 2 ) {
-			return $coarse;
+		$segments     = self::split_rule_segments( $phrase );
+		$clauses      = array();
+		$main_clauses = self::coarse_split( $segments['main'] );
+		if ( count( $main_clauses ) < 1 ) {
+			$main_clauses = array(
+				array(
+					'raw'   => $segments['main'],
+					'index' => 0,
+				),
+			);
 		}
 
-		if ( class_exists( 'RWGA_Variant_Plan_Parser', false )
-			&& RWGA_Variant_Plan_Parser::is_variant_plan_command( $phrase ) ) {
-			$segments = RWGA_Variant_Plan_Parser::split_segments( $phrase );
-			if ( count( $segments ) >= 2 ) {
-				return self::segments_to_clauses( $segments );
+		foreach ( $main_clauses as $row ) {
+			$raw    = trim( (string) ( $row['raw'] ?? '' ) );
+			$parent = class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false )
+				? RWGA_Planner_Parent_Variant_Resolver::detect_parent( $raw )
+				: null;
+			$children = ( is_array( $parent ) && class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false ) )
+				? RWGA_Planner_Parent_Variant_Resolver::split_child_clauses( $raw, $parent )
+				: array();
+
+			if ( is_array( $parent ) && count( $children ) >= 2 ) {
+				foreach ( $children as $idx => $child ) {
+					$clauses[] = array(
+						'raw'    => $child,
+						'index'  => count( $clauses ),
+						'type'   => 'variant_child',
+						'parent' => $parent,
+					);
+				}
+				continue;
 			}
+
+			if ( class_exists( 'RWGA_Variant_Plan_Parser', false )
+				&& RWGA_Variant_Plan_Parser::is_variant_plan_command( $raw ) ) {
+				$variant_segments = RWGA_Variant_Plan_Parser::split_segments( $raw );
+				if ( count( $variant_segments ) >= 2 ) {
+					foreach ( self::segments_to_clauses( $variant_segments ) as $segment_clause ) {
+						$segment_clause['index'] = count( $clauses );
+						$clauses[]               = $segment_clause;
+					}
+					continue;
+				}
+			}
+
+			$clauses[] = array(
+				'raw'   => $raw,
+				'index' => count( $clauses ),
+			);
+		}
+
+		foreach ( $segments['rules'] as $rule_clause ) {
+			$clauses[] = array(
+				'raw'   => $rule_clause,
+				'index' => count( $clauses ),
+				'type'  => 'rule',
+			);
+		}
+
+		if ( empty( $clauses ) ) {
+			return array(
+				array(
+					'raw'   => $phrase,
+					'index' => 0,
+				),
+			);
+		}
+
+		return $clauses;
+	}
+
+	/**
+	 * @param string $phrase Normalised phrase.
+	 * @return array{main:string,rules:array<int,string>}
+	 */
+	private static function split_rule_segments( $phrase ) {
+		$rules = array();
+		$main  = $phrase;
+
+		if ( preg_match( '/^(.*?)(?:\.\s*)?\balso\s+create\s+(?:a\s+)?rule\b(.+)$/i', $phrase, $m ) ) {
+			$main = trim( (string) $m[1] );
+			$rules[] = trim( 'create a rule' . (string) $m[2] );
 		}
 
 		return array(
-			array(
-				'raw'   => $phrase,
-				'index' => 0,
-			),
+			'main'  => $main,
+			'rules' => $rules,
 		);
 	}
 
@@ -73,7 +142,7 @@ class RWGA_Planner_Action_Clause_Splitter {
 	 * @return array<int,array{raw:string,index:int}>
 	 */
 	private static function coarse_split( $phrase ) {
-		$pattern = '/(?:^|[,.;]|\s+-\s+|\band then\b|\bthen\b)(?=\s*(?:update|create|change|show|hide|only show|display|make|test|diagnose)\b)/i';
+		$pattern = '/(?:^|[,.;]|\s+-\s+|\s*[—–]\s+|\band then\b|\bthen\b)(?=\s*(?:update|create|change|show|hide|only show|display|make|test|diagnose)\b)/i';
 		$parts   = preg_split( $pattern, $phrase, -1, PREG_SPLIT_NO_EMPTY );
 		if ( ! is_array( $parts ) || count( $parts ) < 2 ) {
 			return array();

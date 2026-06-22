@@ -309,7 +309,7 @@ class RWGA_Variant_Plan_Parser {
 		$variant_source = null;
 		$original_page  = null;
 
-		if ( preg_match( '/\bvariants?\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s+page|homepage|checkout|cart)\b/i', $phrase, $m ) ) {
+		if ( preg_match( '/\bvariants?\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s+page|homepage|checkout|cart|pricing(?:\s+page)?|contact(?:\s+page)?)\b/i', $phrase, $m ) ) {
 			$variant_source = self::normalise_page_token( (string) $m[1] );
 		}
 		if ( preg_match( '/\boriginal\s+(shop(?:\s+page)?|home\s+page|homepage|checkout|cart)\b/i', $phrase, $m ) ) {
@@ -353,6 +353,12 @@ class RWGA_Variant_Plan_Parser {
 		}
 		if ( in_array( $token, array( 'homepage', 'home page', 'home' ), true ) ) {
 			return 'homepage';
+		}
+		if ( in_array( $token, array( 'pricing', 'pricing page' ), true ) ) {
+			return 'pricing';
+		}
+		if ( in_array( $token, array( 'contact', 'contact page' ), true ) ) {
+			return 'contact';
 		}
 		if ( 'checkout' === $token ) {
 			return 'checkout';

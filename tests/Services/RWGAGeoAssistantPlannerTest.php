@@ -50,6 +50,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-planner-target-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-condition-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-variant-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-parent-variant-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-resolve-clarifications.php';
 		require_once $base . 'services/planner/class-rwga-planner-confirmation-builder.php';
 		require_once $base . 'services/planner/class-rwga-planner-learned-patterns.php';
@@ -165,5 +166,49 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
 		$this->assertStringContainsString( '1 action', (string) ( $plan['setupSummary'] ?? '' ) );
 		$this->assertStringContainsString( 'France', (string) ( $plan['confirmationSummary'] ?? '' ) );
+	}
+
+	public function test_pricing_variants_with_devices_and_separate_popup_rule(): void {
+		$input = 'Create two new variants of the pricing page — one should show only in Portugal for mobile users, and the other should show in Germany and France for desktop users. Also create a rule to hide the winter promo popup for visitors in England.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 3, $plan['actions'], 'Expected three independent actions.' );
+
+		foreach ( $plan['actions'] as $action ) {
+			$this->assertStringNotContainsString(
+				'homepage',
+				strtolower( (string) ( $action['target']['label'] ?? '' ) . (string) ( $action['target']['slug'] ?? '' ) ),
+				'Homepage must not appear when it was not mentioned.'
+			);
+		}
+
+		$variant_one = $plan['actions'][0];
+		$variant_two = $plan['actions'][1];
+		$rule        = $plan['actions'][2];
+
+		$this->assertSame( 'create_variant', $variant_one['type'] );
+		$this->assertStringContainsString( 'pricing', strtolower( (string) ( $variant_one['target']['label'] ?? '' ) ) );
+		$this->assertSame( array( 'PT' ), $variant_one['conditions']['countries'] );
+		$this->assertSame( array(), $variant_one['conditions']['regions'] );
+		$this->assertSame( array( 'mobile' ), $variant_one['conditions']['devices'] );
+		$this->assertSame( 'only_show', $variant_one['operation']['visibility'] );
+
+		$this->assertSame( 'create_variant', $variant_two['type'] );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'FR' ), $variant_two['conditions']['countries'] );
+		$this->assertSame( array(), $variant_two['conditions']['regions'] );
+		$this->assertSame( array( 'desktop' ), $variant_two['conditions']['devices'] );
+		$this->assertSame( 'show', $variant_two['operation']['visibility'] );
+
+		$this->assertSame( 'create_rule', $rule['type'] );
+		$this->assertSame( 'popup', $rule['target']['type'] );
+		$this->assertStringContainsString( 'winter promo popup', strtolower( (string) ( $rule['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'hide', $rule['operation']['visibility'] );
+		$this->assertSame( array(), $rule['conditions']['countries'] );
+		$this->assertContains( 'GB-ENG', $rule['conditions']['regions'] );
+		$this->assertSame( array(), $rule['conditions']['devices'] );
+		$this->assertNotContains( 'DE', $rule['conditions']['countries'] );
+		$this->assertNotContains( 'FR', $rule['conditions']['countries'] );
+		$this->assertNotContains( 'PT', $rule['conditions']['countries'] );
+		$this->assertNotEmpty( $rule['warnings'] ?? array() );
 	}
 }

@@ -10,13 +10,40 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_Planner_Action_Type_Detector {
 
 	/**
-	 * @param string $clause Normalised clause.
+	 * @param string              $clause     Normalised clause.
+	 * @param array<string,mixed> $clause_row Clause metadata.
 	 * @return array{type:string,visibility:string,mode:string,confidence:float}
 	 */
-	public static function detect( $clause ) {
+	public static function detect( $clause, array $clause_row = array() ) {
 		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
 		$visibility = 'show';
 		$mode       = 'update';
+
+		if ( 'rule' === (string) ( $clause_row['type'] ?? '' )
+			|| preg_match( '/\bcreate\s+(?:a\s+)?rule\b/i', $clause ) ) {
+			if ( preg_match( '/\b(?:hide|exclude|block)\b/i', $clause ) ) {
+				return array(
+					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+					'visibility' => 'hide',
+					'mode'       => 'create',
+					'confidence' => 0.9,
+				);
+			}
+		}
+
+		if ( 'variant_child' === (string) ( $clause_row['type'] ?? '' )
+			|| ( class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false )
+				&& RWGA_Planner_Parent_Variant_Resolver::is_variant_child_clause( $clause ) ) ) {
+			$visibility = preg_match( '/\b(?:only|just)\s+(?:show|display)\b|\bshow\s+only\b|\bonly\s+show\b/i', $clause )
+				? 'only_show'
+				: 'show';
+			return array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_VARIANT,
+				'visibility' => $visibility,
+				'mode'       => 'create',
+				'confidence' => 0.9,
+			);
+		}
 
 		if ( preg_match( '/\b(?:test|preview|simulate|check what)\b/i', $clause ) ) {
 			return array(

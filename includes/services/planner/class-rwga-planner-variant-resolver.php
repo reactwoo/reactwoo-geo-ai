@@ -25,7 +25,7 @@ class RWGA_Planner_Variant_Resolver {
 
 		$pair = self::extract_pair_from_clause( $clause, $entities );
 		if ( count( $pair ) >= 2 ) {
-			return self::pair_to_actions( $pair, $target, $type_row );
+			return self::pair_to_actions( $pair, $target, $type_row, $entities );
 		}
 
 		$cond = RWGA_Planner_Condition_Resolver::resolve( $clause, $entities );
@@ -237,36 +237,29 @@ class RWGA_Planner_Variant_Resolver {
 	 * @param array<string,mixed>            $type_row Type row.
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function pair_to_actions( array $pair, array $target, array $type_row ) {
+	private static function pair_to_actions( array $pair, array $target, array $type_row, array $entities ) {
 		$actions = array();
 		foreach ( $pair as $idx => $row ) {
 			$raw       = (string) ( $row['raw'] ?? '' );
-			$countries = (array) ( $row['countries'] ?? array() );
-			$regions   = array();
-			$loc       = RWGA_Planner_Location_Resolver::resolve_from_text( $raw, array() );
-			if ( ! empty( $loc['regions'] ) ) {
-				$regions   = $loc['regions'];
-				$countries = $loc['countries'];
-			}
+			$child_raw = (string) ( $row['child_clause'] ?? $raw );
+			$cond      = RWGA_Planner_Condition_Resolver::resolve( $child_raw, $entities );
+			$countries = (array) ( $cond['conditions']['countries'] ?? array() );
+			$regions   = (array) ( $cond['conditions']['regions'] ?? array() );
+			$visibility = preg_match( '/\b(?:only|just)\s+(?:show|display)\b|\bshow\s+only\b|\bonly\s+show\b/i', $child_raw )
+				? 'only_show'
+				: (string) $type_row['visibility'];
+			$type_row['visibility'] = $visibility;
 			$actions[] = self::make_action(
 				$type_row,
 				$target,
 				$idx + 1,
 				array(
-					'conditions'      => array(
-						'countries' => $countries,
-						'regions'   => $regions,
-						'devices'   => array(),
-						'weather'   => array(),
-						'campaigns' => array(),
-						'urls'      => array(),
-						'audiences' => array(),
-					),
-					'location_labels' => $loc['labels'],
-					'warnings'        => $loc['warnings'],
-					'confidence'      => 0.9,
+					'conditions'      => $cond['conditions'],
+					'location_labels' => $cond['location_labels'] ?? array(),
+					'warnings'        => $cond['warnings'] ?? array(),
+					'confidence'      => (float) ( $cond['confidence'] ?? 0.9 ),
 				),
-				$raw,
+				$child_raw,
 				'variant',
 				(string) ( $row['label'] ?? '' )
 			);

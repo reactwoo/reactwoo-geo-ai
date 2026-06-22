@@ -32,18 +32,16 @@ class RWGA_Geo_Assistant_Planner {
 			$decisions[] = 'learned_pattern_matched';
 		}
 
-		$page_context = class_exists( 'RWGA_Variant_Plan_Parser', false )
-			? RWGA_Variant_Plan_Parser::detect_page_context( $phrase )
-			: array();
+		$page_context = array();
 
 		$actions = array();
 		$clauses = RWGA_Planner_Action_Clause_Splitter::split( $phrase );
 		$plan['debug']['clauses'] = $clauses;
 
-		if ( count( $clauses ) > 1 ) {
+		if ( count( $clauses ) > 1 || self::clauses_have_typed_rows( $clauses ) ) {
 			foreach ( $clauses as $clause_row ) {
-				$built = self::build_actions_from_clause(
-					(string) ( $clause_row['raw'] ?? '' ),
+				$built = self::build_actions_from_clause_row(
+					$clause_row,
 					$phrase,
 					$entities,
 					$context,
@@ -78,6 +76,9 @@ class RWGA_Geo_Assistant_Planner {
 			$decisions[]    = 'variant_grouping_ambiguous';
 		}
 
+		$page_context = class_exists( 'RWGA_Variant_Plan_Parser', false )
+			? RWGA_Variant_Plan_Parser::detect_page_context( $phrase )
+			: array();
 		$clarification = RWGA_Planner_Resolve_Clarifications::detect( $actions, $phrase, $page_context, $entities );
 		if ( is_array( $clarification ) ) {
 			$plan['clarification'] = $clarification;
@@ -85,15 +86,22 @@ class RWGA_Geo_Assistant_Planner {
 		}
 
 		$warnings = array();
-		foreach ( $actions as $action ) {
+		foreach ( $actions as $idx => $action ) {
 			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			if ( ! empty( $action['warnings'] ) && is_array( $action['warnings'] ) ) {
+				$warnings = array_merge( $warnings, $action['warnings'] );
 				continue;
 			}
 			$loc = RWGA_Planner_Location_Resolver::resolve_from_text(
 				(string) ( $action['sourceClause'] ?? $phrase ),
 				$entities
 			);
-			$warnings = array_merge( $warnings, $loc['warnings'] );
+			if ( ! empty( $loc['warnings'] ) ) {
+				$actions[ $idx ]['warnings'] = $loc['warnings'];
+				$warnings                    = array_merge( $warnings, $loc['warnings'] );
+			}
 		}
 		$plan['warnings'] = array_values( array_unique( $warnings ) );
 		$plan['actions']  = $actions;
@@ -125,18 +133,62 @@ class RWGA_Geo_Assistant_Planner {
 	}
 
 	/**
-	 * @param string              $clause       Clause text.
+	 * @param array<string,mixed> $clause_row   Clause row from splitter.
 	 * @param string              $phrase       Full phrase.
 	 * @param array<int,array>    $entities     Entities.
 	 * @param array<string,mixed> $context      Context.
 	 * @param array<string,mixed> $page_context Page context.
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function build_actions_from_clause( $clause, $phrase, array $entities, array $context, array $page_context ) {
+	private static function build_actions_from_clause_row( array $clause_row, $phrase, array $entities, array $context, array $page_context ) {
+		$clause = trim( (string) ( $clause_row['raw'] ?? '' ) );
+		$type   = (string) ( $clause_row['type'] ?? '' );
+
+		if ( 'variant_child' === $type && ! empty( $clause_row['parent'] ) && is_array( $clause_row['parent'] ) ) {
+			return array(
+				RWGA_Planner_Parent_Variant_Resolver::build_child_action(
+					$clause,
+					$clause_row['parent'],
+					$entities,
+					isset( $clause_row['index'] ) ? (int) $clause_row['index'] + 1 : null
+				),
+			);
+		}
+
+		return self::build_actions_from_clause( $clause, $phrase, $entities, $context, $page_context, $clause_row );
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $clauses Clause rows.
+	 * @return bool
+	 */
+	private static function clauses_have_typed_rows( array $clauses ) {
+		foreach ( $clauses as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$type = (string) ( $row['type'] ?? '' );
+			if ( in_array( $type, array( 'variant_child', 'rule' ), true ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @param string                   $clause       Clause text.
+	 * @param string                   $phrase       Full phrase.
+	 * @param array<int,array>         $entities     Entities.
+	 * @param array<string,mixed>      $context      Context.
+	 * @param array<string,mixed>      $page_context Page context.
+	 * @param array<string,mixed>|null $clause_row   Optional clause metadata.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function build_actions_from_clause( $clause, $phrase, array $entities, array $context, array $page_context, $clause_row = null ) {
 		unset( $page_context );
 		$clause   = trim( (string) $clause );
-		$type_row = RWGA_Planner_Action_Type_Detector::detect( $clause );
-		$target   = RWGA_Planner_Target_Resolver::resolve( $clause, $phrase, $context, (string) $type_row['type'] );
+		$type_row = RWGA_Planner_Action_Type_Detector::detect( $clause, is_array( $clause_row ) ? $clause_row : array() );
+		$target   = RWGA_Planner_Target_Resolver::resolve( $clause, $phrase, $context, (string) $type_row['type'], is_array( $clause_row ) ? $clause_row : array() );
 
 		if ( RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type']
 			&& ( RWGA_Planner_Action_Clause_Splitter::has_variant_pair_marker( $clause )
@@ -163,6 +215,7 @@ class RWGA_Geo_Assistant_Planner {
 				),
 				'conditions'          => $cond['conditions'],
 				'location_labels'     => $cond['location_labels'] ?? array(),
+				'warnings'            => $cond['warnings'] ?? array(),
 				'operation'           => array(
 					'visibility' => (string) $type_row['visibility'],
 					'mode'       => (string) $type_row['mode'],
