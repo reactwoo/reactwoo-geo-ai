@@ -1,6 +1,6 @@
 <?php
 /**
- * Resolve per-clause targeting conditions (location, device, weather).
+ * Resolve per-clause targeting conditions (location, device, weather) with include/exclude polarity.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -12,39 +12,93 @@ class RWGA_Planner_Condition_Resolver {
 	/**
 	 * @param string           $clause   Clause text (or sub-segment).
 	 * @param array<int,array> $entities Entity rows.
-	 * @return array{conditions:array,warnings:array,confidence:float}
+	 * @return array{conditions:array,warnings:array,confidence:float,location_labels:array}
 	 */
 	public static function resolve( $clause, array $entities ) {
-		$clause   = RWGA_Local_Intent_Interpreter::normalise( $clause );
-		$location = RWGA_Planner_Location_Resolver::resolve_from_text( $clause, $entities );
-		$devices  = self::detect_devices( $clause );
-		$weather  = class_exists( 'RWGA_Segment_Condition_Extractor', false )
-			? RWGA_Segment_Condition_Extractor::extract_weather( $clause, $entities )
-			: null;
+		$clause  = RWGA_Local_Intent_Interpreter::normalise( $clause );
+		$split   = RWGA_Planner_Condition_Polarity_Resolver::split_text( $clause );
+		$include = self::resolve_group( (string) $split['include_text'], $entities );
+		$exclude = '' !== (string) $split['exclude_text']
+			? self::resolve_group( (string) $split['exclude_text'], $entities )
+			: array(
+				'countries' => array(),
+				'regions'   => array(),
+				'devices'   => array(),
+				'weather'   => array(),
+				'urls'      => array(),
+				'campaigns' => array(),
+				'audiences' => array(),
+				'warnings'  => array(),
+				'labels'    => array(),
+			);
 
 		$conditions = array(
-			'countries'  => $location['countries'],
-			'regions'    => $location['regions'],
-			'devices'    => $devices,
-			'weather'    => array_filter( array( $weather ) ),
-			'campaigns'  => array(),
-			'urls'       => array(),
-			'audiences'  => array(),
+			'include' => array(
+				'countries' => $include['countries'],
+				'regions'   => $include['regions'],
+				'devices'   => $include['devices'],
+				'weather'   => $include['weather'],
+				'urls'      => $include['urls'],
+				'campaigns' => $include['campaigns'],
+				'audiences' => $include['audiences'],
+			),
+			'exclude' => array(
+				'countries' => $exclude['countries'],
+				'regions'   => $exclude['regions'],
+				'devices'   => $exclude['devices'],
+				'weather'   => $exclude['weather'],
+				'urls'      => $exclude['urls'],
+				'campaigns' => $exclude['campaigns'],
+				'audiences' => $exclude['audiences'],
+			),
 		);
 
+		$warnings = array_values( array_unique( array_merge( $include['warnings'], $exclude['warnings'] ) ) );
 		$confidence = 0.7;
-		if ( ! empty( $conditions['countries'] ) || ! empty( $conditions['regions'] ) ) {
+		if ( ! empty( $include['countries'] ) || ! empty( $include['regions'] ) || ! empty( $exclude['countries'] ) ) {
 			$confidence = 0.88;
 		}
-		if ( ! empty( $devices ) ) {
+		if ( ! empty( $include['devices'] ) || ! empty( $exclude['devices'] ) ) {
 			$confidence = min( 0.95, $confidence + 0.04 );
+		}
+		if ( ! empty( $include['urls'] ) ) {
+			$confidence = min( 0.96, $confidence + 0.03 );
 		}
 
 		return array(
-			'conditions'       => $conditions,
-			'warnings'         => $location['warnings'],
-			'location_labels'  => $location['labels'],
-			'confidence'       => $confidence,
+			'conditions'      => $conditions,
+			'warnings'        => $warnings,
+			'location_labels' => $include['labels'],
+			'confidence'      => $confidence,
+		);
+	}
+
+	/**
+	 * @param string           $text     Text segment.
+	 * @param array<int,array> $entities Entities.
+	 * @return array{countries:array,regions:array,devices:array,weather:array,urls:array,campaigns:array,audiences:array,warnings:array,labels:array}
+	 */
+	private static function resolve_group( $text, array $entities ) {
+		$text     = RWGA_Local_Intent_Interpreter::normalise( $text );
+		$location = RWGA_Planner_Location_Resolver::resolve_from_text( $text, $entities );
+		$devices  = self::detect_devices( $text );
+		$weather  = class_exists( 'RWGA_Segment_Condition_Extractor', false )
+			? RWGA_Segment_Condition_Extractor::extract_weather( $text, $entities )
+			: null;
+		$urls     = class_exists( 'RWGA_Planner_Url_Condition_Resolver', false )
+			? RWGA_Planner_Url_Condition_Resolver::extract_paths( $text )
+			: array();
+
+		return array(
+			'countries' => $location['countries'],
+			'regions'   => $location['regions'],
+			'devices'   => $devices,
+			'weather'   => array_values( array_filter( array( $weather ) ) ),
+			'urls'      => $urls,
+			'campaigns' => array(),
+			'audiences' => array(),
+			'warnings'  => $location['warnings'],
+			'labels'    => $location['labels'],
 		);
 	}
 

@@ -94,6 +94,7 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 			array( 'FR', 'France', array( 'France', 'French', 'FR' ) ),
 			array( 'RU', 'Russia', array( 'Russia', 'Russian', 'RU', 'russia' ) ),
 			array( 'PT', 'Portugal', array( 'Portugal', 'Portuguese', 'PT' ) ),
+			array( 'ES', 'Spain', array( 'Spain', 'Spanish', 'ES' ) ),
 		);
 		$out = array();
 		foreach ( $rows as $idx => $row ) {

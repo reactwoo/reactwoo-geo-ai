@@ -222,14 +222,15 @@ class RWGA_Planner_Parent_Variant_Resolver {
 	 */
 	private static function variant_label( array $target, array $cond, $clause ) {
 		$page_label = ucfirst( (string) ( $target['label'] ?? 'page' ) );
+		$include = RWGA_Planner_Condition_Polarity_Resolver::include_group( $cond['conditions'] ?? array() );
 		$loc_parts  = array();
 		if ( ! empty( $cond['location_labels'] ) ) {
 			$loc_parts = (array) $cond['location_labels'];
 		} else {
 			$loc = RWGA_Planner_Location_Resolver::display_label(
 				array(
-					'countries' => $cond['conditions']['countries'] ?? array(),
-					'regions'   => $cond['conditions']['regions'] ?? array(),
+					'countries' => $include['countries'] ?? array(),
+					'regions'   => $include['regions'] ?? array(),
 					'labels'    => array(),
 				)
 			);
@@ -237,11 +238,11 @@ class RWGA_Planner_Parent_Variant_Resolver {
 				$loc_parts[] = $loc;
 			}
 		}
-		$devices = (array) ( $cond['conditions']['devices'] ?? array() );
+		$devices = (array) ( $include['devices'] ?? array() );
 		if ( ! empty( $devices ) ) {
 			$loc_parts[] = ucfirst( implode( ' + ', $devices ) );
 		}
-		$weather = array_values( array_filter( (array) ( $cond['conditions']['weather'] ?? array() ) ) );
+		$weather = array_values( array_filter( (array) ( $include['weather'] ?? array() ) ) );
 		if ( ! empty( $weather ) ) {
 			$loc_parts[] = ucfirst( (string) $weather[0] );
 		}

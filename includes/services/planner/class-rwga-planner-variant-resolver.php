@@ -28,8 +28,9 @@ class RWGA_Planner_Variant_Resolver {
 			return self::pair_to_actions( $pair, $target, $type_row, $entities );
 		}
 
-		$cond = RWGA_Planner_Condition_Resolver::resolve( $clause, $entities );
-		if ( empty( $cond['conditions']['countries'] ) && empty( $cond['conditions']['regions'] ) ) {
+		$cond    = RWGA_Planner_Condition_Resolver::resolve( $clause, $entities );
+		$include = RWGA_Planner_Condition_Polarity_Resolver::include_group( $cond['conditions'] ?? array() );
+		if ( empty( $include['countries'] ) && empty( $include['regions'] ) ) {
 			return array();
 		}
 
@@ -242,9 +243,7 @@ class RWGA_Planner_Variant_Resolver {
 		foreach ( $pair as $idx => $row ) {
 			$raw       = (string) ( $row['raw'] ?? '' );
 			$child_raw = (string) ( $row['child_clause'] ?? $raw );
-			$cond      = RWGA_Planner_Condition_Resolver::resolve( $child_raw, $entities );
-			$countries = (array) ( $cond['conditions']['countries'] ?? array() );
-			$regions   = (array) ( $cond['conditions']['regions'] ?? array() );
+			$cond    = RWGA_Planner_Condition_Resolver::resolve( $child_raw, $entities );
 			$visibility = preg_match( '/\b(?:only|just)\s+(?:show|display)\b|\bshow\s+only\b|\bonly\s+show\b/i', $child_raw )
 				? 'only_show'
 				: (string) $type_row['visibility'];
@@ -280,10 +279,11 @@ class RWGA_Planner_Variant_Resolver {
 	private static function make_action( array $type_row, array $target, $index, array $cond, $clause, $relationship = 'variant', $label = '' ) {
 		$page_label = (string) ( $target['label'] ?? 'page' );
 		if ( '' === $label ) {
+			$include   = RWGA_Planner_Condition_Polarity_Resolver::include_group( $cond['conditions'] ?? array() );
 			$loc_label = RWGA_Planner_Location_Resolver::display_label(
 				array(
-					'countries' => $cond['conditions']['countries'] ?? array(),
-					'regions'   => $cond['conditions']['regions'] ?? array(),
+					'countries' => $include['countries'] ?? array(),
+					'regions'   => $include['regions'] ?? array(),
 					'labels'    => array(),
 				)
 			);

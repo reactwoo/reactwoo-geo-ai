@@ -111,6 +111,12 @@ class RWGA_Planner_Confirmation_Builder {
 		$label  = (string) ( $target['label'] ?? 'page' );
 
 		switch ( $type ) {
+			case RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING:
+				return sprintf(
+					/* translators: %s: target label */
+					__( 'Campaign targeting for %s', 'reactwoo-geo-ai' ),
+					$label
+				);
 			case RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING:
 				return sprintf(
 					/* translators: %s: page label */
@@ -146,6 +152,7 @@ class RWGA_Planner_Confirmation_Builder {
 	 */
 	private static function type_label( $type ) {
 		$map = array(
+			RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING => __( 'Update campaign targeting', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING => __( 'Update original targeting', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::CREATE_VARIANT            => __( 'Create variant', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::CREATE_RULE               => __( 'Create rule', 'reactwoo-geo-ai' ),
@@ -161,11 +168,12 @@ class RWGA_Planner_Confirmation_Builder {
 	 */
 	private static function location_line( array $action ) {
 		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
+		$include    = RWGA_Planner_Condition_Polarity_Resolver::include_group( $conditions );
 		$labels     = (array) ( $action['location_labels'] ?? array() );
 		if ( ! empty( $labels ) ) {
 			return implode( ' + ', $labels );
 		}
-		foreach ( (array) ( $conditions['regions'] ?? array() ) as $region ) {
+		foreach ( (array) ( $include['regions'] ?? array() ) as $region ) {
 			if ( 'GB-ENG' === $region ) {
 				$labels[] = 'England';
 			} else {
@@ -177,8 +185,8 @@ class RWGA_Planner_Confirmation_Builder {
 		}
 		return RWGA_Planner_Location_Resolver::display_label(
 			array(
-				'countries' => $conditions['countries'] ?? array(),
-				'regions'   => $conditions['regions'] ?? array(),
+				'countries' => $include['countries'] ?? array(),
+				'regions'   => $include['regions'] ?? array(),
 				'labels'    => array(),
 			)
 		);

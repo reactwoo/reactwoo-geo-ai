@@ -45,6 +45,12 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/class-rwga-site-interpretation-preferences.php';
 		require_once $base . 'services/planner/class-rwga-geo-action-types.php';
 		require_once $base . 'services/planner/class-rwga-planner-location-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-condition-polarity-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-inherited-target-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-campaign-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-url-condition-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-narrative-clause-splitter.php';
+		require_once $base . 'services/planner/class-rwga-planner-second-version-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-action-clause-splitter.php';
 		require_once $base . 'services/planner/class-rwga-planner-action-type-detector.php';
 		require_once $base . 'services/planner/class-rwga-planner-target-resolver.php';
@@ -70,6 +76,24 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 	}
 
 	/**
+	 * @param array<string,mixed> $action Action row.
+	 * @return array<string,mixed>
+	 */
+	private function include_of( array $action ): array {
+		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
+		return is_array( $conditions['include'] ?? null ) ? $conditions['include'] : $conditions;
+	}
+
+	/**
+	 * @param array<string,mixed> $action Action row.
+	 * @return array<string,mixed>
+	 */
+	private function exclude_of( array $action ): array {
+		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
+		return is_array( $conditions['exclude'] ?? null ) ? $conditions['exclude'] : array();
+	}
+
+	/**
 	 * @param array<string,mixed> $plan Plan.
 	 * @return array<int,array<int,string|array<int,string>>>
 	 */
@@ -79,9 +103,9 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 			if ( ! is_array( $action ) ) {
 				continue;
 			}
-			$conds    = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
-			$regions  = (array) ( $conds['regions'] ?? array() );
-			$countries = (array) ( $conds['countries'] ?? array() );
+			$include   = $this->include_of( $action );
+			$regions   = (array) ( $include['regions'] ?? array() );
+			$countries = (array) ( $include['countries'] ?? array() );
 			$location = ! empty( $regions ) ? $regions[0] : ( $countries[0] ?? '' );
 			if ( count( $countries ) > 1 && empty( $regions ) ) {
 				$location = $countries;
@@ -91,8 +115,8 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 				(string) ( $action['target']['label'] ?? '' ),
 				$location,
 			);
-			if ( ! empty( $conds['devices'] ) ) {
-				$rows[ count( $rows ) - 1 ][] = implode( ',', (array) $conds['devices'] );
+			if ( ! empty( $include['devices'] ) ) {
+				$rows[ count( $rows ) - 1 ][] = implode( ',', (array) $include['devices'] );
 			}
 		}
 		return $rows;
@@ -141,8 +165,9 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$action = $plan['actions'][0];
 		$this->assertSame( 'create_rule', $action['type'] );
 		$this->assertStringContainsString( 'summer', (string) ( $action['target']['label'] ?? '' ) );
-		$this->assertSame( array( 'DE' ), $action['conditions']['countries'] );
-		$this->assertSame( array( 'mobile' ), $action['conditions']['devices'] );
+		$include = $this->include_of( $action );
+		$this->assertSame( array( 'DE' ), $include['countries'] );
+		$this->assertSame( array( 'mobile' ), $include['devices'] );
 	}
 
 	public function test_create_test_portugal_shop_page(): void {
@@ -152,7 +177,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$action = $plan['actions'][0];
 		$this->assertSame( 'create_test', $action['type'] );
 		$this->assertSame( 'shop', $action['target']['slug'] ?? $action['target']['label'] );
-		$this->assertSame( array( 'PT' ), $action['conditions']['countries'] );
+		$this->assertSame( array( 'PT' ), $this->include_of( $action )['countries'] );
 	}
 
 	public function test_variant_grouping_ambiguous(): void {
@@ -189,27 +214,30 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 
 		$this->assertSame( 'create_variant', $variant_one['type'] );
 		$this->assertStringContainsString( 'pricing', strtolower( (string) ( $variant_one['target']['label'] ?? '' ) ) );
-		$this->assertSame( array( 'PT' ), $variant_one['conditions']['countries'] );
-		$this->assertSame( array(), $variant_one['conditions']['regions'] );
-		$this->assertSame( array( 'mobile' ), $variant_one['conditions']['devices'] );
+		$include_one = $this->include_of( $variant_one );
+		$this->assertSame( array( 'PT' ), $include_one['countries'] );
+		$this->assertSame( array(), $include_one['regions'] );
+		$this->assertSame( array( 'mobile' ), $include_one['devices'] );
 		$this->assertSame( 'only_show', $variant_one['operation']['visibility'] );
 
 		$this->assertSame( 'create_variant', $variant_two['type'] );
-		$this->assertEqualsCanonicalizing( array( 'DE', 'FR' ), $variant_two['conditions']['countries'] );
-		$this->assertSame( array(), $variant_two['conditions']['regions'] );
-		$this->assertSame( array( 'desktop' ), $variant_two['conditions']['devices'] );
+		$include_two = $this->include_of( $variant_two );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'FR' ), $include_two['countries'] );
+		$this->assertSame( array(), $include_two['regions'] );
+		$this->assertSame( array( 'desktop' ), $include_two['devices'] );
 		$this->assertSame( 'show', $variant_two['operation']['visibility'] );
 
 		$this->assertSame( 'create_rule', $rule['type'] );
 		$this->assertSame( 'popup', $rule['target']['type'] );
 		$this->assertStringContainsString( 'winter promo popup', strtolower( (string) ( $rule['target']['label'] ?? '' ) ) );
 		$this->assertSame( 'hide', $rule['operation']['visibility'] );
-		$this->assertSame( array(), $rule['conditions']['countries'] );
-		$this->assertContains( 'GB-ENG', $rule['conditions']['regions'] );
-		$this->assertSame( array(), $rule['conditions']['devices'] );
-		$this->assertNotContains( 'DE', $rule['conditions']['countries'] );
-		$this->assertNotContains( 'FR', $rule['conditions']['countries'] );
-		$this->assertNotContains( 'PT', $rule['conditions']['countries'] );
+		$include_rule = $this->include_of( $rule );
+		$this->assertSame( array(), $include_rule['countries'] );
+		$this->assertContains( 'GB-ENG', $include_rule['regions'] );
+		$this->assertSame( array(), $include_rule['devices'] );
+		$this->assertNotContains( 'DE', $include_rule['countries'] );
+		$this->assertNotContains( 'FR', $include_rule['countries'] );
+		$this->assertNotContains( 'PT', $include_rule['countries'] );
 		$this->assertNotEmpty( $rule['warnings'] ?? array() );
 	}
 
@@ -228,41 +256,102 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertSame( 'create_variant', $variant_one['type'] );
 		$this->assertStringContainsString( 'landing', strtolower( (string) ( $variant_one['target']['label'] ?? '' ) ) );
 		$this->assertSame( 1, $variant_one['variant']['index'] ?? null );
-		$this->assertSame( array( 'PT' ), $variant_one['conditions']['countries'] );
-		$this->assertSame( array(), $variant_one['conditions']['regions'] );
-		$this->assertSame( array( 'mobile' ), $variant_one['conditions']['devices'] );
-		$this->assertSame( array(), array_values( array_filter( (array) ( $variant_one['conditions']['weather'] ?? array() ) ) ) );
+		$include_one = $this->include_of( $variant_one );
+		$this->assertSame( array( 'PT' ), $include_one['countries'] );
+		$this->assertSame( array(), $include_one['regions'] );
+		$this->assertSame( array( 'mobile' ), $include_one['devices'] );
+		$this->assertSame( array(), array_values( array_filter( (array) ( $include_one['weather'] ?? array() ) ) ) );
 
 		$this->assertSame( 'create_variant', $variant_two['type'] );
 		$this->assertSame( 2, $variant_two['variant']['index'] ?? null );
-		$this->assertEqualsCanonicalizing( array( 'DE', 'AT' ), $variant_two['conditions']['countries'] );
-		$this->assertSame( array(), $variant_two['conditions']['regions'] );
-		$this->assertSame( array( 'desktop' ), $variant_two['conditions']['devices'] );
-		$this->assertNotContains( 'PT', $variant_two['conditions']['countries'] );
-		$this->assertNotContains( 'FR', $variant_two['conditions']['countries'] );
+		$include_two = $this->include_of( $variant_two );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'AT' ), $include_two['countries'] );
+		$this->assertSame( array(), $include_two['regions'] );
+		$this->assertSame( array( 'desktop' ), $include_two['devices'] );
+		$this->assertNotContains( 'PT', $include_two['countries'] );
+		$this->assertNotContains( 'FR', $include_two['countries'] );
 
 		$this->assertSame( 'create_variant', $variant_three['type'] );
 		$this->assertSame( 3, $variant_three['variant']['index'] ?? null );
-		$this->assertSame( array( 'ZA' ), $variant_three['conditions']['countries'] );
-		$this->assertSame( array(), $variant_three['conditions']['regions'] );
-		$this->assertSame( array(), $variant_three['conditions']['devices'] );
-		$this->assertSame( array( 'rain' ), array_values( array_filter( (array) ( $variant_three['conditions']['weather'] ?? array() ) ) ) );
+		$include_three = $this->include_of( $variant_three );
+		$this->assertSame( array( 'ZA' ), $include_three['countries'] );
+		$this->assertSame( array(), $include_three['regions'] );
+		$this->assertSame( array(), $include_three['devices'] );
+		$this->assertSame( array( 'rain' ), array_values( array_filter( (array) ( $include_three['weather'] ?? array() ) ) ) );
 		$this->assertSame( 'only_show', $variant_three['operation']['visibility'] );
 
 		$this->assertSame( 'create_rule', $rule['type'] );
 		$this->assertSame( 'banner', $rule['target']['type'] );
 		$this->assertStringContainsString( 'black friday banner', strtolower( (string) ( $rule['target']['label'] ?? '' ) ) );
 		$this->assertSame( 'hide', $rule['operation']['visibility'] );
-		$this->assertSame( array(), $rule['conditions']['countries'] );
-		$this->assertContains( 'GB-ENG', $rule['conditions']['regions'] );
-		$this->assertNotContains( 'FR', $rule['conditions']['countries'] );
-		$this->assertNotContains( 'DE', $rule['conditions']['countries'] );
+		$include_rule = $this->include_of( $rule );
+		$this->assertSame( array(), $include_rule['countries'] );
+		$this->assertContains( 'GB-ENG', $include_rule['regions'] );
+		$this->assertNotContains( 'FR', $include_rule['countries'] );
+		$this->assertNotContains( 'DE', $include_rule['countries'] );
 
 		$this->assertSame( 'create_test', $test['type'] );
 		$this->assertStringContainsString( 'landing', strtolower( (string) ( $test['target']['label'] ?? '' ) ) );
-		$this->assertSame( array( 'FR' ), $test['conditions']['countries'] );
-		$this->assertSame( array(), $test['conditions']['regions'] );
-		$this->assertNotContains( 'GB-ENG', $test['conditions']['regions'] );
-		$this->assertNotContains( 'PT', $test['conditions']['countries'] );
+		$include_test = $this->include_of( $test );
+		$this->assertSame( array( 'FR' ), $include_test['countries'] );
+		$this->assertSame( array(), $include_test['regions'] );
+		$this->assertNotContains( 'GB-ENG', $include_test['regions'] );
+		$this->assertNotContains( 'PT', $include_test['countries'] );
+	}
+
+	public function test_summer_sale_campaign_product_polarity_and_inherited_targets(): void {
+		$input = "Set up the summer sale campaign so the beach towels product page only shows to visitors in Spain or Portugal when it's sunny, but hide it from desktop users. Then create a second version of the same product page for mobile visitors in France, and add a rule so anyone landing from /facebook-ad sees the promo popup except users in Germany.";
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
+
+		$campaign = $plan['actions'][0];
+		$hide     = $plan['actions'][1];
+		$variant  = $plan['actions'][2];
+		$popup    = $plan['actions'][3];
+
+		$this->assertSame( 'update_campaign_targeting', $campaign['type'] );
+		$this->assertSame( 'summer sale', $campaign['campaign']['label'] ?? '' );
+		$this->assertSame( 'product_page', $campaign['target']['type'] );
+		$this->assertStringContainsString( 'beach towels product page', strtolower( (string) ( $campaign['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'only_show', $campaign['operation']['visibility'] );
+		$include_campaign = $this->include_of( $campaign );
+		$this->assertEqualsCanonicalizing( array( 'ES', 'PT' ), $include_campaign['countries'] );
+		$this->assertSame( array( 'sunny' ), array_values( array_filter( (array) ( $include_campaign['weather'] ?? array() ) ) ) );
+		$this->assertSame( array(), $include_campaign['devices'] );
+		$this->assertNotContains( 'FR', $include_campaign['countries'] );
+		$this->assertNotContains( 'DE', $include_campaign['countries'] );
+
+		$this->assertSame( 'create_rule', $hide['type'] );
+		$this->assertSame( 'product_page', $hide['target']['type'] );
+		$this->assertStringContainsString( 'beach towels product page', strtolower( (string) ( $hide['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'hide', $hide['operation']['visibility'] );
+		$include_hide = $this->include_of( $hide );
+		$this->assertSame( array( 'desktop' ), $include_hide['devices'] );
+		$this->assertSame( array(), $include_hide['countries'] );
+		$this->assertNotContains( 'ES', $include_hide['countries'] );
+		$this->assertNotContains( 'PT', $include_hide['countries'] );
+
+		$this->assertSame( 'create_variant', $variant['type'] );
+		$this->assertSame( 2, $variant['variant']['index'] ?? null );
+		$this->assertSame( 'product_page', $variant['target']['type'] );
+		$this->assertStringContainsString( 'beach towels product page', strtolower( (string) ( $variant['target']['label'] ?? '' ) ) );
+		$include_variant = $this->include_of( $variant );
+		$this->assertSame( array( 'FR' ), $include_variant['countries'] );
+		$this->assertSame( array( 'mobile' ), $include_variant['devices'] );
+		$this->assertNotContains( 'DE', $include_variant['countries'] );
+		$this->assertNotContains( 'ES', $include_variant['countries'] );
+
+		$this->assertSame( 'create_rule', $popup['type'] );
+		$this->assertSame( 'popup', $popup['target']['type'] );
+		$this->assertStringContainsString( 'promo popup', strtolower( (string) ( $popup['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'show', $popup['operation']['visibility'] );
+		$include_popup = $this->include_of( $popup );
+		$exclude_popup = $this->exclude_of( $popup );
+		$this->assertSame( array( '/facebook-ad' ), $include_popup['urls'] );
+		$this->assertSame( array( 'DE' ), $exclude_popup['countries'] );
+		$this->assertNotContains( 'DE', $include_popup['countries'] );
+		$this->assertNotContains( 'FR', $include_popup['countries'] );
+		$this->assertNotContains( 'ES', $include_popup['countries'] );
 	}
 }

@@ -18,9 +18,23 @@ class RWGA_Planner_Target_Resolver {
 	 * @return array{type:string,label:string,slug:string,source:string}
 	 */
 	public static function resolve( $clause, $phrase, array $context, $action_type, array $clause_row = array() ) {
-		unset( $context );
 		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+		$session = is_array( $context['session'] ?? null ) ? $context['session'] : array();
+
+		if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
+			$inherited = RWGA_Planner_Inherited_Target_Resolver::detect_named_target( $clause, $phrase, $session );
+			if ( is_array( $inherited ) ) {
+				return $inherited;
+			}
+		}
+
+		if ( preg_match( '/\b([\w\s-]+?)\s+product\s+page\b/i', $clause, $m ) ) {
+			$label = trim( (string) $m[1] ) . ' product page';
+			if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
+				return RWGA_Planner_Inherited_Target_Resolver::product_page_target( $label );
+			}
+		}
 
 		if ( preg_match( '/\bbanner\b/i', $clause ) ) {
 			$label = self::banner_label( $clause );
@@ -136,6 +150,9 @@ class RWGA_Planner_Target_Resolver {
 	private static function popup_label( $clause ) {
 		if ( preg_match( '/\b((?:winter|summer|spring|autumn|fall)\s+promo)\s+popup\b/i', $clause, $m ) ) {
 			return trim( (string) $m[1] ) . ' popup';
+		}
+		if ( preg_match( '/\bpromo\s+popup\b/i', $clause ) ) {
+			return 'promo popup';
 		}
 		if ( preg_match( '/\b(summer|winter|spring|autumn|fall)\s+popup\b/i', $clause, $m ) ) {
 			return trim( (string) $m[1] ) . ' popup';

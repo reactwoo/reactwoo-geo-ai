@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class RWGA_Geo_Action_Types {
 
+	const UPDATE_CAMPAIGN_TARGETING = 'update_campaign_targeting';
 	const UPDATE_ORIGINAL_TARGETING = 'update_original_targeting';
 	const CREATE_VARIANT            = 'create_variant';
 	const UPDATE_VARIANT            = 'update_variant';
@@ -32,6 +33,7 @@ class RWGA_Geo_Action_Types {
 	 */
 	public static function all() {
 		return array(
+			self::UPDATE_CAMPAIGN_TARGETING,
 			self::UPDATE_ORIGINAL_TARGETING,
 			self::CREATE_VARIANT,
 			self::UPDATE_VARIANT,

@@ -19,6 +19,29 @@ class RWGA_Planner_Action_Type_Detector {
 		$visibility = 'show';
 		$mode       = 'update';
 
+		if ( 'campaign_targeting' === (string) ( $clause_row['type'] ?? '' ) ) {
+			$visibility = preg_match( '/\bonly\s+(?:show|display)\b|\bshow\s+only\b|\bonly\s+shows?\b/i', $clause )
+				? 'only_show'
+				: 'show';
+			return array(
+				'type'       => RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING,
+				'visibility' => $visibility,
+				'mode'       => 'update',
+				'confidence' => 0.92,
+			);
+		}
+
+		if ( 'variant_version' === (string) ( $clause_row['type'] ?? '' )
+			|| ( class_exists( 'RWGA_Planner_Second_Version_Resolver', false )
+				&& RWGA_Planner_Second_Version_Resolver::detect( $clause ) ) ) {
+			return array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_VARIANT,
+				'visibility' => 'show',
+				'mode'       => 'create',
+				'confidence' => 0.9,
+			);
+		}
+
 		if ( 'test' === (string) ( $clause_row['type'] ?? '' ) ) {
 			return array(
 				'type'       => RWGA_Geo_Action_Types::CREATE_TEST,
@@ -38,7 +61,7 @@ class RWGA_Planner_Action_Type_Detector {
 		}
 
 		if ( 'rule' === (string) ( $clause_row['type'] ?? '' )
-			|| preg_match( '/\bcreate\s+(?:a\s+)?rule\b/i', $clause ) ) {
+			|| preg_match( '/\b(?:create|add)\s+(?:a\s+)?rule\b/i', $clause ) ) {
 			if ( preg_match( '/\b(?:hide|exclude|block)\b/i', $clause ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
@@ -47,7 +70,7 @@ class RWGA_Planner_Action_Type_Detector {
 					'confidence' => 0.9,
 				);
 			}
-			if ( preg_match( '/\b(?:show|display)\b/i', $clause ) ) {
+			if ( preg_match( '/\b(?:show|display|sees?)\b/i', $clause ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
 					'visibility' => 'show',
@@ -85,6 +108,14 @@ class RWGA_Planner_Action_Type_Detector {
 				'visibility' => 'show',
 				'mode'       => 'diagnose',
 				'confidence' => 0.84,
+			);
+		}
+		if ( preg_match( '/\b(?:hide|exclude|block|do not show|don\'t show)\s+it\s+from\b/i', $clause ) ) {
+			return array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'visibility' => 'hide',
+				'mode'       => 'create',
+				'confidence' => 0.9,
 			);
 		}
 		if ( preg_match( '/\b(?:hide|exclude|block|do not show|don\'t show)\b/i', $clause ) ) {

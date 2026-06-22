@@ -52,6 +52,13 @@ class RWGA_Planner_Action_Clause_Splitter {
 		$trailing = is_array( $peeled['trailing'] ?? null ) ? $peeled['trailing'] : array();
 		$clauses  = array();
 
+		if ( class_exists( 'RWGA_Planner_Narrative_Clause_Splitter', false ) ) {
+			$narrative = RWGA_Planner_Narrative_Clause_Splitter::split( $block );
+			if ( count( $narrative ) >= 2 ) {
+				return self::append_trailing_clauses( $narrative, $trailing );
+			}
+		}
+
 		$parent = class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false )
 			? RWGA_Planner_Parent_Variant_Resolver::detect_parent( $block )
 			: null;
@@ -135,6 +142,29 @@ class RWGA_Planner_Action_Clause_Splitter {
 			);
 		}
 
+		return $clauses;
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $clauses  Base clauses.
+	 * @param array<int,array<string,mixed>> $trailing Trailing rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function append_trailing_clauses( array $clauses, array $trailing ) {
+		foreach ( $trailing as $trail_row ) {
+			if ( ! is_array( $trail_row ) ) {
+				continue;
+			}
+			$raw = trim( (string) ( $trail_row['raw'] ?? '' ) );
+			if ( '' === $raw ) {
+				continue;
+			}
+			$clauses[] = array(
+				'raw'   => $raw,
+				'index' => count( $clauses ),
+				'type'  => (string) ( $trail_row['type'] ?? 'rule' ),
+			);
+		}
 		return $clauses;
 	}
 

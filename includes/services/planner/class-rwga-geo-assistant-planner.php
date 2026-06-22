@@ -33,6 +33,10 @@ class RWGA_Geo_Assistant_Planner {
 		}
 
 		$page_context = array();
+		$session      = array( 'currentTarget' => null );
+		$campaign     = class_exists( 'RWGA_Planner_Campaign_Resolver', false )
+			? RWGA_Planner_Campaign_Resolver::detect( $phrase )
+			: null;
 
 		$actions = array();
 		$clauses = RWGA_Planner_Action_Clause_Splitter::split( $phrase );
@@ -40,6 +44,8 @@ class RWGA_Geo_Assistant_Planner {
 
 		if ( count( $clauses ) > 1 || self::clauses_have_typed_rows( $clauses ) ) {
 			foreach ( $clauses as $clause_row ) {
+				$context['session']  = $session;
+				$context['campaign'] = $campaign;
 				$built = self::build_actions_from_clause_row(
 					$clause_row,
 					$phrase,
@@ -47,6 +53,14 @@ class RWGA_Geo_Assistant_Planner {
 					$context,
 					$page_context
 				);
+				foreach ( $built as $action ) {
+					if ( is_array( $action ) && class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
+						$session = RWGA_Planner_Inherited_Target_Resolver::remember_target(
+							$session,
+							is_array( $action['target'] ?? null ) ? $action['target'] : array()
+						);
+					}
+				}
 				$actions = array_merge( $actions, $built );
 			}
 			$decisions[] = 'multi_clause_split';
@@ -171,7 +185,7 @@ class RWGA_Geo_Assistant_Planner {
 				continue;
 			}
 			$type = (string) ( $row['type'] ?? '' );
-			if ( in_array( $type, array( 'variant_child', 'rule', 'test', 'diagnose', 'update' ), true ) ) {
+			if ( in_array( $type, array( 'variant_child', 'rule', 'test', 'diagnose', 'update', 'campaign_targeting', 'variant_version' ), true ) ) {
 				return true;
 			}
 		}
@@ -202,33 +216,79 @@ class RWGA_Geo_Assistant_Planner {
 			}
 		}
 
-		$cond = RWGA_Planner_Condition_Resolver::resolve( $clause, $entities );
+		$cond         = RWGA_Planner_Condition_Resolver::resolve( $clause, $entities );
 		$relationship = RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING === $type_row['type'] ? 'original' : 'variant';
+		$variant_idx  = RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type'] ? 1 : null;
+		$variant_lbl  = '';
 
-		return array(
-			array(
-				'id'                  => self::new_id(),
-				'type'                => (string) $type_row['type'],
-				'target'              => $target,
-				'variant'             => array(
-					'index'        => RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type'] ? 1 : null,
-					'label'        => '',
-					'sourcePage'   => (string) ( $target['label'] ?? '' ),
-					'relationship' => $relationship,
-				),
-				'conditions'          => $cond['conditions'],
-				'location_labels'     => $cond['location_labels'] ?? array(),
-				'warnings'            => $cond['warnings'] ?? array(),
-				'operation'           => array(
-					'visibility' => (string) $type_row['visibility'],
-					'mode'       => (string) $type_row['mode'],
-				),
-				'confidence'          => min( (float) $type_row['confidence'], (float) $cond['confidence'] ),
-				'needsClarification'  => false,
-				'clarificationReason' => null,
-				'sourceClause'        => $clause,
+		if ( RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type']
+			&& class_exists( 'RWGA_Planner_Second_Version_Resolver', false ) ) {
+			$version_row = RWGA_Planner_Second_Version_Resolver::detect( $clause );
+			if ( is_array( $version_row ) ) {
+				$variant_idx = (int) ( $version_row['index'] ?? 2 );
+				$variant_lbl = self::variant_label_from_conditions( $target, $cond );
+			}
+		}
+
+		$action = array(
+			'id'                  => self::new_id(),
+			'type'                => (string) $type_row['type'],
+			'target'              => $target,
+			'variant'             => array(
+				'index'        => $variant_idx,
+				'label'        => $variant_lbl,
+				'sourcePage'   => (string) ( $target['label'] ?? '' ),
+				'relationship' => $relationship,
 			),
+			'conditions'          => $cond['conditions'],
+			'location_labels'     => $cond['location_labels'] ?? array(),
+			'warnings'            => $cond['warnings'] ?? array(),
+			'operation'           => array(
+				'visibility' => (string) $type_row['visibility'],
+				'mode'       => (string) $type_row['mode'],
+			),
+			'confidence'          => min( (float) $type_row['confidence'], (float) $cond['confidence'] ),
+			'needsClarification'  => false,
+			'clarificationReason' => null,
+			'sourceClause'        => $clause,
 		);
+
+		if ( RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING === $type_row['type']
+			&& ! empty( $context['campaign'] )
+			&& is_array( $context['campaign'] ) ) {
+			$action['campaign'] = $context['campaign'];
+		}
+
+		return array( $action );
+	}
+
+	/**
+	 * @param array<string,mixed> $target Target row.
+	 * @param array<string,mixed> $cond   Condition bundle.
+	 * @return string
+	 */
+	private static function variant_label_from_conditions( array $target, array $cond ) {
+		$include = RWGA_Planner_Condition_Polarity_Resolver::include_group( $cond['conditions'] ?? array() );
+		$parts   = array();
+		if ( ! empty( $cond['location_labels'] ) ) {
+			$parts = (array) $cond['location_labels'];
+		} else {
+			$loc = RWGA_Planner_Location_Resolver::display_label(
+				array(
+					'countries' => $include['countries'] ?? array(),
+					'regions'   => $include['regions'] ?? array(),
+					'labels'    => array(),
+				)
+			);
+			if ( '' !== $loc ) {
+				$parts[] = $loc;
+			}
+		}
+		if ( ! empty( $include['devices'] ) ) {
+			$parts[] = ucfirst( implode( ' + ', (array) $include['devices'] ) );
+		}
+		$page = ucfirst( (string) ( $target['label'] ?? 'page' ) );
+		return $page . ( $parts ? ' - ' . implode( ' ', $parts ) : '' );
 	}
 
 	/**

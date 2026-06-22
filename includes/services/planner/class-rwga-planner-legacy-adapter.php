@@ -130,9 +130,10 @@ class RWGA_Planner_Legacy_Adapter {
 	 */
 	private static function variant_param( array $action ) {
 		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
-		$countries  = (array) ( $conditions['countries'] ?? array() );
-		if ( ! empty( $conditions['regions'] ) ) {
-			foreach ( (array) $conditions['regions'] as $region ) {
+		$include    = RWGA_Planner_Condition_Polarity_Resolver::include_group( $conditions );
+		$countries  = (array) ( $include['countries'] ?? array() );
+		if ( ! empty( $include['regions'] ) ) {
+			foreach ( (array) $include['regions'] as $region ) {
 				if ( 'GB-ENG' === $region && ! in_array( 'GB', $countries, true ) ) {
 					$countries[] = 'GB';
 				}
@@ -141,7 +142,7 @@ class RWGA_Planner_Legacy_Adapter {
 		return array(
 			'label'     => (string) ( $action['variant']['label'] ?? '' ),
 			'countries' => array_values( array_unique( $countries ) ),
-			'regions'   => (array) ( $conditions['regions'] ?? array() ),
+			'regions'   => (array) ( $include['regions'] ?? array() ),
 			'mode'      => 'include_only',
 			'raw'       => (string) ( $action['sourceClause'] ?? '' ),
 		);
@@ -153,8 +154,9 @@ class RWGA_Planner_Legacy_Adapter {
 	 */
 	private static function source_targeting_param( array $action ) {
 		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
-		$countries  = (array) ( $conditions['countries'] ?? array() );
-		$regions    = (array) ( $conditions['regions'] ?? array() );
+		$include    = RWGA_Planner_Condition_Polarity_Resolver::include_group( $conditions );
+		$countries  = (array) ( $include['countries'] ?? array() );
+		$regions    = (array) ( $include['regions'] ?? array() );
 		if ( in_array( 'GB-ENG', $regions, true ) && ! in_array( 'GB', $countries, true ) ) {
 			$countries[] = 'GB';
 		}
@@ -217,11 +219,15 @@ class RWGA_Planner_Legacy_Adapter {
 	 */
 	private static function step_params( array $action ) {
 		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
+		$include    = RWGA_Planner_Condition_Polarity_Resolver::include_group( $conditions );
+		$exclude    = RWGA_Planner_Condition_Polarity_Resolver::exclude_group( $conditions );
 		return array(
 			'page_ref'  => (string) ( $action['target']['slug'] ?? '' ),
-			'countries' => (array) ( $conditions['countries'] ?? array() ),
-			'regions'   => (array) ( $conditions['regions'] ?? array() ),
-			'devices'   => (array) ( $conditions['devices'] ?? array() ),
+			'countries' => (array) ( $include['countries'] ?? array() ),
+			'regions'   => (array) ( $include['regions'] ?? array() ),
+			'devices'   => (array) ( $include['devices'] ?? array() ),
+			'exclude_countries' => (array) ( $exclude['countries'] ?? array() ),
+			'urls'      => (array) ( $include['urls'] ?? array() ),
 			'mode'      => 'hide' === (string) ( $action['operation']['visibility'] ?? '' ) ? 'exclude' : 'include_only',
 			'target'    => $action['target'] ?? array(),
 		);
