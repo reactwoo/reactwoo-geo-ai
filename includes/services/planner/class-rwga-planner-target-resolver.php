@@ -29,10 +29,14 @@ class RWGA_Planner_Target_Resolver {
 			}
 		}
 
-		if ( preg_match( '/\b([\w\s-]+?)\s+product\s+page\b/i', $clause, $m ) ) {
-			$label = trim( (string) $m[1] ) . ' product page';
-			if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
-				return RWGA_Planner_Inherited_Target_Resolver::product_page_target( $label );
+		if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
+			$category = RWGA_Planner_Inherited_Target_Resolver::extract_category_label( $clause );
+			if ( null !== $category ) {
+				return RWGA_Planner_Inherited_Target_Resolver::category_target( $category );
+			}
+			$product_page = RWGA_Planner_Inherited_Target_Resolver::extract_product_page_label( $clause );
+			if ( null !== $product_page ) {
+				return RWGA_Planner_Inherited_Target_Resolver::product_page_target( $product_page );
 			}
 		}
 
@@ -134,6 +138,9 @@ class RWGA_Planner_Target_Resolver {
 	 * @return string
 	 */
 	private static function banner_label( $clause ) {
+		if ( preg_match( '/\b(free[-\s]?shipping)\s+banner\b/i', $clause, $m ) ) {
+			return 'free-shipping banner';
+		}
 		if ( preg_match( '/\b(black friday)\s+banner\b/i', $clause, $m ) ) {
 			return trim( (string) $m[1] ) . ' banner';
 		}

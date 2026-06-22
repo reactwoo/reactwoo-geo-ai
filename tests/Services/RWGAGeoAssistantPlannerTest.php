@@ -46,6 +46,8 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-geo-action-types.php';
 		require_once $base . 'services/planner/class-rwga-planner-location-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-condition-polarity-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-audience-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-utm-condition-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-inherited-target-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-campaign-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-url-condition-resolver.php';
@@ -58,6 +60,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-planner-variant-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-parent-variant-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-ordinal-variant-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-plan-validator.php';
 		require_once $base . 'services/planner/class-rwga-planner-resolve-clarifications.php';
 		require_once $base . 'services/planner/class-rwga-planner-confirmation-builder.php';
 		require_once $base . 'services/planner/class-rwga-planner-learned-patterns.php';
@@ -353,5 +356,58 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertNotContains( 'DE', $include_popup['countries'] );
 		$this->assertNotContains( 'FR', $include_popup['countries'] );
 		$this->assertNotContains( 'ES', $include_popup['countries'] );
+	}
+
+	public function test_new_year_campaign_four_actions_with_validation(): void {
+		$input = "For the new year campaign, show the gym equipment category only to returning visitors in the UK who arrive with utm_campaign=ny-sale, but don't show it to tablet users. Then create a variant of the protein powder product page for first-time visitors in Ireland, and add a rule to show the free-shipping banner to mobile users in Spain except when the weather is rainy.";
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
+
+		$campaign = $plan['actions'][0];
+		$hide     = $plan['actions'][1];
+		$variant  = $plan['actions'][2];
+		$banner   = $plan['actions'][3];
+
+		$this->assertSame( 'update_campaign_targeting', $campaign['type'] );
+		$this->assertSame( 'new year', $campaign['campaign']['label'] ?? '' );
+		$this->assertSame( 'category', $campaign['target']['type'] );
+		$this->assertStringContainsString( 'gym equipment category', strtolower( (string) ( $campaign['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'only_show', $campaign['operation']['visibility'] );
+		$include_campaign = $this->include_of( $campaign );
+		$this->assertSame( array( 'GB' ), $include_campaign['countries'] );
+		$this->assertSame( array( 'returning_visitors' ), $include_campaign['audiences'] );
+		$this->assertSame(
+			array( array( 'key' => 'utm_campaign', 'value' => 'ny-sale' ) ),
+			$include_campaign['utm']
+		);
+		$this->assertNotContains( 'IE', $include_campaign['countries'] );
+
+		$this->assertSame( 'create_rule', $hide['type'] );
+		$this->assertSame( 'category', $hide['target']['type'] );
+		$this->assertStringContainsString( 'gym equipment category', strtolower( (string) ( $hide['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'hide', $hide['operation']['visibility'] );
+		$include_hide = $this->include_of( $hide );
+		$this->assertSame( array( 'tablet' ), $include_hide['devices'] );
+		$this->assertSame( array(), $include_hide['countries'] );
+
+		$this->assertSame( 'create_variant', $variant['type'] );
+		$this->assertSame( 'product_page', $variant['target']['type'] );
+		$this->assertStringContainsString( 'protein powder product page', strtolower( (string) ( $variant['target']['label'] ?? '' ) ) );
+		$include_variant = $this->include_of( $variant );
+		$this->assertSame( array( 'IE' ), $include_variant['countries'] );
+		$this->assertSame( array( 'first_time_visitors' ), $include_variant['audiences'] );
+		$this->assertNotContains( 'GB', $include_variant['countries'] );
+
+		$this->assertSame( 'create_rule', $banner['type'] );
+		$this->assertSame( 'banner', $banner['target']['type'] );
+		$this->assertStringContainsString( 'free-shipping banner', strtolower( (string) ( $banner['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'show', $banner['operation']['visibility'] );
+		$include_banner = $this->include_of( $banner );
+		$exclude_banner = $this->exclude_of( $banner );
+		$this->assertSame( array( 'ES' ), $include_banner['countries'] );
+		$this->assertSame( array( 'mobile' ), $include_banner['devices'] );
+		$this->assertSame( array( 'rainy' ), array_values( array_filter( (array) ( $exclude_banner['weather'] ?? array() ) ) ) );
 	}
 }

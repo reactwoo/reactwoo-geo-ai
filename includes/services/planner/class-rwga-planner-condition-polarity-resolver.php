@@ -33,6 +33,7 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 			'devices'   => array(),
 			'weather'   => array(),
 			'urls'      => array(),
+			'utm'       => array(),
 			'campaigns' => array(),
 			'audiences' => array(),
 		);
@@ -52,6 +53,7 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 		$exclude = '';
 
 		$patterns = array(
+			'/\bexcept\s+when\s+(?:the\s+)?weather\s+is\s+(.+)$/i',
 			'/\b(?:except|excluding)\s+(?:users|visitors)\s+in\s+(.+)$/i',
 			'/\b(?:except|excluding)\s+for\s+(?:users|visitors)\s+in\s+(.+)$/i',
 			'/\bexcluding\s+(.+)$/i',

@@ -180,6 +180,9 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-url-condition-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-narrative-clause-splitter.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-second-version-resolver.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-audience-resolver.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-utm-condition-resolver.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-plan-validator.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-ordinal-variant-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-resolve-clarifications.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-confirmation-builder.php';

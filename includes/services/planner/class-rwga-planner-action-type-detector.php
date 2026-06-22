@@ -19,10 +19,18 @@ class RWGA_Planner_Action_Type_Detector {
 		$visibility = 'show';
 		$mode       = 'update';
 
+		if ( RWGA_Planner_Campaign_Resolver::is_campaign_targeting_clause( $clause ) ) {
+			$visibility = self::is_only_show_clause( $clause ) ? 'only_show' : 'show';
+			return array(
+				'type'       => RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING,
+				'visibility' => $visibility,
+				'mode'       => 'update',
+				'confidence' => 0.92,
+			);
+		}
+
 		if ( 'campaign_targeting' === (string) ( $clause_row['type'] ?? '' ) ) {
-			$visibility = preg_match( '/\bonly\s+(?:show|display)\b|\bshow\s+only\b|\bonly\s+shows?\b/i', $clause )
-				? 'only_show'
-				: 'show';
+			$visibility = self::is_only_show_clause( $clause ) ? 'only_show' : 'show';
 			return array(
 				'type'       => RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING,
 				'visibility' => $visibility,
@@ -32,6 +40,7 @@ class RWGA_Planner_Action_Type_Detector {
 		}
 
 		if ( 'variant_version' === (string) ( $clause_row['type'] ?? '' )
+			|| 'variant_create' === (string) ( $clause_row['type'] ?? '' )
 			|| ( class_exists( 'RWGA_Planner_Second_Version_Resolver', false )
 				&& RWGA_Planner_Second_Version_Resolver::detect( $clause ) ) ) {
 			return array(
@@ -62,7 +71,7 @@ class RWGA_Planner_Action_Type_Detector {
 
 		if ( 'rule' === (string) ( $clause_row['type'] ?? '' )
 			|| preg_match( '/\b(?:create|add)\s+(?:a\s+)?rule\b/i', $clause ) ) {
-			if ( preg_match( '/\b(?:hide|exclude|block)\b/i', $clause ) ) {
+			if ( preg_match( '/\b(?:hide|exclude|block|don\'t show|do not show)\b/i', $clause ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
 					'visibility' => 'hide',
@@ -108,6 +117,14 @@ class RWGA_Planner_Action_Type_Detector {
 				'visibility' => 'show',
 				'mode'       => 'diagnose',
 				'confidence' => 0.84,
+			);
+		}
+		if ( preg_match( '/\b(?:don\'t|do not)\s+show\s+it\b/i', $clause ) ) {
+			return array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'visibility' => 'hide',
+				'mode'       => 'create',
+				'confidence' => 0.92,
 			);
 		}
 		if ( preg_match( '/\b(?:hide|exclude|block|do not show|don\'t show)\s+it\s+from\b/i', $clause ) ) {
@@ -180,6 +197,17 @@ class RWGA_Planner_Action_Type_Detector {
 			'visibility' => $visibility,
 			'mode'       => $mode,
 			'confidence' => 0.5,
+		);
+	}
+
+	/**
+	 * @param string $clause Clause text.
+	 * @return bool
+	 */
+	private static function is_only_show_clause( $clause ) {
+		return (bool) preg_match(
+			'/\bonly\s+(?:to|show|display|for)\b|\bshow\s+only\b|\bonly\s+shows?\b/i',
+			$clause
 		);
 	}
 }

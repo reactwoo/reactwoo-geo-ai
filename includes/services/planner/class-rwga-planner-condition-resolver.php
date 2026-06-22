@@ -26,6 +26,7 @@ class RWGA_Planner_Condition_Resolver {
 				'devices'   => array(),
 				'weather'   => array(),
 				'urls'      => array(),
+				'utm'       => array(),
 				'campaigns' => array(),
 				'audiences' => array(),
 				'warnings'  => array(),
@@ -39,6 +40,7 @@ class RWGA_Planner_Condition_Resolver {
 				'devices'   => $include['devices'],
 				'weather'   => $include['weather'],
 				'urls'      => $include['urls'],
+				'utm'       => $include['utm'],
 				'campaigns' => $include['campaigns'],
 				'audiences' => $include['audiences'],
 			),
@@ -48,6 +50,7 @@ class RWGA_Planner_Condition_Resolver {
 				'devices'   => $exclude['devices'],
 				'weather'   => $exclude['weather'],
 				'urls'      => $exclude['urls'],
+				'utm'       => $exclude['utm'],
 				'campaigns' => $exclude['campaigns'],
 				'audiences' => $exclude['audiences'],
 			),
@@ -85,21 +88,48 @@ class RWGA_Planner_Condition_Resolver {
 		$weather  = class_exists( 'RWGA_Segment_Condition_Extractor', false )
 			? RWGA_Segment_Condition_Extractor::extract_weather( $text, $entities )
 			: null;
-		$urls     = class_exists( 'RWGA_Planner_Url_Condition_Resolver', false )
+		$urls = class_exists( 'RWGA_Planner_Url_Condition_Resolver', false )
 			? RWGA_Planner_Url_Condition_Resolver::extract_paths( $text )
 			: array();
+		$utm = class_exists( 'RWGA_Planner_Utm_Condition_Resolver', false )
+			? RWGA_Planner_Utm_Condition_Resolver::extract( $text )
+			: array();
+		$audiences = class_exists( 'RWGA_Planner_Audience_Resolver', false )
+			? RWGA_Planner_Audience_Resolver::extract( $text )
+			: array();
+		$weather_values = self::detect_weather_values( $text, $entities, $weather );
 
 		return array(
 			'countries' => $location['countries'],
 			'regions'   => $location['regions'],
 			'devices'   => $devices,
-			'weather'   => array_values( array_filter( array( $weather ) ) ),
+			'weather'   => $weather_values,
 			'urls'      => $urls,
+			'utm'       => $utm,
 			'campaigns' => array(),
-			'audiences' => array(),
+			'audiences' => $audiences,
 			'warnings'  => $location['warnings'],
 			'labels'    => $location['labels'],
 		);
+	}
+
+	/**
+	 * @param string                $text        Text.
+	 * @param array<int,array>      $entities    Entities.
+	 * @param string|null           $weather_key Extracted weather key.
+	 * @return array<int,string>
+	 */
+	private static function detect_weather_values( $text, array $entities, $weather_key ) {
+		if ( preg_match( '/\brainy\b/i', $text ) ) {
+			return array( 'rainy' );
+		}
+		if ( null !== $weather_key && '' !== $weather_key ) {
+			if ( 'rain' === $weather_key && preg_match( '/\brainy\b/i', $text ) ) {
+				return array( 'rainy' );
+			}
+			return array( (string) $weather_key );
+		}
+		return array();
 	}
 
 	/**

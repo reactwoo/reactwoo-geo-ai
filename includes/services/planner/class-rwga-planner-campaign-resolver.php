@@ -14,22 +14,35 @@ class RWGA_Planner_Campaign_Resolver {
 	 * @return array{label:string,slug:string}|null
 	 */
 	public static function detect( $phrase ) {
-		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
-		if ( ! preg_match(
+		return self::detect_from_clause( $phrase );
+	}
+
+	/**
+	 * @param string $clause Clause or phrase text.
+	 * @return array{label:string,slug:string}|null
+	 */
+	public static function detect_from_clause( $clause ) {
+		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
+		$patterns = array(
+			'/\bfor\s+(?:the\s+)?(.+?)\s+campaign\b/i',
 			'/\b(?:set\s+up|setup)\s+(?:the\s+)?(.+?)\s+campaign\b/i',
-			$phrase,
-			$m
-		) ) {
-			return null;
-		}
-		$label = trim( (string) $m[1] );
-		if ( '' === $label ) {
-			return null;
-		}
-		return array(
-			'label' => $label,
-			'slug'  => sanitize_title( $label ),
 		);
+
+		foreach ( $patterns as $pattern ) {
+			if ( ! preg_match( $pattern, $clause, $m ) ) {
+				continue;
+			}
+			$label = trim( (string) $m[1] );
+			if ( '' === $label ) {
+				continue;
+			}
+			return array(
+				'label' => $label,
+				'slug'  => sanitize_title( $label ),
+			);
+		}
+
+		return null;
 	}
 
 	/**
@@ -39,5 +52,14 @@ class RWGA_Planner_Campaign_Resolver {
 	public static function is_campaign_setup_clause( $clause ) {
 		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
 		return (bool) preg_match( '/\b(?:set\s+up|setup)\s+(?:the\s+)?[\w\s-]+\s+campaign\b/i', $clause );
+	}
+
+	/**
+	 * @param string $clause Clause text.
+	 * @return bool
+	 */
+	public static function is_campaign_targeting_clause( $clause ) {
+		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
+		return (bool) preg_match( '/\bfor\s+(?:the\s+)?[\w\s-]+\s+campaign\b/i', $clause );
 	}
 }

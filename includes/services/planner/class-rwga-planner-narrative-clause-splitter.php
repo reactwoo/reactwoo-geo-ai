@@ -15,23 +15,28 @@ class RWGA_Planner_Narrative_Clause_Splitter {
 	 */
 	public static function split( $phrase ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
-		if ( ! preg_match( '/\b(?:set\s+up|setup)\s+.+?\s+campaign\b/i', $phrase )
-			&& ! preg_match( '/\bproduct\s+page\b/i', $phrase ) ) {
+		if ( ! self::is_multi_action_narrative( $phrase ) ) {
 			return array();
 		}
 
 		$block    = $phrase;
 		$trailing = array();
 
-		if ( preg_match( '/^(.*?)(?:,\s*(?:and\s+)?add\s+a\s+rule\s+)(.+)$/is', $block, $m ) ) {
+		if ( preg_match( '/^(.*?)(?:,\s*(?:and\s+)?add\s+a\s+rule\s+(?:to\s+)?)(.+)$/is', $block, $m ) ) {
 			$block      = trim( (string) $m[1] );
 			$trailing[] = array(
-				'raw'  => 'add a rule ' . trim( (string) $m[2] ),
+				'raw'  => 'add a rule to ' . trim( (string) $m[2] ),
 				'type' => 'rule',
 			);
 		}
 
-		if ( preg_match( '/^(.*?)(?:\.\s*then\s+)(create\s+(?:a\s+)?(?:second|third|fourth|\d+(?:st|nd|rd|th)?)\s+(?:version|variant).+)$/is', $block, $m ) ) {
+		if ( preg_match( '/^(.*?)(?:[,.]\s*then\s+)(create\s+(?:a\s+)?variant\b.+)$/is', $block, $m ) ) {
+			$block      = trim( (string) $m[1] );
+			$trailing[] = array(
+				'raw'  => trim( (string) $m[2] ),
+				'type' => 'variant_create',
+			);
+		} elseif ( preg_match( '/^(.*?)(?:\.\s*then\s+)(create\s+(?:a\s+)?(?:second|third|fourth|\d+(?:st|nd|rd|th)?)\s+(?:version|variant).+)$/is', $block, $m ) ) {
 			$block      = trim( (string) $m[1] );
 			$trailing[] = array(
 				'raw'  => trim( (string) $m[2] ),
@@ -39,7 +44,13 @@ class RWGA_Planner_Narrative_Clause_Splitter {
 			);
 		}
 
-		if ( preg_match( '/^(.*?)(?:,\s*but\s+)(hide\s+.+)$/is', $block, $m ) ) {
+		if ( preg_match( '/^(.*?)(?:,\s*but\s+)((?:don\'t|do not)\s+show\s+.+|hide\s+.+)$/is', $block, $m ) ) {
+			$block      = trim( (string) $m[1] );
+			$trailing[] = array(
+				'raw'  => trim( (string) $m[2] ),
+				'type' => 'rule',
+			);
+		} elseif ( preg_match( '/^(.*?)(?:,\s*but\s+)(hide\s+.+)$/is', $block, $m ) ) {
 			$block      = trim( (string) $m[1] );
 			$trailing[] = array(
 				'raw'  => trim( (string) $m[2] ),
@@ -52,11 +63,11 @@ class RWGA_Planner_Narrative_Clause_Splitter {
 			$clauses[] = array(
 				'raw'   => trim( $block ),
 				'index' => 0,
-				'type'  => RWGA_Planner_Campaign_Resolver::is_campaign_setup_clause( $block ) ? 'campaign_targeting' : '',
+				'type'  => self::lead_clause_type( $block ),
 			);
 		}
 
-		foreach ( array_reverse( $trailing ) as $idx => $row ) {
+		foreach ( array_reverse( $trailing ) as $row ) {
 			$clauses[] = array(
 				'raw'   => (string) ( $row['raw'] ?? '' ),
 				'index' => count( $clauses ),
@@ -65,5 +76,37 @@ class RWGA_Planner_Narrative_Clause_Splitter {
 		}
 
 		return count( $clauses ) >= 2 ? $clauses : array();
+	}
+
+	/**
+	 * @param string $phrase Normalised phrase.
+	 * @return bool
+	 */
+	private static function is_multi_action_narrative( $phrase ) {
+		if ( preg_match( '/\b(?:set\s+up|setup)\s+.+?\s+campaign\b/i', $phrase ) ) {
+			return true;
+		}
+		if ( preg_match( '/\bfor\s+(?:the\s+)?[\w\s-]+\s+campaign\b/i', $phrase ) ) {
+			return (bool) preg_match( '/\b(?:then|but|add\s+a\s+rule)\b/i', $phrase );
+		}
+		if ( preg_match( '/\bproduct\s+page\b/i', $phrase )
+			&& preg_match( '/\b(?:then|but|add\s+a\s+rule|also)\b/i', $phrase ) ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * @param string $clause Clause text.
+	 * @return string
+	 */
+	private static function lead_clause_type( $clause ) {
+		if ( RWGA_Planner_Campaign_Resolver::is_campaign_targeting_clause( $clause ) ) {
+			return 'campaign_targeting';
+		}
+		if ( RWGA_Planner_Campaign_Resolver::is_campaign_setup_clause( $clause ) ) {
+			return 'campaign_targeting';
+		}
+		return '';
 	}
 }

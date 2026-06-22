@@ -35,7 +35,7 @@ class RWGA_Geo_Assistant_Planner {
 		$page_context = array();
 		$session      = array( 'currentTarget' => null );
 		$campaign     = class_exists( 'RWGA_Planner_Campaign_Resolver', false )
-			? RWGA_Planner_Campaign_Resolver::detect( $phrase )
+			? RWGA_Planner_Campaign_Resolver::detect_from_clause( $phrase )
 			: null;
 
 		$actions = array();
@@ -64,7 +64,8 @@ class RWGA_Geo_Assistant_Planner {
 				$actions = array_merge( $actions, $built );
 			}
 			$decisions[] = 'multi_clause_split';
-		} elseif ( class_exists( 'RWGA_Variant_Plan_Parser', false )
+		} elseif ( ! self::has_multi_action_markers( $phrase )
+			&& class_exists( 'RWGA_Variant_Plan_Parser', false )
 			&& RWGA_Variant_Plan_Parser::is_variant_plan_command( $phrase ) ) {
 			$variant_plan = RWGA_Variant_Plan_Parser::parse( $raw_phrase, $entities, $context );
 			$actions      = RWGA_Planner_Variant_Resolver::from_variant_plan_parse( $variant_plan, $entities );
@@ -122,7 +123,20 @@ class RWGA_Geo_Assistant_Planner {
 		$plan['confidence'] = self::plan_confidence( $actions, $learned );
 		$plan['debug']['decisions'] = $decisions;
 
-		if ( empty( $actions ) && empty( $plan['clarification'] ) ) {
+		if ( class_exists( 'RWGA_Planner_Plan_Validator', false ) ) {
+			$validation = RWGA_Planner_Plan_Validator::validate( $phrase, $actions, $entities, $clauses );
+			if ( is_array( $validation ) ) {
+				$plan['debug']['draft_actions'] = $actions;
+				$plan['actions']                = array();
+				$plan['clarification']          = $validation;
+				$plan['status']                 = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION;
+				$plan['confidence']             = min( (float) $plan['confidence'], 0.45 );
+				$decisions[]                    = 'plan_validation_failed';
+				$plan['debug']['decisions']     = $decisions;
+			}
+		}
+
+		if ( empty( $plan['actions'] ) && empty( $plan['clarification'] ) ) {
 			$plan['status'] = RWGA_Geo_Action_Types::STATUS_FAILED;
 			return $plan;
 		}
@@ -185,7 +199,7 @@ class RWGA_Geo_Assistant_Planner {
 				continue;
 			}
 			$type = (string) ( $row['type'] ?? '' );
-			if ( in_array( $type, array( 'variant_child', 'rule', 'test', 'diagnose', 'update', 'campaign_targeting', 'variant_version' ), true ) ) {
+			if ( in_array( $type, array( 'variant_child', 'rule', 'test', 'diagnose', 'update', 'campaign_targeting', 'variant_version', 'variant_create' ), true ) ) {
 				return true;
 			}
 		}
@@ -226,9 +240,15 @@ class RWGA_Geo_Assistant_Planner {
 			$version_row = RWGA_Planner_Second_Version_Resolver::detect( $clause );
 			if ( is_array( $version_row ) ) {
 				$variant_idx = (int) ( $version_row['index'] ?? 2 );
-				$variant_lbl = self::variant_label_from_conditions( $target, $cond );
 			}
 		}
+		if ( RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type'] && '' === $variant_lbl ) {
+			$variant_lbl = self::variant_label_from_conditions( $target, $cond );
+		}
+
+		$campaign_row = class_exists( 'RWGA_Planner_Campaign_Resolver', false )
+			? RWGA_Planner_Campaign_Resolver::detect_from_clause( $clause )
+			: null;
 
 		$action = array(
 			'id'                  => self::new_id(),
@@ -254,12 +274,20 @@ class RWGA_Geo_Assistant_Planner {
 		);
 
 		if ( RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING === $type_row['type']
-			&& ! empty( $context['campaign'] )
-			&& is_array( $context['campaign'] ) ) {
-			$action['campaign'] = $context['campaign'];
+			&& is_array( $campaign_row ) ) {
+			$action['campaign'] = $campaign_row;
 		}
 
 		return array( $action );
+	}
+
+	/**
+	 * @param string $phrase Normalised phrase.
+	 * @return bool
+	 */
+	private static function has_multi_action_markers( $phrase ) {
+		return class_exists( 'RWGA_Planner_Plan_Validator', false )
+			&& RWGA_Planner_Plan_Validator::expected_action_count( $phrase ) > 1;
 	}
 
 	/**
@@ -286,6 +314,9 @@ class RWGA_Geo_Assistant_Planner {
 		}
 		if ( ! empty( $include['devices'] ) ) {
 			$parts[] = ucfirst( implode( ' + ', (array) $include['devices'] ) );
+		}
+		if ( ! empty( $include['audiences'] ) ) {
+			$parts[] = ucwords( str_replace( '_', ' ', implode( ' + ', (array) $include['audiences'] ) ) );
 		}
 		$page = ucfirst( (string) ( $target['label'] ?? 'page' ) );
 		return $page . ( $parts ? ' - ' . implode( ' ', $parts ) : '' );
