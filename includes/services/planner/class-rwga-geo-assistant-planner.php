@@ -145,12 +145,15 @@ class RWGA_Geo_Assistant_Planner {
 		$type   = (string) ( $clause_row['type'] ?? '' );
 
 		if ( 'variant_child' === $type && ! empty( $clause_row['parent'] ) && is_array( $clause_row['parent'] ) ) {
+			$child_index = isset( $clause_row['childIndex'] )
+				? (int) $clause_row['childIndex']
+				: ( isset( $clause_row['index'] ) ? (int) $clause_row['index'] + 1 : null );
 			return array(
 				RWGA_Planner_Parent_Variant_Resolver::build_child_action(
 					$clause,
 					$clause_row['parent'],
 					$entities,
-					isset( $clause_row['index'] ) ? (int) $clause_row['index'] + 1 : null
+					$child_index
 				),
 			);
 		}
@@ -168,7 +171,7 @@ class RWGA_Geo_Assistant_Planner {
 				continue;
 			}
 			$type = (string) ( $row['type'] ?? '' );
-			if ( in_array( $type, array( 'variant_child', 'rule' ), true ) ) {
+			if ( in_array( $type, array( 'variant_child', 'rule', 'test', 'diagnose', 'update' ), true ) ) {
 				return true;
 			}
 		}

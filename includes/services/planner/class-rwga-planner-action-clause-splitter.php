@@ -47,62 +47,82 @@ class RWGA_Planner_Action_Clause_Splitter {
 			return array();
 		}
 
-		$segments     = self::split_rule_segments( $phrase );
-		$clauses      = array();
-		$main_clauses = self::coarse_split( $segments['main'] );
-		if ( count( $main_clauses ) < 1 ) {
-			$main_clauses = array(
-				array(
-					'raw'   => $segments['main'],
-					'index' => 0,
-				),
-			);
+		$peeled   = self::peel_trailing_actions( $phrase );
+		$block    = (string) ( $peeled['variant_block'] ?? $phrase );
+		$trailing = is_array( $peeled['trailing'] ?? null ) ? $peeled['trailing'] : array();
+		$clauses  = array();
+
+		$parent = class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false )
+			? RWGA_Planner_Parent_Variant_Resolver::detect_parent( $block )
+			: null;
+		$children = ( is_array( $parent ) && class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false ) )
+			? RWGA_Planner_Parent_Variant_Resolver::split_child_clauses( $block, $parent )
+			: array();
+
+		if ( is_array( $parent ) && count( $children ) >= 2 ) {
+			foreach ( $children as $idx => $child ) {
+				$clauses[] = array(
+					'raw'        => $child,
+					'index'      => count( $clauses ),
+					'type'       => 'variant_child',
+					'parent'     => $parent,
+					'childIndex' => $idx + 1,
+				);
+			}
+		} else {
+			$segments     = self::split_rule_segments( $block );
+			$main_clauses = self::coarse_split( $segments['main'] );
+			if ( count( $main_clauses ) < 1 ) {
+				$main_clauses = array(
+					array(
+						'raw'   => $segments['main'],
+						'index' => 0,
+					),
+				);
+			}
+
+			foreach ( $main_clauses as $row ) {
+				$raw = trim( (string) ( $row['raw'] ?? '' ) );
+
+				if ( class_exists( 'RWGA_Variant_Plan_Parser', false )
+					&& RWGA_Variant_Plan_Parser::is_variant_plan_command( $raw ) ) {
+					$variant_segments = RWGA_Variant_Plan_Parser::split_segments( $raw );
+					if ( count( $variant_segments ) >= 2 ) {
+						foreach ( self::segments_to_clauses( $variant_segments ) as $segment_clause ) {
+							$segment_clause['index'] = count( $clauses );
+							$clauses[]               = $segment_clause;
+						}
+						continue;
+					}
+				}
+
+				$clauses[] = array(
+					'raw'   => $raw,
+					'index' => count( $clauses ),
+				);
+			}
+
+			foreach ( $segments['rules'] as $rule_clause ) {
+				$clauses[] = array(
+					'raw'   => $rule_clause,
+					'index' => count( $clauses ),
+					'type'  => 'rule',
+				);
+			}
 		}
 
-		foreach ( $main_clauses as $row ) {
-			$raw    = trim( (string) ( $row['raw'] ?? '' ) );
-			$parent = class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false )
-				? RWGA_Planner_Parent_Variant_Resolver::detect_parent( $raw )
-				: null;
-			$children = ( is_array( $parent ) && class_exists( 'RWGA_Planner_Parent_Variant_Resolver', false ) )
-				? RWGA_Planner_Parent_Variant_Resolver::split_child_clauses( $raw, $parent )
-				: array();
-
-			if ( is_array( $parent ) && count( $children ) >= 2 ) {
-				foreach ( $children as $idx => $child ) {
-					$clauses[] = array(
-						'raw'    => $child,
-						'index'  => count( $clauses ),
-						'type'   => 'variant_child',
-						'parent' => $parent,
-					);
-				}
+		foreach ( $trailing as $trail_row ) {
+			if ( ! is_array( $trail_row ) ) {
 				continue;
 			}
-
-			if ( class_exists( 'RWGA_Variant_Plan_Parser', false )
-				&& RWGA_Variant_Plan_Parser::is_variant_plan_command( $raw ) ) {
-				$variant_segments = RWGA_Variant_Plan_Parser::split_segments( $raw );
-				if ( count( $variant_segments ) >= 2 ) {
-					foreach ( self::segments_to_clauses( $variant_segments ) as $segment_clause ) {
-						$segment_clause['index'] = count( $clauses );
-						$clauses[]               = $segment_clause;
-					}
-					continue;
-				}
+			$raw = trim( (string) ( $trail_row['raw'] ?? '' ) );
+			if ( '' === $raw ) {
+				continue;
 			}
-
 			$clauses[] = array(
 				'raw'   => $raw,
 				'index' => count( $clauses ),
-			);
-		}
-
-		foreach ( $segments['rules'] as $rule_clause ) {
-			$clauses[] = array(
-				'raw'   => $rule_clause,
-				'index' => count( $clauses ),
-				'type'  => 'rule',
+				'type'  => (string) ( $trail_row['type'] ?? 'rule' ),
 			);
 		}
 
@@ -116,6 +136,71 @@ class RWGA_Planner_Action_Clause_Splitter {
 		}
 
 		return $clauses;
+	}
+
+	/**
+	 * Peel rule/test/diagnose clauses off the end of a variant block.
+	 *
+	 * @param string $phrase Normalised phrase.
+	 * @return array{variant_block:string,trailing:array<int,array{raw:string,type:string}>}
+	 */
+	private static function peel_trailing_actions( $phrase ) {
+		$block    = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+		$trailing = array();
+
+		if ( preg_match( '/^(.*?)(?:[,.]\s*|\s*,\s*)(?:and\s+)?(?:test\s+what|check\s+what)\b(.+)$/is', $block, $m ) ) {
+			$block      = trim( (string) $m[1] );
+			$trailing[] = array(
+				'raw'  => 'test what ' . trim( (string) $m[2] ),
+				'type' => 'test',
+			);
+		}
+
+		if ( preg_match( '/^(.*?)(?:[,.]\s*|\s*,\s*)(?:also|and)\s+(hide|show)\s+(?:the\s+)?(.+)$/is', $block, $m ) ) {
+			$block = trim( (string) $m[1] );
+			array_unshift(
+				$trailing,
+				array(
+					'raw'  => trim( (string) $m[2] ) . ' the ' . trim( (string) $m[3] ),
+					'type' => 'rule',
+				)
+			);
+		}
+
+		if ( preg_match( '/^(.*?)(?:[,.]\s*|\s*,\s*)(?:also|and)\s+create\s+(?:a\s+)?rule\b(.+)$/is', $block, $m ) ) {
+			$block = trim( (string) $m[1] );
+			array_unshift(
+				$trailing,
+				array(
+					'raw'  => 'create a rule' . trim( (string) $m[2] ),
+					'type' => 'rule',
+				)
+			);
+		}
+
+		if ( preg_match( '/^(.*?)(?:[,.]\s*|\s*,\s*)(?:also|and)\s+diagnose\b(.+)$/is', $block, $m ) ) {
+			$block = trim( (string) $m[1] );
+			array_unshift(
+				$trailing,
+				array(
+					'raw'  => 'diagnose' . trim( (string) $m[2] ),
+					'type' => 'diagnose',
+				)
+			);
+		}
+
+		if ( preg_match( '/^(.*?)(?:\s*-\s*|\s*,\s*)(?:update|change)\s+(?:the\s+)?original\b(.+)$/is', $block, $m ) ) {
+			$block = trim( (string) $m[1] );
+			$trailing[] = array(
+				'raw'  => 'update the original' . trim( (string) $m[2] ),
+				'type' => 'update',
+			);
+		}
+
+		return array(
+			'variant_block' => trim( $block ),
+			'trailing'      => $trailing,
+		);
 	}
 
 	/**

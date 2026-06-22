@@ -174,6 +174,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-condition-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-variant-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-parent-variant-resolver.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-ordinal-variant-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-resolve-clarifications.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-confirmation-builder.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-learned-patterns.php';

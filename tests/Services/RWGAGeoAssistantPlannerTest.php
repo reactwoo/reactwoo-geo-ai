@@ -51,6 +51,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-planner-condition-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-variant-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-parent-variant-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-ordinal-variant-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-resolve-clarifications.php';
 		require_once $base . 'services/planner/class-rwga-planner-confirmation-builder.php';
 		require_once $base . 'services/planner/class-rwga-planner-learned-patterns.php';
@@ -210,5 +211,58 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertNotContains( 'FR', $rule['conditions']['countries'] );
 		$this->assertNotContains( 'PT', $rule['conditions']['countries'] );
 		$this->assertNotEmpty( $rule['warnings'] ?? array() );
+	}
+
+	public function test_landing_page_three_versions_rule_and_test(): void {
+		$input = "Can you make 3 versions of the landing page pls — first one for people in Portugal on mobile, another for Germany or Austria desktop visitors, and the last one only for users in South Africa when it's raining. Also hide the black friday banner for anyone coming from England, and test what a French visitor would see on the landing page.";
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 5, $plan['actions'], 'Expected five independent actions.' );
+
+		$variant_one = $plan['actions'][0];
+		$variant_two = $plan['actions'][1];
+		$variant_three = $plan['actions'][2];
+		$rule        = $plan['actions'][3];
+		$test        = $plan['actions'][4];
+
+		$this->assertSame( 'create_variant', $variant_one['type'] );
+		$this->assertStringContainsString( 'landing', strtolower( (string) ( $variant_one['target']['label'] ?? '' ) ) );
+		$this->assertSame( 1, $variant_one['variant']['index'] ?? null );
+		$this->assertSame( array( 'PT' ), $variant_one['conditions']['countries'] );
+		$this->assertSame( array(), $variant_one['conditions']['regions'] );
+		$this->assertSame( array( 'mobile' ), $variant_one['conditions']['devices'] );
+		$this->assertSame( array(), array_values( array_filter( (array) ( $variant_one['conditions']['weather'] ?? array() ) ) ) );
+
+		$this->assertSame( 'create_variant', $variant_two['type'] );
+		$this->assertSame( 2, $variant_two['variant']['index'] ?? null );
+		$this->assertEqualsCanonicalizing( array( 'DE', 'AT' ), $variant_two['conditions']['countries'] );
+		$this->assertSame( array(), $variant_two['conditions']['regions'] );
+		$this->assertSame( array( 'desktop' ), $variant_two['conditions']['devices'] );
+		$this->assertNotContains( 'PT', $variant_two['conditions']['countries'] );
+		$this->assertNotContains( 'FR', $variant_two['conditions']['countries'] );
+
+		$this->assertSame( 'create_variant', $variant_three['type'] );
+		$this->assertSame( 3, $variant_three['variant']['index'] ?? null );
+		$this->assertSame( array( 'ZA' ), $variant_three['conditions']['countries'] );
+		$this->assertSame( array(), $variant_three['conditions']['regions'] );
+		$this->assertSame( array(), $variant_three['conditions']['devices'] );
+		$this->assertSame( array( 'rain' ), array_values( array_filter( (array) ( $variant_three['conditions']['weather'] ?? array() ) ) ) );
+		$this->assertSame( 'only_show', $variant_three['operation']['visibility'] );
+
+		$this->assertSame( 'create_rule', $rule['type'] );
+		$this->assertSame( 'banner', $rule['target']['type'] );
+		$this->assertStringContainsString( 'black friday banner', strtolower( (string) ( $rule['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'hide', $rule['operation']['visibility'] );
+		$this->assertSame( array(), $rule['conditions']['countries'] );
+		$this->assertContains( 'GB-ENG', $rule['conditions']['regions'] );
+		$this->assertNotContains( 'FR', $rule['conditions']['countries'] );
+		$this->assertNotContains( 'DE', $rule['conditions']['countries'] );
+
+		$this->assertSame( 'create_test', $test['type'] );
+		$this->assertStringContainsString( 'landing', strtolower( (string) ( $test['target']['label'] ?? '' ) ) );
+		$this->assertSame( array( 'FR' ), $test['conditions']['countries'] );
+		$this->assertSame( array(), $test['conditions']['regions'] );
+		$this->assertNotContains( 'GB-ENG', $test['conditions']['regions'] );
+		$this->assertNotContains( 'PT', $test['conditions']['countries'] );
 	}
 }

@@ -22,6 +22,16 @@ class RWGA_Planner_Target_Resolver {
 		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
 
+		if ( preg_match( '/\bbanner\b/i', $clause ) ) {
+			$label = self::banner_label( $clause );
+			return array(
+				'type'   => 'banner',
+				'label'  => $label,
+				'slug'   => sanitize_title( $label ),
+				'source' => 'detected',
+			);
+		}
+
 		if ( preg_match( '/\bpopup\b/i', $clause ) ) {
 			$label = self::popup_label( $clause );
 			return array(
@@ -61,7 +71,7 @@ class RWGA_Planner_Target_Resolver {
 			}
 		}
 
-		if ( preg_match( '/\bvariants?\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s+page|homepage|checkout|cart|pricing(?:\s+page)?|contact(?:\s+page)?)\b/i', $clause, $m ) ) {
+		if ( preg_match( '/\bvariants?\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s+page|homepage|landing(?:\s+page)?|checkout|cart|pricing(?:\s+page)?|contact(?:\s+page)?)\b/i', $clause, $m ) ) {
 			return self::page_target( self::normalise_page_token( (string) $m[1] ) );
 		}
 
@@ -82,7 +92,7 @@ class RWGA_Planner_Target_Resolver {
 			if ( '' !== $variant_source ) {
 				return self::page_target( $variant_source );
 			}
-			if ( preg_match( '/\b(?:homepage|home\s+page|shop(?:\s+page)?|pricing(?:\s+page)?|contact(?:\s+page)?)\b/i', $phrase, $m ) ) {
+			if ( preg_match( '/\b(?:homepage|home\s+page|shop(?:\s+page)?|landing(?:\s+page)?|pricing(?:\s+page)?|contact(?:\s+page)?)\b/i', $phrase, $m ) ) {
 				return self::page_target( self::normalise_page_token( (string) $m[0] ) );
 			}
 			return array(
@@ -93,7 +103,7 @@ class RWGA_Planner_Target_Resolver {
 			);
 		}
 
-		if ( preg_match( '/\b(?:homepage|home\s+page|shop(?:\s+page)?|pricing(?:\s+page)?|contact(?:\s+page)?)\b/i', $clause, $m ) ) {
+		if ( preg_match( '/\b(?:homepage|home\s+page|shop(?:\s+page)?|landing(?:\s+page)?|pricing(?:\s+page)?|contact(?:\s+page)?)\b/i', $clause, $m ) ) {
 			return self::page_target( self::normalise_page_token( (string) $m[0] ) );
 		}
 
@@ -103,6 +113,20 @@ class RWGA_Planner_Target_Resolver {
 			'slug'   => 'page',
 			'source' => 'unknown',
 		);
+	}
+
+	/**
+	 * @param string $clause Clause text.
+	 * @return string
+	 */
+	private static function banner_label( $clause ) {
+		if ( preg_match( '/\b(black friday)\s+banner\b/i', $clause, $m ) ) {
+			return trim( (string) $m[1] ) . ' banner';
+		}
+		if ( preg_match( '/\b(?:the|a|an)\s+([\w\s-]+?)\s+banner\b/i', $clause, $m ) ) {
+			return trim( (string) $m[1] ) . ' banner';
+		}
+		return 'banner';
 	}
 
 	/**
@@ -137,6 +161,8 @@ class RWGA_Planner_Target_Resolver {
 			$label = 'pricing page';
 		} elseif ( 'contact' === $slug ) {
 			$label = 'contact page';
+		} elseif ( 'landing' === $slug ) {
+			$label = 'landing page';
 		} elseif ( preg_match( '/\s+page$/', $token ) ) {
 			$label = $token;
 		}
@@ -165,6 +191,9 @@ class RWGA_Planner_Target_Resolver {
 		}
 		if ( in_array( $token, array( 'contact', 'contact page' ), true ) ) {
 			return 'contact';
+		}
+		if ( in_array( $token, array( 'landing', 'landing page' ), true ) ) {
+			return 'landing';
 		}
 		return $token;
 	}

@@ -158,7 +158,7 @@ class RWGA_Multi_Variant_Interpreter {
 		$segment = preg_replace( '/\b(?:for|display|show|in|only)\b/i', ' ', $segment );
 		$segment = trim( preg_replace( '/\s+/', ' ', (string) $segment ) );
 
-		$parts = preg_split( '/\s*(?:,|\/|&|\*|\+|\bplus\b|\bas well as\b|\band\b)\s*/i', $segment );
+		$parts = preg_split( '/\s*(?:,|\/|&|\*|\+|\bplus\b|\bas well as\b|\band\b|\bor\b)\s*/i', $segment );
 		if ( ! is_array( $parts ) ) {
 			$parts = array( $segment );
 		}

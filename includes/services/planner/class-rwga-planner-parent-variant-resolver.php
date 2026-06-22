@@ -29,24 +29,28 @@ class RWGA_Planner_Parent_Variant_Resolver {
 	 */
 	public static function detect_parent( $phrase ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
-		if ( ! preg_match(
-			'/\b(?:create|make|build)\s+(?:an?\s+)?(?:additional\s+)?(?:(\d+|one|two|three|four|five))\s+new\s+variants?\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s*page|homepage|pricing(?:\s+page)?|contact(?:\s+page)?|checkout|cart)\b/i',
-			$phrase,
-			$m
-		) ) {
-			return null;
+		$patterns = array(
+			'/\b(?:can you\s+)?(?:create|make|build)\s+(?:an?\s+)?(?:additional\s+)?(?:(\d+|one|two|three|four|five))\s+(?:new\s+)?variants?\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s*page|homepage|landing(?:\s+page)?|pricing(?:\s+page)?|contact(?:\s+page)?|checkout|cart)\b/i',
+			'/\b(?:can you\s+)?(?:create|make|build)\s+(?:(\d+|one|two|three|four|five))\s+(?:new\s+)?(?:versions?|variations?)\s+of\s+(?:the\s+)?(shop(?:\s+page)?|home\s*page|homepage|landing(?:\s+page)?|pricing(?:\s+page)?|contact(?:\s+page)?|checkout|cart)\b/i',
+		);
+
+		foreach ( $patterns as $pattern ) {
+			if ( ! preg_match( $pattern, $phrase, $m ) ) {
+				continue;
+			}
+			$count_key = strtolower( (string) $m[1] );
+			$page_raw  = trim( (string) $m[2] );
+			$page      = self::normalise_page_slug( $page_raw );
+
+			return array(
+				'type'            => 'create_variants',
+				'count'           => self::COUNT_MAP[ $count_key ] ?? (int) $count_key,
+				'sourcePage'      => $page,
+				'sourcePageLabel' => self::page_label( $page_raw, $page ),
+			);
 		}
 
-		$count_key = strtolower( (string) $m[1] );
-		$page_raw  = trim( (string) $m[2] );
-		$page      = self::normalise_page_slug( $page_raw );
-
-		return array(
-			'type'            => 'create_variants',
-			'count'           => self::COUNT_MAP[ $count_key ] ?? (int) $count_key,
-			'sourcePage'      => $page,
-			'sourcePageLabel' => self::page_label( $page_raw, $page ),
-		);
+		return null;
 	}
 
 	/**
@@ -55,6 +59,22 @@ class RWGA_Planner_Parent_Variant_Resolver {
 	 * @return array<int,string>
 	 */
 	public static function split_child_clauses( $phrase, array $parent ) {
+		if ( class_exists( 'RWGA_Planner_Ordinal_Variant_Resolver', false ) ) {
+			$ordinal = RWGA_Planner_Ordinal_Variant_Resolver::split_child_clauses( $phrase, $parent );
+			if ( count( $ordinal ) >= 2 ) {
+				return $ordinal;
+			}
+		}
+
+		return self::split_one_other_child_clauses( $phrase, $parent );
+	}
+
+	/**
+	 * @param string              $phrase Normalised phrase (variant block only).
+	 * @param array<string,mixed> $parent Parent row.
+	 * @return array<int,string>
+	 */
+	private static function split_one_other_child_clauses( $phrase, array $parent ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
 		$page_slug = preg_quote( (string) ( $parent['sourcePage'] ?? '' ), '/' );
 		$page_alt  = preg_quote( (string) ( $parent['sourcePageLabel'] ?? '' ), '/' );
@@ -171,6 +191,10 @@ class RWGA_Planner_Parent_Variant_Resolver {
 	 */
 	public static function is_variant_child_clause( $clause ) {
 		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
+		if ( class_exists( 'RWGA_Planner_Ordinal_Variant_Resolver', false )
+			&& RWGA_Planner_Ordinal_Variant_Resolver::is_ordinal_child_clause( $clause ) ) {
+			return true;
+		}
 		return (bool) preg_match( '/^(?:one|the other|another|the first|the second|first|second)\b/i', $clause );
 	}
 
@@ -179,7 +203,7 @@ class RWGA_Planner_Parent_Variant_Resolver {
 	 * @return array{type:string,visibility:string,mode:string,confidence:float}
 	 */
 	private static function child_type_row( $clause ) {
-		$visibility = preg_match( '/\b(?:only|just)\s+(?:show|display)\b|\bshow\s+only\b|\bonly\s+show\b/i', $clause )
+		$visibility = preg_match( '/\bonly\s+(?:for|show|display)\b|\b(?:only|just)\s+(?:show|display)\b|\bshow\s+only\b|\bonly\s+show\b/i', $clause )
 			? 'only_show'
 			: 'show';
 		return array(
@@ -217,6 +241,10 @@ class RWGA_Planner_Parent_Variant_Resolver {
 		if ( ! empty( $devices ) ) {
 			$loc_parts[] = ucfirst( implode( ' + ', $devices ) );
 		}
+		$weather = array_values( array_filter( (array) ( $cond['conditions']['weather'] ?? array() ) ) );
+		if ( ! empty( $weather ) ) {
+			$loc_parts[] = ucfirst( (string) $weather[0] );
+		}
 		return $page_label . ( $loc_parts ? ' - ' . implode( ' ', $loc_parts ) : '' );
 	}
 
@@ -230,7 +258,7 @@ class RWGA_Planner_Parent_Variant_Resolver {
 		if ( preg_match( '/\s+page$/', $token ) ) {
 			return $token;
 		}
-		if ( in_array( $slug, array( 'pricing', 'contact', 'shop' ), true ) ) {
+		if ( in_array( $slug, array( 'pricing', 'contact', 'shop', 'landing' ), true ) ) {
 			return $slug . ' page';
 		}
 		return $slug;
@@ -253,6 +281,9 @@ class RWGA_Planner_Parent_Variant_Resolver {
 		}
 		if ( in_array( $token, array( 'contact', 'contact page' ), true ) ) {
 			return 'contact';
+		}
+		if ( in_array( $token, array( 'landing', 'landing page' ), true ) ) {
+			return 'landing';
 		}
 		return $token;
 	}

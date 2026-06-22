@@ -19,12 +19,38 @@ class RWGA_Planner_Action_Type_Detector {
 		$visibility = 'show';
 		$mode       = 'update';
 
+		if ( 'test' === (string) ( $clause_row['type'] ?? '' ) ) {
+			return array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_TEST,
+				'visibility' => 'show',
+				'mode'       => 'test',
+				'confidence' => 0.9,
+			);
+		}
+
+		if ( 'diagnose' === (string) ( $clause_row['type'] ?? '' ) ) {
+			return array(
+				'type'       => RWGA_Geo_Action_Types::DIAGNOSE,
+				'visibility' => 'show',
+				'mode'       => 'diagnose',
+				'confidence' => 0.9,
+			);
+		}
+
 		if ( 'rule' === (string) ( $clause_row['type'] ?? '' )
 			|| preg_match( '/\bcreate\s+(?:a\s+)?rule\b/i', $clause ) ) {
 			if ( preg_match( '/\b(?:hide|exclude|block)\b/i', $clause ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
 					'visibility' => 'hide',
+					'mode'       => 'create',
+					'confidence' => 0.9,
+				);
+			}
+			if ( preg_match( '/\b(?:show|display)\b/i', $clause ) ) {
+				return array(
+					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+					'visibility' => 'show',
 					'mode'       => 'create',
 					'confidence' => 0.9,
 				);
@@ -64,7 +90,7 @@ class RWGA_Planner_Action_Type_Detector {
 		if ( preg_match( '/\b(?:hide|exclude|block|do not show|don\'t show)\b/i', $clause ) ) {
 			$visibility = 'hide';
 			$mode       = 'create';
-			if ( preg_match( '/\bpopup\b/i', $clause ) ) {
+			if ( preg_match( '/\b(?:popup|banner)\b/i', $clause ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
 					'visibility' => $visibility,

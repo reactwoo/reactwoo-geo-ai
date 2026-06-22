@@ -90,6 +90,7 @@ class RWGA_Intelligence_Bundle_Bootstrap {
 			array( 'US', 'United States', array( 'US', 'USA', 'America', 'United States', 'American' ) ),
 			array( 'ZA', 'South Africa', array( 'South Africa', 'South African', 'ZA' ) ),
 			array( 'DE', 'Germany', array( 'Germany', 'German', 'DE' ) ),
+			array( 'AT', 'Austria', array( 'Austria', 'Austrian', 'AT' ) ),
 			array( 'FR', 'France', array( 'France', 'French', 'FR' ) ),
 			array( 'RU', 'Russia', array( 'Russia', 'Russian', 'RU', 'russia' ) ),
 			array( 'PT', 'Portugal', array( 'Portugal', 'Portuguese', 'PT' ) ),
