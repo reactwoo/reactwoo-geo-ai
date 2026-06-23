@@ -28,14 +28,15 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 	 */
 	public static function empty_groups() {
 		$empty = array(
-			'countries' => array(),
-			'regions'   => array(),
-			'devices'   => array(),
-			'weather'   => array(),
-			'urls'      => array(),
-			'utm'       => array(),
-			'campaigns' => array(),
-			'audiences' => array(),
+			'countries'     => array(),
+			'regions'       => array(),
+			'devices'       => array(),
+			'weather'       => array(),
+			'urls'          => array(),
+			'utm'           => array(),
+			'campaigns'     => array(),
+			'audiences'     => array(),
+			'visitorStates' => array(),
 		);
 		return array(
 			'include' => $empty,

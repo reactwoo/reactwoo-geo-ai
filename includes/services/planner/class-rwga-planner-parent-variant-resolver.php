@@ -127,8 +127,12 @@ class RWGA_Planner_Parent_Variant_Resolver {
 			'source' => 'parent_variant',
 		);
 
-		$type_row = self::child_type_row( $child_clause );
-		$cond     = RWGA_Planner_Condition_Resolver::resolve( $child_clause, $entities );
+		$type_row   = self::child_type_row( $child_clause );
+		$cond       = RWGA_Planner_Condition_Resolver::resolve( $child_clause, $entities );
+		$unresolved = array(
+			'audiences' => (array) ( $cond['unresolved']['audiences'] ?? array() ),
+			'campaigns' => array(),
+		);
 
 		return array(
 			'id'                  => RWGA_Geo_Assistant_Planner::new_id(),
@@ -148,10 +152,11 @@ class RWGA_Planner_Parent_Variant_Resolver {
 				'mode'       => 'create',
 			),
 			'confidence'          => (float) $cond['confidence'],
-			'needsClarification'  => false,
-			'clarificationReason' => null,
+			'needsClarification'  => ! empty( $unresolved['audiences'] ),
+			'clarificationReason' => ! empty( $unresolved['audiences'] ) ? 'audience_not_defined' : null,
 			'sourceClause'        => $child_clause,
 			'parentInstruction'   => $parent,
+			'unresolved'          => $unresolved,
 		);
 	}
 

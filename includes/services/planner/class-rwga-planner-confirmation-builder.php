@@ -58,6 +58,11 @@ class RWGA_Planner_Confirmation_Builder {
 				$summary_lines[] = '   ' . $line;
 			}
 
+			$unresolved_lines = self::unresolved_lines( $action );
+			foreach ( $unresolved_lines as $line ) {
+				$summary_lines[] = '   ' . $line;
+			}
+
 			$setup_lines[] = sprintf( '%d. %s', $num, $title );
 			$setup_lines[] = $type_label;
 			$target_label  = self::target_line( $action );
@@ -68,8 +73,18 @@ class RWGA_Planner_Confirmation_Builder {
 			if ( '' !== $visibility_label ) {
 				$setup_lines[] = $visibility_label;
 			}
+			$campaign_label = self::campaign_line( $action );
+			if ( '' !== $campaign_label ) {
+				$setup_lines[] = $campaign_label;
+			}
 			foreach ( $condition_lines as $line ) {
 				$setup_lines[] = $line;
+			}
+			foreach ( $unresolved_lines as $line ) {
+				$setup_lines[] = $line;
+			}
+			if ( ! empty( $unresolved_lines ) ) {
+				$setup_lines[] = __( 'Needs audience/campaign selection', 'reactwoo-geocore' );
 			}
 			$setup_lines[] = '';
 		}
@@ -244,11 +259,16 @@ class RWGA_Planner_Confirmation_Builder {
 			$lines[] = sprintf( __( 'Devices: %s', 'reactwoo-geocore' ), implode( ', ', $devices ) );
 		}
 
-		$audiences = array_values( array_filter( (array) ( $include['audiences'] ?? array() ) ) );
+		$audiences = self::audience_names( (array) ( $include['audiences'] ?? array() ) );
 		if ( ! empty( $audiences ) ) {
-			$lines[] = sprintf( __( 'Audiences: %s', 'reactwoo-geocore' ), implode( ', ', array_map( static function ( $a ) {
-				return str_replace( '_', ' ', (string) $a );
-			}, $audiences ) ) );
+			$lines[] = sprintf( __( 'Audiences: %s', 'reactwoo-geocore' ), implode( ', ', $audiences ) );
+		}
+
+		$visitor_states = array_values( array_filter( (array) ( $include['visitorStates'] ?? array() ) ) );
+		if ( ! empty( $visitor_states ) ) {
+			$lines[] = sprintf( __( 'Visitor state: %s', 'reactwoo-geocore' ), implode( ', ', array_map( static function ( $s ) {
+				return str_replace( '_', ' ', (string) $s );
+			}, $visitor_states ) ) );
 		}
 
 		$weather = array_values( array_filter( (array) ( $include['weather'] ?? array() ) ) );
@@ -310,6 +330,97 @@ class RWGA_Planner_Confirmation_Builder {
 		}
 
 		return $parts;
+	}
+
+	/**
+	 * @param array<int,mixed> $audiences Audience rows (objects or strings).
+	 * @return array<int,string>
+	 */
+	private static function audience_names( array $audiences ) {
+		$names = array();
+		foreach ( $audiences as $audience ) {
+			if ( is_array( $audience ) ) {
+				$name = trim( (string) ( $audience['name'] ?? '' ) );
+			} else {
+				$name = str_replace( '_', ' ', (string) $audience );
+			}
+			if ( '' !== $name ) {
+				$names[] = $name;
+			}
+		}
+		return $names;
+	}
+
+	/**
+	 * Lines describing unresolved synced audiences/campaigns on an action.
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @return array<int,string>
+	 */
+	private static function unresolved_lines( array $action ) {
+		$unresolved = is_array( $action['unresolved'] ?? null ) ? $action['unresolved'] : array();
+		$lines      = array();
+
+		foreach ( (array) ( $unresolved['audiences'] ?? array() ) as $row ) {
+			if ( is_array( $row ) ) {
+				$lines[] = sprintf( __( 'Audience not defined: %s', 'reactwoo-geocore' ), (string) ( $row['raw'] ?? '' ) );
+				$lines   = array_merge( $lines, self::suggestion_lines( $row ) );
+			}
+		}
+		foreach ( (array) ( $unresolved['campaigns'] ?? array() ) as $row ) {
+			if ( is_array( $row ) ) {
+				$lines[] = sprintf( __( 'Campaign not defined: %s', 'reactwoo-geocore' ), (string) ( $row['raw'] ?? '' ) );
+				$lines   = array_merge( $lines, self::suggestion_lines( $row ) );
+			}
+		}
+
+		return $lines;
+	}
+
+	/**
+	 * @param array<string,mixed> $row Unresolved row.
+	 * @return array<int,string>
+	 */
+	private static function suggestion_lines( array $row ) {
+		$suggestions = (array) ( $row['suggestions'] ?? array() );
+		if ( empty( $suggestions ) ) {
+			return array();
+		}
+		$labels = array();
+		foreach ( $suggestions as $suggestion ) {
+			if ( ! is_array( $suggestion ) ) {
+				continue;
+			}
+			$name   = (string) ( $suggestion['name'] ?? '' );
+			$source = (string) ( $suggestion['source'] ?? '' );
+			$labels[] = '' !== $source ? sprintf( '%s — %s', $name, $source ) : $name;
+		}
+		if ( empty( $labels ) ) {
+			return array();
+		}
+		return array( sprintf( __( 'Suggested matches: %s', 'reactwoo-geocore' ), implode( ', ', $labels ) ) );
+	}
+
+	/**
+	 * Campaign line (matched synced campaign or detected label).
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @return string
+	 */
+	private static function campaign_line( array $action ) {
+		$campaign = is_array( $action['campaign'] ?? null ) ? $action['campaign'] : array();
+		if ( empty( $campaign ) ) {
+			return '';
+		}
+		$name = trim( (string) ( $campaign['name'] ?? $campaign['label'] ?? '' ) );
+		if ( '' === $name ) {
+			return '';
+		}
+		$source = trim( (string) ( $campaign['source'] ?? '' ) );
+		if ( '' !== $source ) {
+			return sprintf( __( 'Campaign: %1$s — %2$s', 'reactwoo-geocore' ), $name, $source );
+		}
+		return sprintf( __( 'Campaign: %s', 'reactwoo-geocore' ), $name );
 	}
 
 	/**

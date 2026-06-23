@@ -123,7 +123,16 @@ class RWGA_Geo_Assistant_Planner {
 		$plan['confidence'] = self::plan_confidence( $actions, $learned );
 		$plan['debug']['decisions'] = $decisions;
 
-		if ( class_exists( 'RWGA_Planner_Plan_Validator', false ) ) {
+		$entity_clarification = self::build_unresolved_entity_clarification( $actions );
+		if ( is_array( $entity_clarification ) ) {
+			// Unresolved synced audiences/campaigns: keep the actions visible (with
+			// their unresolved markers) but require the user to choose before run.
+			$plan['clarification']      = $entity_clarification;
+			$plan['status']             = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION;
+			$plan['confidence']         = min( (float) $plan['confidence'], 0.5 );
+			$decisions[]                = 'synced_entity_clarification';
+			$plan['debug']['decisions'] = $decisions;
+		} elseif ( class_exists( 'RWGA_Planner_Plan_Validator', false ) ) {
 			$validation = RWGA_Planner_Plan_Validator::validate( $phrase, $actions, $entities, $clauses );
 			if ( is_array( $validation ) ) {
 				$plan['debug']['draft_actions'] = $actions;
@@ -230,7 +239,7 @@ class RWGA_Geo_Assistant_Planner {
 			}
 		}
 
-		$cond         = RWGA_Planner_Condition_Resolver::resolve( $clause, $entities );
+		$cond         = RWGA_Planner_Condition_Resolver::resolve( $clause, $entities, $context );
 		$relationship = RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING === $type_row['type'] ? 'original' : 'variant';
 		$variant_idx  = RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type'] ? 1 : null;
 		$variant_lbl  = '';
@@ -249,9 +258,10 @@ class RWGA_Geo_Assistant_Planner {
 			$variant_lbl = self::variant_label_from_conditions( $target, $cond );
 		}
 
-		$campaign_row = class_exists( 'RWGA_Planner_Campaign_Resolver', false )
-			? RWGA_Planner_Campaign_Resolver::detect_from_clause( $clause )
-			: null;
+		$unresolved = array(
+			'audiences' => (array) ( $cond['unresolved']['audiences'] ?? array() ),
+			'campaigns' => array(),
+		);
 
 		$action = array(
 			'id'                  => self::new_id(),
@@ -277,11 +287,88 @@ class RWGA_Geo_Assistant_Planner {
 		);
 
 		if ( RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING === $type_row['type']
-			&& is_array( $campaign_row ) ) {
-			$action['campaign'] = $campaign_row;
+			&& class_exists( 'RWGA_Planner_Campaign_Resolver', false ) ) {
+			$campaign_resolution = RWGA_Planner_Campaign_Resolver::resolve_synced( $clause, $entities, $context );
+			if ( is_array( $campaign_resolution ) ) {
+				if ( is_array( $campaign_resolution['matched'] ?? null ) ) {
+					$action['campaign'] = $campaign_resolution['matched'];
+				} elseif ( is_array( $campaign_resolution['unresolved'] ?? null ) ) {
+					$unresolved['campaigns'][] = $campaign_resolution['unresolved'];
+					$detected                  = RWGA_Planner_Campaign_Resolver::detect_from_clause( $clause );
+					if ( is_array( $detected ) ) {
+						$action['campaign'] = array(
+							'label'  => (string) $detected['label'],
+							'status' => (string) $campaign_resolution['unresolved']['status'],
+						);
+					}
+				}
+			}
+		}
+
+		$action['unresolved'] = $unresolved;
+		if ( ! empty( $unresolved['audiences'] ) || ! empty( $unresolved['campaigns'] ) ) {
+			$action['needsClarification']  = true;
+			$action['clarificationReason'] = ! empty( $unresolved['audiences'] )
+				? 'audience_not_defined'
+				: 'campaign_not_defined';
 		}
 
 		return array( $action );
+	}
+
+	/**
+	 * Build a clarification payload when any action references a synced audience
+	 * or campaign that could not be resolved against the site's synced registry.
+	 *
+	 * @param array<int,array<string,mixed>> $actions Actions.
+	 * @return array<string,mixed>|null
+	 */
+	private static function build_unresolved_entity_clarification( array $actions ) {
+		$audiences = array();
+		$campaigns = array();
+
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) || empty( $action['unresolved'] ) || ! is_array( $action['unresolved'] ) ) {
+				continue;
+			}
+			foreach ( (array) ( $action['unresolved']['audiences'] ?? array() ) as $row ) {
+				if ( is_array( $row ) && '' !== (string) ( $row['raw'] ?? '' ) ) {
+					$audiences[] = $row;
+				}
+			}
+			foreach ( (array) ( $action['unresolved']['campaigns'] ?? array() ) as $row ) {
+				if ( is_array( $row ) && '' !== (string) ( $row['raw'] ?? '' ) ) {
+					$campaigns[] = $row;
+				}
+			}
+		}
+
+		if ( empty( $audiences ) && empty( $campaigns ) ) {
+			return null;
+		}
+
+		if ( ! empty( $audiences ) ) {
+			$reason  = 'audience_not_defined';
+			$message = __( 'One or more audiences are not defined in your synced audiences. Choose an audience to continue.', 'reactwoo-geo-ai' );
+		} else {
+			$reason  = 'campaign_not_defined';
+			$message = __( 'One or more campaigns are not defined in your synced campaigns. Choose a campaign to continue.', 'reactwoo-geo-ai' );
+		}
+
+		return array(
+			'type'       => 'synced_entity_unresolved',
+			'reason'     => $reason,
+			'message'    => $message,
+			'unresolved' => array(
+				'audiences' => $audiences,
+				'campaigns' => $campaigns,
+			),
+			'options'    => array(
+				array( 'label' => __( 'Choose audience/campaign', 'reactwoo-geo-ai' ), 'value' => 'choose_entity' ),
+				array( 'label' => __( 'Ignore this condition', 'reactwoo-geo-ai' ), 'value' => 'ignore_condition' ),
+				array( 'label' => __( 'Cancel', 'reactwoo-geo-ai' ), 'value' => 'cancel' ),
+			),
+		);
 	}
 
 	/**
@@ -319,7 +406,19 @@ class RWGA_Geo_Assistant_Planner {
 			$parts[] = ucfirst( implode( ' + ', (array) $include['devices'] ) );
 		}
 		if ( ! empty( $include['audiences'] ) ) {
-			$parts[] = ucwords( str_replace( '_', ' ', implode( ' + ', (array) $include['audiences'] ) ) );
+			$names = array();
+			foreach ( (array) $include['audiences'] as $audience ) {
+				$names[] = is_array( $audience )
+					? (string) ( $audience['name'] ?? '' )
+					: ucwords( str_replace( '_', ' ', (string) $audience ) );
+			}
+			$names = array_values( array_filter( $names ) );
+			if ( ! empty( $names ) ) {
+				$parts[] = implode( ' + ', $names );
+			}
+		}
+		if ( ! empty( $include['visitorStates'] ) ) {
+			$parts[] = ucwords( str_replace( '_', ' ', implode( ' + ', (array) $include['visitorStates'] ) ) );
 		}
 		$page = ucfirst( (string) ( $target['label'] ?? 'page' ) );
 		return $page . ( $parts ? ' - ' . implode( ' ', $parts ) : '' );

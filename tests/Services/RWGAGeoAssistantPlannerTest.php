@@ -49,6 +49,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-planner-audience-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-utm-condition-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-inherited-target-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-synced-entity-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-campaign-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-url-condition-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-narrative-clause-splitter.php';
@@ -76,6 +77,38 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 	private function entities(): array {
 		$bundle = RWGA_Intelligence_Bundle_Bootstrap::augment( null );
 		return is_array( $bundle['entities'] ?? null ) ? $bundle['entities'] : array();
+	}
+
+	/**
+	 * Bootstrap entities plus a synced audience/campaign registry for resolution.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function synced_entities(): array {
+		$audiences = array(
+			array( 'entity_type' => 'audience', 'entity_key' => 'aud_returning', 'display_name' => 'Returning Visitors', 'source' => 'ga4', 'aliases' => array( 'returning visitors', 'returning customers' ) ),
+			array( 'entity_type' => 'audience', 'entity_key' => 'aud_firsttime', 'display_name' => 'First-Time Visitors', 'source' => 'ga4', 'aliases' => array( 'first-time visitors', 'first time visitors' ) ),
+			array( 'entity_type' => 'audience', 'entity_key' => 'aud_new', 'display_name' => 'New Visitors', 'source' => 'ga4', 'aliases' => array( 'new visitors' ) ),
+			array( 'entity_type' => 'audience', 'entity_key' => 'aud_vip', 'display_name' => 'VIP Customers', 'source' => 'crm', 'aliases' => array( 'vip customers' ) ),
+			array( 'entity_type' => 'audience', 'entity_key' => 'aud_news', 'display_name' => 'Newsletter Subscribers', 'source' => 'email_platform', 'aliases' => array( 'newsletter subscribers' ) ),
+		);
+		$campaigns = array(
+			array( 'entity_type' => 'campaign', 'entity_key' => 'cmp_ny', 'display_name' => 'New Year', 'source' => 'google_ads', 'aliases' => array( 'new year', 'new year campaign' ) ),
+			array( 'entity_type' => 'campaign', 'entity_key' => 'cmp_summer', 'display_name' => 'Summer Sale', 'source' => 'google_ads', 'aliases' => array( 'summer sale', 'summer sale campaign' ) ),
+		);
+		return array_merge( $this->entities(), $audiences, $campaigns );
+	}
+
+	/**
+	 * @param array<string,mixed> $include Include condition group.
+	 * @return array<int,string>
+	 */
+	private function audience_names( array $include ): array {
+		$names = array();
+		foreach ( (array) ( $include['audiences'] ?? array() ) as $audience ) {
+			$names[] = is_array( $audience ) ? (string) ( $audience['name'] ?? '' ) : (string) $audience;
+		}
+		return array_values( array_filter( $names ) );
 	}
 
 	/**
@@ -360,7 +393,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 
 	public function test_new_year_campaign_four_actions_with_validation(): void {
 		$input = "For the new year campaign, show the gym equipment category only to returning visitors in the UK who arrive with utm_campaign=ny-sale, but don't show it to tablet users. Then create a variant of the protein powder product page for first-time visitors in Ireland, and add a rule to show the free-shipping banner to mobile users in Spain except when the weather is rainy.";
-		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->synced_entities() );
 
 		$this->assertSame( 'needs_confirmation', $plan['status'] );
 		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
@@ -371,13 +404,14 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$banner   = $plan['actions'][3];
 
 		$this->assertSame( 'update_campaign_targeting', $campaign['type'] );
-		$this->assertSame( 'new year', $campaign['campaign']['label'] ?? '' );
+		$this->assertSame( 'New Year', $campaign['campaign']['name'] ?? '' );
+		$this->assertSame( 'cmp_ny', $campaign['campaign']['id'] ?? '' );
 		$this->assertSame( 'category', $campaign['target']['type'] );
 		$this->assertStringContainsString( 'gym equipment category', strtolower( (string) ( $campaign['target']['label'] ?? '' ) ) );
 		$this->assertSame( 'only_show', $campaign['operation']['visibility'] );
 		$include_campaign = $this->include_of( $campaign );
 		$this->assertSame( array( 'GB' ), $include_campaign['countries'] );
-		$this->assertSame( array( 'returning_visitors' ), $include_campaign['audiences'] );
+		$this->assertSame( array( 'Returning Visitors' ), $this->audience_names( $include_campaign ) );
 		$this->assertSame(
 			array( array( 'key' => 'utm_campaign', 'value' => 'ny-sale' ) ),
 			$include_campaign['utm']
@@ -397,7 +431,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertStringContainsString( 'protein powder product page', strtolower( (string) ( $variant['target']['label'] ?? '' ) ) );
 		$include_variant = $this->include_of( $variant );
 		$this->assertSame( array( 'IE' ), $include_variant['countries'] );
-		$this->assertSame( array( 'first_time_visitors' ), $include_variant['audiences'] );
+		$this->assertSame( array( 'First-Time Visitors' ), $this->audience_names( $include_variant ) );
 		$this->assertNotContains( 'GB', $include_variant['countries'] );
 
 		$this->assertSame( 'create_rule', $banner['type'] );
@@ -413,7 +447,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 
 	public function test_two_homepage_variants_with_rule_and_diagnose(): void {
 		$input = "Create two versions of the homepage: the first should only show to returning visitors in Canada, and the second should show to new visitors in Australia on mobile. Then hide the newsletter popup on /checkout for users in France, and diagnose what a desktop visitor from Germany would see on the homepage.";
-		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->synced_entities() );
 
 		$this->assertSame( 'needs_confirmation', $plan['status'] );
 		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
@@ -429,7 +463,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertSame( 'only_show', $variant_one['operation']['visibility'] );
 		$include_one = $this->include_of( $variant_one );
 		$this->assertSame( array( 'CA' ), $include_one['countries'] );
-		$this->assertSame( array( 'returning_visitors' ), $include_one['audiences'] );
+		$this->assertSame( array( 'Returning Visitors' ), $this->audience_names( $include_one ) );
 		$this->assertNotContains( 'AU', $include_one['countries'] );
 
 		$this->assertSame( 'create_variant', $variant_two['type'] );
@@ -437,7 +471,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$include_two = $this->include_of( $variant_two );
 		$this->assertSame( array( 'AU' ), $include_two['countries'] );
 		$this->assertSame( array( 'mobile' ), $include_two['devices'] );
-		$this->assertSame( array( 'new_visitors' ), $include_two['audiences'] );
+		$this->assertSame( array( 'New Visitors' ), $this->audience_names( $include_two ) );
 		$this->assertNotContains( 'CA', $include_two['countries'] );
 
 		$this->assertSame( 'create_rule', $rule['type'] );
@@ -519,7 +553,8 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$include_update = $this->include_of( $update );
 		$exclude_update = $this->exclude_of( $update );
 		$this->assertEqualsCanonicalizing( array( 'BE', 'NL' ), $include_update['countries'] );
-		$this->assertSame( array( 'logged_in_customers' ), $include_update['audiences'] );
+		$this->assertSame( array(), $this->audience_names( $include_update ) );
+		$this->assertSame( array( 'logged_in' ), array_values( (array) ( $include_update['visitorStates'] ?? array() ) ) );
 		$this->assertSame( 'utm_source', $exclude_update['utm'][0]['key'] ?? '' );
 		$this->assertSame( 'email', $exclude_update['utm'][0]['value'] ?? '' );
 
@@ -580,11 +615,69 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 
 	public function test_two_versions_with_single_variant_fails_safe(): void {
 		$input = 'Create two versions of the homepage for returning visitors in Canada and Australia.';
-		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->synced_entities() );
 
 		$this->assertSame( 'needs_clarification', $plan['status'] );
 		$this->assertSame( 'plan_validation_failed', $plan['clarification']['type'] ?? '' );
 		$this->assertContains( 'variant_count_mismatch', (array) ( $plan['clarification']['issues'] ?? array() ) );
 		$this->assertSame( array(), $plan['actions'] );
+	}
+
+	public function test_unsynced_audience_returns_clarification(): void {
+		$input = 'Show the homepage only to VIP customers in France.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$this->assertSame( 'synced_entity_unresolved', $plan['clarification']['type'] ?? '' );
+		$this->assertSame( 'audience_not_defined', $plan['clarification']['reason'] ?? '' );
+		$unresolved = (array) ( $plan['clarification']['unresolved']['audiences'] ?? array() );
+		$this->assertNotEmpty( $unresolved );
+		$this->assertSame( 'vip customers', strtolower( (string) ( $unresolved[0]['raw'] ?? '' ) ) );
+		$this->assertNotEmpty( $plan['actions'], 'Actions stay visible so the user can choose an audience.' );
+		$include = $this->include_of( $plan['actions'][0] );
+		$this->assertSame( array(), $this->audience_names( $include ) );
+	}
+
+	public function test_synced_audience_exact_match_resolves(): void {
+		$input = 'Show the homepage only to VIP Customers in France.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->synced_entities() );
+
+		$this->assertNotSame( 'needs_clarification', $plan['status'] );
+		$include = $this->include_of( $plan['actions'][0] );
+		$this->assertSame( array( 'VIP Customers' ), $this->audience_names( $include ) );
+		$audience = $include['audiences'][0];
+		$this->assertSame( 'aud_vip', $audience['id'] ?? '' );
+		$this->assertSame( 'crm', $audience['source'] ?? '' );
+	}
+
+	public function test_unsynced_campaign_returns_clarification_with_suggestions(): void {
+		$input = 'For the new year campaign, show the homepage only in France.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret(
+			$input,
+			array(),
+			array_merge(
+				$this->entities(),
+				array(
+					array( 'entity_type' => 'campaign', 'entity_key' => 'cmp_jan', 'display_name' => 'January Promo', 'source' => 'google_ads', 'aliases' => array( 'january promo', 'january promo campaign' ) ),
+				)
+			)
+		);
+
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$this->assertSame( 'synced_entity_unresolved', $plan['clarification']['type'] ?? '' );
+		$this->assertSame( 'campaign_not_defined', $plan['clarification']['reason'] ?? '' );
+		$campaigns = (array) ( $plan['clarification']['unresolved']['campaigns'] ?? array() );
+		$this->assertNotEmpty( $campaigns );
+		$this->assertSame( 'new year', strtolower( (string) ( $campaigns[0]['raw'] ?? '' ) ) );
+	}
+
+	public function test_logged_in_maps_to_native_visitor_state(): void {
+		$input = 'Show the homepage only to logged-in customers in France.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertNotSame( 'needs_clarification', $plan['status'] );
+		$include = $this->include_of( $plan['actions'][0] );
+		$this->assertSame( array( 'logged_in' ), array_values( (array) ( $include['visitorStates'] ?? array() ) ) );
+		$this->assertSame( array(), $this->audience_names( $include ) );
 	}
 }

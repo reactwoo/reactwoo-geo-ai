@@ -1,6 +1,7 @@
 <?php
 /**
- * Resolve per-clause targeting conditions (location, device, weather) with include/exclude polarity.
+ * Resolve per-clause targeting conditions (location, device, weather, audience)
+ * with include/exclude polarity. Audiences resolve against synced data only.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -10,53 +11,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 class RWGA_Planner_Condition_Resolver {
 
 	/**
-	 * @param string           $clause   Clause text (or sub-segment).
-	 * @param array<int,array> $entities Entity rows.
-	 * @return array{conditions:array,warnings:array,confidence:float,location_labels:array}
+	 * @param string              $clause   Clause text (or sub-segment).
+	 * @param array<int,array>    $entities Entity rows.
+	 * @param array<string,mixed> $context  Planner context (synced registries).
+	 * @return array{conditions:array,warnings:array,confidence:float,location_labels:array,unresolved:array}
 	 */
-	public static function resolve( $clause, array $entities ) {
+	public static function resolve( $clause, array $entities, array $context = array() ) {
 		$clause  = RWGA_Local_Intent_Interpreter::normalise( $clause );
 		$split   = RWGA_Planner_Condition_Polarity_Resolver::split_text( $clause );
-		$include = self::resolve_group( (string) $split['include_text'], $entities );
+		$include = self::resolve_group( (string) $split['include_text'], $entities, $context );
 		$exclude = '' !== (string) $split['exclude_text']
-			? self::resolve_group( (string) $split['exclude_text'], $entities )
-			: array(
-				'countries' => array(),
-				'regions'   => array(),
-				'devices'   => array(),
-				'weather'   => array(),
-				'urls'      => array(),
-				'utm'       => array(),
-				'campaigns' => array(),
-				'audiences' => array(),
-				'warnings'  => array(),
-				'labels'    => array(),
-			);
+			? self::resolve_group( (string) $split['exclude_text'], $entities, $context )
+			: self::empty_group();
 
 		$conditions = array(
-			'include' => array(
-				'countries' => $include['countries'],
-				'regions'   => $include['regions'],
-				'devices'   => $include['devices'],
-				'weather'   => $include['weather'],
-				'urls'      => $include['urls'],
-				'utm'       => $include['utm'],
-				'campaigns' => $include['campaigns'],
-				'audiences' => $include['audiences'],
-			),
-			'exclude' => array(
-				'countries' => $exclude['countries'],
-				'regions'   => $exclude['regions'],
-				'devices'   => $exclude['devices'],
-				'weather'   => $exclude['weather'],
-				'urls'      => $exclude['urls'],
-				'utm'       => $exclude['utm'],
-				'campaigns' => $exclude['campaigns'],
-				'audiences' => $exclude['audiences'],
+			'include' => self::group_conditions( $include ),
+			'exclude' => self::group_conditions( $exclude ),
+		);
+
+		$warnings   = array_values( array_unique( array_merge( $include['warnings'], $exclude['warnings'] ) ) );
+		$unresolved = array(
+			'audiences' => array_merge(
+				(array) ( $include['unresolved_audiences'] ?? array() ),
+				(array) ( $exclude['unresolved_audiences'] ?? array() )
 			),
 		);
 
-		$warnings = array_values( array_unique( array_merge( $include['warnings'], $exclude['warnings'] ) ) );
 		$confidence = 0.7;
 		if ( ! empty( $include['countries'] ) || ! empty( $include['regions'] ) || ! empty( $exclude['countries'] ) ) {
 			$confidence = 0.88;
@@ -73,15 +53,55 @@ class RWGA_Planner_Condition_Resolver {
 			'warnings'        => $warnings,
 			'location_labels' => $include['labels'],
 			'confidence'      => $confidence,
+			'unresolved'      => $unresolved,
 		);
 	}
 
 	/**
-	 * @param string           $text     Text segment.
-	 * @param array<int,array> $entities Entities.
-	 * @return array{countries:array,regions:array,devices:array,weather:array,urls:array,campaigns:array,audiences:array,warnings:array,labels:array}
+	 * @param array<string,mixed> $group Group row.
+	 * @return array<string,mixed>
 	 */
-	private static function resolve_group( $text, array $entities ) {
+	private static function group_conditions( array $group ) {
+		return array(
+			'countries'     => $group['countries'],
+			'regions'       => $group['regions'],
+			'devices'       => $group['devices'],
+			'weather'       => $group['weather'],
+			'urls'          => $group['urls'],
+			'utm'           => $group['utm'],
+			'campaigns'     => $group['campaigns'],
+			'audiences'     => $group['audiences'],
+			'visitorStates' => $group['visitorStates'],
+		);
+	}
+
+	/**
+	 * @return array<string,mixed>
+	 */
+	private static function empty_group() {
+		return array(
+			'countries'            => array(),
+			'regions'              => array(),
+			'devices'              => array(),
+			'weather'              => array(),
+			'urls'                 => array(),
+			'utm'                  => array(),
+			'campaigns'            => array(),
+			'audiences'            => array(),
+			'visitorStates'        => array(),
+			'unresolved_audiences' => array(),
+			'warnings'             => array(),
+			'labels'               => array(),
+		);
+	}
+
+	/**
+	 * @param string              $text     Text segment.
+	 * @param array<int,array>    $entities Entities.
+	 * @param array<string,mixed> $context  Context.
+	 * @return array<string,mixed>
+	 */
+	private static function resolve_group( $text, array $entities, array $context = array() ) {
 		$text     = RWGA_Local_Intent_Interpreter::normalise( $text );
 		$location = RWGA_Planner_Location_Resolver::resolve_from_text( $text, $entities );
 		$devices  = self::detect_devices( $text );
@@ -94,22 +114,24 @@ class RWGA_Planner_Condition_Resolver {
 		$utm = class_exists( 'RWGA_Planner_Utm_Condition_Resolver', false )
 			? RWGA_Planner_Utm_Condition_Resolver::extract( $text )
 			: array();
-		$audiences = class_exists( 'RWGA_Planner_Audience_Resolver', false )
-			? RWGA_Planner_Audience_Resolver::extract( $text )
-			: array();
+		$audience = class_exists( 'RWGA_Planner_Audience_Resolver', false )
+			? RWGA_Planner_Audience_Resolver::resolve( $text, $entities, $context )
+			: array( 'audiences' => array(), 'visitorStates' => array(), 'unresolved' => array() );
 		$weather_values = self::detect_weather_values( $text, $entities, $weather );
 
 		return array(
-			'countries' => $location['countries'],
-			'regions'   => $location['regions'],
-			'devices'   => $devices,
-			'weather'   => $weather_values,
-			'urls'      => $urls,
-			'utm'       => $utm,
-			'campaigns' => array(),
-			'audiences' => $audiences,
-			'warnings'  => $location['warnings'],
-			'labels'    => $location['labels'],
+			'countries'            => $location['countries'],
+			'regions'              => $location['regions'],
+			'devices'              => $devices,
+			'weather'              => $weather_values,
+			'urls'                 => $urls,
+			'utm'                  => $utm,
+			'campaigns'            => array(),
+			'audiences'            => (array) ( $audience['audiences'] ?? array() ),
+			'visitorStates'        => (array) ( $audience['visitorStates'] ?? array() ),
+			'unresolved_audiences' => (array) ( $audience['unresolved'] ?? array() ),
+			'warnings'             => $location['warnings'],
+			'labels'               => $location['labels'],
 		);
 	}
 

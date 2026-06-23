@@ -62,13 +62,6 @@ class RWGA_Planner_Plan_Validator {
 			}
 		}
 
-		foreach ( $phrase_entities['audiences'] as $audience ) {
-			$owners = (array) ( $attached['audience_slots'][ $audience ] ?? array() );
-			if ( count( $owners ) !== 1 ) {
-				$issues[] = 'audience_' . $audience;
-			}
-		}
-
 		if ( ! empty( $phrase_entities['utm'] ) && empty( $attached['utm'] ) ) {
 			$issues[] = 'utm_unattached';
 		}
@@ -258,7 +251,6 @@ class RWGA_Planner_Plan_Validator {
 		$country_slots  = array();
 		$region_slots   = array();
 		$device_slots   = array();
-		$audience_slots = array();
 		$url_slots      = array();
 		$utm            = array();
 
@@ -282,10 +274,6 @@ class RWGA_Planner_Plan_Validator {
 				$device_slots[ (string) $device ]   = (array) ( $device_slots[ (string) $device ] ?? array() );
 				$device_slots[ (string) $device ][] = $slot;
 			}
-			foreach ( array_merge( (array) ( $include['audiences'] ?? array() ), (array) ( $exclude['audiences'] ?? array() ) ) as $audience ) {
-				$audience_slots[ (string) $audience ]   = (array) ( $audience_slots[ (string) $audience ] ?? array() );
-				$audience_slots[ (string) $audience ][] = $slot;
-			}
 			foreach ( array_merge( (array) ( $include['urls'] ?? array() ), (array) ( $exclude['urls'] ?? array() ) ) as $url ) {
 				$url_slots[ (string) $url ]   = (array) ( $url_slots[ (string) $url ] ?? array() );
 				$url_slots[ (string) $url ][] = $slot;
@@ -301,7 +289,6 @@ class RWGA_Planner_Plan_Validator {
 			'country_slots'  => $country_slots,
 			'region_slots'   => $region_slots,
 			'device_slots'   => $device_slots,
-			'audience_slots' => $audience_slots,
 			'url_slots'      => $url_slots,
 			'utm'            => $utm,
 		);
