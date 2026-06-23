@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.117
+Stable tag: 0.4.118
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.118 =
+* **Geo Assistant — server-side plan executor:** Confirming a reviewed multi-action plan now builds real Geo Core entities instead of only redirecting. Each action becomes a **draft** visibility rule via the Geo Core rule library; variant / original-targeting actions create a draft rule plus a listed manual step; preview/test actions create nothing. Field-level card resolutions (choose synced entity, ignore, remove action) are applied server-side, the plan is re-validated, and execution is hard-gated (HTTP 409) while any required mapping is still unresolved. Include/exclude condition groups convert to portable conditions with the correct visibility mode (`show_if`/`hide_if`); regions, raw URLs, and unsupported visitor states are reported as manual follow-ups rather than dropped silently. Proposals that carry an action plan are now persisted even while unresolved so resolutions can be submitted to the execute endpoint.
 
 = 0.4.117 =
 * **Geo Assistant — action review model:** The planner now emits a structured per-action card model (`action_cards`) so each detected action is reviewable on its own. Targets are validated against known site registries (WordPress pages + WooCommerce product categories, plus any pages/categories/popups/banners/products supplied via context) with fuzzy suggestions; campaigns and audiences keep their synced resolution status. Each action exposes `target`/`campaign`/`audiences` as `{raw, resolved, status, suggestions}` plus a `requiredResolutions` list and a `needs_resolution`/`ready` status, and the plan reports `fields_needing_attention` and `requires_resolution` and refuses to be executable while any required mapping is unresolved.

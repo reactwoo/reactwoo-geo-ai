@@ -104,7 +104,7 @@ class RWGA_Assistant_Service {
 				'memory'        => array(),
 				'learning'      => array(),
 			);
-		$id = ! empty( $meta['can_execute'] ) ? RWGA_Proposal_Store::save( $proposal ) : '';
+		$id = self::should_persist_proposal( $proposal, $meta ) ? RWGA_Proposal_Store::save( $proposal ) : '';
 
 		$summary = (string) ( $proposal['summary'] ?? '' );
 		if ( ! empty( $meta['can_execute'] ) && 'create_geo_variant_plan' === ( $proposal['intent'] ?? '' ) ) {
@@ -167,7 +167,7 @@ class RWGA_Assistant_Service {
 			? RWGA_Interpretation_Status::from_result( $raw )
 			: array( 'status' => 'complete', 'can_execute' => true, 'clarification' => array( 'question' => '', 'options' => array() ), 'memory' => array(), 'learning' => array(), 'source' => '', 'confidence' => 0 );
 		$proposal = self::format_proposal( $raw, $message, $entities, $inferred_plan );
-		$id       = ! empty( $meta['can_execute'] ) ? RWGA_Proposal_Store::save( $proposal ) : '';
+		$id       = self::should_persist_proposal( $proposal, $meta ) ? RWGA_Proposal_Store::save( $proposal ) : '';
 		$ai_available = (bool) apply_filters( 'rwga_interpretation_ai_fallback_enabled', false );
 		$ambiguities       = isset( $raw['ambiguities'] ) && is_array( $raw['ambiguities'] ) ? $raw['ambiguities'] : array();
 		$ai_interpretation = isset( $raw['ai_interpretation'] ) && is_array( $raw['ai_interpretation'] ) ? $raw['ai_interpretation'] : null;
@@ -355,10 +355,29 @@ class RWGA_Assistant_Service {
 	}
 
 	/**
-	 * @param string $proposal_id Proposal ID.
+	 * Whether a proposal should be persisted to the store.
+	 *
+	 * Executable proposals are always stored. Card-based plans are stored even
+	 * while unresolved so the client can apply field-level resolutions through
+	 * the execute endpoint (the server re-validates before creating anything).
+	 *
+	 * @param array<string,mixed> $proposal Formatted proposal.
+	 * @param array<string,mixed> $meta     Interpretation status meta.
+	 * @return bool
+	 */
+	private static function should_persist_proposal( array $proposal, array $meta ) {
+		if ( ! empty( $meta['can_execute'] ) ) {
+			return true;
+		}
+		return ! empty( $proposal['action_cards'] ) && is_array( $proposal['action_cards'] );
+	}
+
+	/**
+	 * @param string              $proposal_id Proposal ID.
+	 * @param array<int,array<string,mixed>> $resolutions Card resolution rows from the client.
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public static function execute( $proposal_id ) {
+	public static function execute( $proposal_id, array $resolutions = array() ) {
 		$proposal = RWGA_Proposal_Store::get( $proposal_id );
 		if ( ! $proposal ) {
 			return new WP_Error( 'rwga_proposal_expired', __( 'Proposal expired or not found. Send your message again.', 'reactwoo-geo-ai' ), array( 'status' => 404 ) );
@@ -370,10 +389,16 @@ class RWGA_Assistant_Service {
 		/**
 		 * Execute a confirmed assistant proposal (no-op until handlers register).
 		 *
-		 * @param array<string,mixed> $proposal Stored proposal.
-		 * @param string              $action   Action key.
+		 * @param array<string,mixed>            $result      Filtered result (null until a handler runs).
+		 * @param array<string,mixed>            $proposal    Stored proposal.
+		 * @param string                         $action      Action key.
+		 * @param array<int,array<string,mixed>> $resolutions Client card resolutions.
 		 */
-		$result = apply_filters( 'rwga_assistant_execute_proposal', null, $proposal, $action );
+		$result = apply_filters( 'rwga_assistant_execute_proposal', null, $proposal, $action, $resolutions );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
 
 		if ( null === $result ) {
 			$result = array(

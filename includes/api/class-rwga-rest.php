@@ -1919,8 +1919,12 @@ class RWGA_REST {
 		if ( ! class_exists( 'RWGA_Assistant_Service', false ) ) {
 			return new WP_Error( 'rwga_not_loaded', __( 'Assistant service unavailable.', 'reactwoo-geo-ai' ), array( 'status' => 500 ) );
 		}
-		$id = (string) $request->get_param( 'proposal_id' );
-		$result = RWGA_Assistant_Service::execute( $id );
+		$id          = (string) $request->get_param( 'proposal_id' );
+		$resolutions = $request->get_param( 'resolutions' );
+		if ( ! is_array( $resolutions ) ) {
+			$resolutions = array();
+		}
+		$result = RWGA_Assistant_Service::execute( $id, $resolutions );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}

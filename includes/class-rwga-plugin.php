@@ -196,7 +196,12 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-multi-variant-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-proposal-store.php';
+		require_once RWGA_PATH . 'includes/services/executor/class-rwga-card-resolution-applier.php';
+		require_once RWGA_PATH . 'includes/services/executor/class-rwga-plan-condition-converter.php';
+		require_once RWGA_PATH . 'includes/services/executor/class-rwga-plan-executor.php';
+		require_once RWGA_PATH . 'includes/services/executor/class-rwga-assistant-executor-bridge.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-assistant-service.php';
+		RWGA_Assistant_Executor_Bridge::register();
 		require_once RWGA_PATH . 'includes/services/class-rwga-local-intent-interpreter.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-learning-event-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-site-intelligence-journey.php';

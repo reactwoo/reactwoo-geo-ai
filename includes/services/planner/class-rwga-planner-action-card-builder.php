@@ -121,6 +121,29 @@ class RWGA_Planner_Action_Card_Builder {
 	private static function build_target( array $action, array $context, array $entities ) {
 		$raw_target = is_array( $action['target'] ?? null ) ? $action['target'] : array();
 
+		if ( ! empty( $raw_target['user_resolved'] ) && is_array( $raw_target['user_resolved'] ) ) {
+			$chosen = $raw_target['user_resolved'];
+			return array(
+				'type'        => (string) ( $chosen['type'] ?? ( $raw_target['type'] ?? 'page' ) ),
+				'raw'         => (string) ( $chosen['name'] ?? ( $raw_target['label'] ?? '' ) ),
+				'resolved'    => array(
+					'id'   => (string) ( $chosen['id'] ?? '' ),
+					'name' => (string) ( $chosen['name'] ?? '' ),
+				),
+				'status'      => 'matched',
+				'suggestions' => array(),
+			);
+		}
+		if ( ! empty( $raw_target['user_ignored'] ) ) {
+			return array(
+				'type'        => (string) ( $raw_target['type'] ?? 'page' ),
+				'raw'         => (string) ( $raw_target['label'] ?? '' ),
+				'resolved'    => null,
+				'status'      => 'ignored',
+				'suggestions' => array(),
+			);
+		}
+
 		$resolution = class_exists( 'RWGA_Planner_Target_Registry_Resolver', false )
 			? RWGA_Planner_Target_Registry_Resolver::resolve( $raw_target, $context, $entities )
 			: array(
