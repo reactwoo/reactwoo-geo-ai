@@ -64,6 +64,8 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-planner-plan-validator.php';
 		require_once $base . 'services/planner/class-rwga-planner-resolve-clarifications.php';
 		require_once $base . 'services/planner/class-rwga-planner-confirmation-builder.php';
+		require_once $base . 'services/planner/class-rwga-planner-target-registry-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-action-card-builder.php';
 		require_once $base . 'services/planner/class-rwga-planner-learned-patterns.php';
 		require_once $base . 'services/planner/class-rwga-planner-ai-fallback.php';
 		require_once $base . 'services/planner/class-rwga-planner-legacy-adapter.php';
@@ -716,5 +718,60 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$include = $this->include_of( $plan['actions'][0] );
 		$this->assertSame( array( 'logged_in' ), array_values( (array) ( $include['visitorStates'] ?? array() ) ) );
 		$this->assertSame( array(), $this->audience_names( $include ) );
+	}
+
+	public function test_complex_campaign_phrase_yields_four_action_cards(): void {
+		$input   = 'For the Spring Promo campaign, update the trainers category page so it only shows to VIP Buyers in Spain and Portugal, but exclude visitors from utm_source=email. Then create a new variant of the same category page for mobile users in Italy, hide the loyalty popup for Returning Customers in Germany, and preview what a desktop visitor from France would see on the trainers category page.';
+		$context = array(
+			'targets' => array(
+				'categories' => array(
+					array( 'id' => 'cat_12', 'name' => 'Shoes' ),
+					array( 'id' => 'cat_18', 'name' => 'Accessories' ),
+					array( 'id' => 'cat_24', 'name' => 'Sale' ),
+				),
+			),
+		);
+		$plan = RWGA_Geo_Assistant_Planner::interpret( $input, $context, $this->entities() );
+
+		$this->assertCount( 4, (array) ( $plan['actions'] ?? array() ), 'Exclusion clause must not become a 5th action.' );
+		$this->assertCount( 4, (array) ( $plan['action_cards'] ?? array() ) );
+
+		// Action 1 keeps the UTM exclusion attached.
+		$exclude = $this->exclude_of( $plan['actions'][0] );
+		$utm     = (array) ( $exclude['utm'] ?? array() );
+		$this->assertNotEmpty( $utm, 'utm_source=email stays an exclusion on action 1.' );
+
+		// Action 2 inherits the trainers category page.
+		$inherited = (array) ( $plan['action_cards'][1]['target'] ?? array() );
+		$this->assertTrue( (bool) ( $inherited['inherited'] ?? false ) );
+		$this->assertStringContainsStringIgnoringCase( 'trainers', (string) ( $inherited['inheritedFrom'] ?? '' ) );
+
+		// The plan is gated until unknown mappings are resolved.
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$this->assertTrue( (bool) ( $plan['requires_resolution'] ?? false ) );
+		$this->assertGreaterThan( 0, (int) ( $plan['fields_needing_attention'] ?? 0 ) );
+
+		// The trainers category target is unresolved and offers suggested targets.
+		$target = (array) ( $plan['action_cards'][0]['target'] ?? array() );
+		$this->assertContains( (string) ( $target['status'] ?? '' ), array( 'not_found', 'ambiguous' ) );
+		$this->assertNotEmpty( (array) ( $target['suggestions'] ?? array() ) );
+	}
+
+	public function test_action_card_marks_required_resolutions(): void {
+		$input = 'For the Spring Promo campaign, show the homepage to VIP Buyers in Spain.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->synced_entities() );
+
+		$cards = (array) ( $plan['action_cards'] ?? array() );
+		$this->assertNotEmpty( $cards );
+		$required = (array) ( $cards[0]['requiredResolutions'] ?? array() );
+		$fields   = array_map(
+			static function ( $row ) {
+				return (string) ( $row['field'] ?? '' );
+			},
+			$required
+		);
+		$this->assertContains( 'campaign', $fields, 'Unknown campaign requires resolution.' );
+		$this->assertContains( 'audience', $fields, 'Unknown audience requires resolution.' );
+		$this->assertSame( 'needs_resolution', (string) ( $cards[0]['status'] ?? '' ) );
 	}
 }

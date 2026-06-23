@@ -162,6 +162,17 @@ class RWGA_Geo_Assistant_Planner {
 			$plan['debug']['decisions'][] = 'ai_fallback_merged';
 		}
 
+		if ( ! empty( $plan['actions'] ) && class_exists( 'RWGA_Planner_Action_Card_Builder', false ) ) {
+			$cards = RWGA_Planner_Action_Card_Builder::build( $plan['actions'], $context, $entities );
+			$plan['action_cards']             = $cards['cards'];
+			$plan['fields_needing_attention'] = $cards['fields_needing_attention'];
+			$plan['requires_resolution']      = $cards['requires_resolution'];
+			if ( $cards['requires_resolution'] && RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION !== $plan['status'] ) {
+				$plan['status']     = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION;
+				$plan['confidence'] = min( (float) $plan['confidence'], 0.5 );
+			}
+		}
+
 		$copy = RWGA_Planner_Confirmation_Builder::build( $plan );
 		$plan['confirmationSummary'] = $copy['summary'];
 		$plan['setupSummary']        = $copy['setup_summary'];

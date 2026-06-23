@@ -55,7 +55,7 @@ class RWGA_Planner_Action_Clause_Splitter {
 		if ( class_exists( 'RWGA_Planner_Narrative_Clause_Splitter', false ) ) {
 			$narrative = RWGA_Planner_Narrative_Clause_Splitter::split( $block );
 			if ( count( $narrative ) >= 2 ) {
-				return self::append_trailing_clauses( $narrative, $trailing );
+				return self::merge_modifier_preamble( self::append_trailing_clauses( $narrative, $trailing ) );
 			}
 		}
 
@@ -140,6 +140,39 @@ class RWGA_Planner_Action_Clause_Splitter {
 					'index' => 0,
 				),
 			);
+		}
+
+		return self::merge_modifier_preamble( $clauses );
+	}
+
+	/**
+	 * Re-attach a leading modifier preamble ("For the Spring Promo campaign,")
+	 * to the following action clause so it does not become a standalone action.
+	 *
+	 * @param array<int,array<string,mixed>> $clauses Clauses.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function merge_modifier_preamble( array $clauses ) {
+		if ( count( $clauses ) < 2 ) {
+			return $clauses;
+		}
+
+		$first = trim( (string) ( $clauses[0]['raw'] ?? '' ) );
+		if ( '' === $first ) {
+			return $clauses;
+		}
+
+		// A preamble starts with a scoping preposition but carries no action verb of its own.
+		$is_preamble = preg_match( '/^(?:for|in|on|using|with|during)\b/i', $first )
+			&& ! preg_match( '/\b(?:update|create|change|show|hide|display|make|test|diagnose|preview|set|add|remove|exclude|build|duplicate|clone|target)\b/i', $first );
+		if ( ! $is_preamble ) {
+			return $clauses;
+		}
+
+		$clauses[1]['raw'] = $first . ', ' . trim( (string) ( $clauses[1]['raw'] ?? '' ) );
+		array_splice( $clauses, 0, 1 );
+		foreach ( $clauses as $i => $row ) {
+			$clauses[ $i ]['index'] = $i;
 		}
 
 		return $clauses;

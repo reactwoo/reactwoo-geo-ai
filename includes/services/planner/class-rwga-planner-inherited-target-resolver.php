@@ -20,11 +20,11 @@ class RWGA_Planner_Inherited_Target_Resolver {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
 
 		if ( self::needs_pronoun_target( $clause ) && ! empty( $session['currentTarget'] ) ) {
-			return $session['currentTarget'];
+			return self::mark_inherited( $session['currentTarget'] );
 		}
 
 		if ( preg_match( '/\b(?:same|the)\s+product\s+page\b/i', $clause ) && ! empty( $session['currentTarget'] ) ) {
-			return $session['currentTarget'];
+			return self::mark_inherited( $session['currentTarget'] );
 		}
 
 		$category = self::extract_category_label( $clause );
@@ -55,13 +55,26 @@ class RWGA_Planner_Inherited_Target_Resolver {
 	}
 
 	/**
+	 * Flag a target row as inherited from a previous action and record its origin.
+	 *
+	 * @param array<string,mixed> $target Target row from session state.
+	 * @return array<string,mixed>
+	 */
+	private static function mark_inherited( array $target ) {
+		$origin            = (string) ( $target['label'] ?? '' );
+		$target['source']  = 'inherited';
+		$target['inheritedFrom'] = $origin;
+		return $target;
+	}
+
+	/**
 	 * @param string $clause Clause text.
 	 * @return bool
 	 */
 	public static function needs_pronoun_target( $clause ) {
 		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
 		return (bool) preg_match(
-			'/^(?:but\s+)?(?:don\'t|do not)\s+show\s+it\b|\b(?:don\'t|do not)\s+show\s+it\s+to\b|\b(?:hide|show)\s+it\s+from\b|\bsame\s+product\s+page\b/i',
+			'/^(?:but\s+)?(?:don\'t|do not)\s+show\s+it\b|\b(?:don\'t|do not)\s+show\s+it\s+to\b|\b(?:hide|show)\s+it\s+from\b|\bsame\s+(?:category(?:\s+page)?|product(?:\s+page)?|page)\b/i',
 			$clause
 		);
 	}

@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.116
+Stable tag: 0.4.117
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,10 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.117 =
+* **Geo Assistant — action review model:** The planner now emits a structured per-action card model (`action_cards`) so each detected action is reviewable on its own. Targets are validated against known site registries (WordPress pages + WooCommerce product categories, plus any pages/categories/popups/banners/products supplied via context) with fuzzy suggestions; campaigns and audiences keep their synced resolution status. Each action exposes `target`/`campaign`/`audiences` as `{raw, resolved, status, suggestions}` plus a `requiredResolutions` list and a `needs_resolution`/`ready` status, and the plan reports `fields_needing_attention` and `requires_resolution` and refuses to be executable while any required mapping is unresolved.
+* **Parser fixes:** A leading campaign/scope preamble such as "For the Spring Promo campaign, …" is re-attached to the following action instead of becoming its own action; "same category page" (and "same page"/"it") now inherit the previous valid target and are flagged when that inherited target is itself unresolved; exclusion clauses like "but exclude visitors from utm_source=email" stay as exclusion conditions on the relevant action. "VIP buyers" is now recognised as an audience phrase. The example multi-action command now produces 4 actions, not 5.
 
 = 0.4.116 =
 * **Geo Assistant:** Each unresolved synced audience/campaign now carries the action it belongs to. Clarification rows include `action_index` and `target_label`, and the legacy interpreter result surfaces these as action-scoped `ambiguities`, so the "Choose location/audience" panel and chat clearly state which action or rule each selection is for.

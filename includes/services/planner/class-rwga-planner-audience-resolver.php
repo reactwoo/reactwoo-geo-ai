@@ -42,7 +42,7 @@ class RWGA_Planner_Audience_Resolver {
 		'/\bnew\s+(?:visitors?|customers?)\b/i',
 		'/\brepeat\s+(?:buyers?|customers?|shoppers?)\b/i',
 		'/\bloyal\s+(?:customers?|members?|shoppers?)\b/i',
-		'/\bvip\s+(?:customers?|members?|shoppers?|users?|visitors?)\b/i',
+		'/\bvip\s+(?:customers?|members?|shoppers?|users?|visitors?|buyers?)\b/i',
 		'/\bnewsletter\s+subscribers?\b/i',
 		'/\bhigh[-\s]?intent\s+(?:users?|visitors?|shoppers?|buyers?|customers?)\b/i',
 		'/\babandoned[-\s]?cart\s+(?:visitors?|users?|shoppers?|customers?)\b/i',

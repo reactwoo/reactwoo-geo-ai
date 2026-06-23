@@ -187,6 +187,8 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-ordinal-variant-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-resolve-clarifications.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-confirmation-builder.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-target-registry-resolver.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-action-card-builder.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-learned-patterns.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-ai-fallback.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-legacy-adapter.php';
