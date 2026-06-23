@@ -92,13 +92,17 @@ class RWGA_Planner_Legacy_Adapter {
 			}
 		}
 
-		$missing = array();
+		$missing     = array();
+		$ambiguities = array();
 		if ( ! empty( $plan['clarification'] ) && is_array( $plan['clarification'] ) ) {
 			$missing[] = array(
 				'key'      => (string) ( $plan['clarification']['type'] ?? 'clarification' ),
 				'question' => (string) ( $plan['clarification']['message'] ?? '' ),
 				'options'  => $plan['clarification']['options'] ?? array(),
 			);
+			if ( ! empty( $plan['clarification']['ambiguities'] ) && is_array( $plan['clarification']['ambiguities'] ) ) {
+				$ambiguities = array_values( $plan['clarification']['ambiguities'] );
+			}
 		}
 
 		$proposal_ready = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION !== $status
@@ -120,6 +124,7 @@ class RWGA_Planner_Legacy_Adapter {
 			'steps'                     => $steps,
 			'warnings'                  => $warnings,
 			'missing_information'       => $missing,
+			'ambiguities'               => $ambiguities,
 			'interpretation_source'     => 'geo_assistant_planner',
 		);
 	}

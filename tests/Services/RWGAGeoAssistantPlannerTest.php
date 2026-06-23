@@ -636,6 +636,43 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertNotEmpty( $plan['actions'], 'Actions stay visible so the user can choose an audience.' );
 		$include = $this->include_of( $plan['actions'][0] );
 		$this->assertSame( array(), $this->audience_names( $include ) );
+
+		$ambiguities = (array) ( $plan['clarification']['ambiguities'] ?? array() );
+		$this->assertNotEmpty( $ambiguities, 'Each unresolved entity becomes an action-scoped ambiguity row.' );
+		$this->assertSame( 'audience', $ambiguities[0]['field'] ?? '' );
+		$this->assertSame( 1, $ambiguities[0]['action_index'] ?? null );
+		$this->assertNotSame( '', (string) ( $ambiguities[0]['target_label'] ?? '' ), 'Ambiguity row names its action target.' );
+	}
+
+	public function test_unresolved_ambiguities_name_their_action(): void {
+		$input = 'Show the homepage only to VIP customers in France, then show the shop page only to loyal members in Spain.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$ambiguities = (array) ( $plan['clarification']['ambiguities'] ?? array() );
+		$this->assertGreaterThanOrEqual( 2, count( $ambiguities ), 'Both unresolved audiences become ambiguity rows.' );
+
+		$indexes = array_map( static function ( $row ) {
+			return (int) ( $row['action_index'] ?? 0 );
+		}, $ambiguities );
+		$this->assertContains( 1, $indexes );
+		$this->assertContains( 2, $indexes );
+
+		foreach ( $ambiguities as $row ) {
+			$this->assertNotSame( '', (string) ( $row['target_label'] ?? '' ), 'Every ambiguity row names which action it is for.' );
+		}
+	}
+
+	public function test_legacy_adapter_exposes_action_scoped_ambiguities(): void {
+		$input  = 'Show the homepage only to VIP customers in France.';
+		$result = RWGA_Geo_Assistant_Planner::interpret_as_legacy( $input, array(), $this->entities() );
+
+		$this->assertIsArray( $result );
+		$ambiguities = (array) ( $result['ambiguities'] ?? array() );
+		$this->assertNotEmpty( $ambiguities, 'Legacy interpreter result surfaces ambiguities for the assistant UI.' );
+		$this->assertSame( 'audience', $ambiguities[0]['field'] ?? '' );
+		$this->assertArrayHasKey( 'target_label', $ambiguities[0] );
+		$this->assertArrayHasKey( 'action_index', $ambiguities[0] );
 	}
 
 	public function test_synced_audience_exact_match_resolves(): void {

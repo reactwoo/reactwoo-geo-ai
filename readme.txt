@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.115
+Stable tag: 0.4.116
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.116 =
+* **Geo Assistant:** Each unresolved synced audience/campaign now carries the action it belongs to. Clarification rows include `action_index` and `target_label`, and the legacy interpreter result surfaces these as action-scoped `ambiguities`, so the "Choose location/audience" panel and chat clearly state which action or rule each selection is for.
 
 = 0.4.115 =
 * **Geo Assistant:** Audiences and ad campaigns are no longer invented from natural language. Phrases like "VIP customers", "returning visitors", or "new year campaign" resolve against the site's synced audience/campaign registry (GA4, Google Ads, Meta Ads, CRM). Exact matches resolve to the synced entry; fuzzy matches are offered as suggestions only (never auto-applied); anything unmatched is returned as an unresolved candidate and the plan becomes `needs_clarification` with "Choose audience/campaign" options. Native visitor states (logged-in / guest) map to Geo Core's real `logged_in` condition instead of a made-up audience. UTM conditions remain literal. The setup panel now shows matched audiences, visitor states, campaigns, and unresolved items with suggested matches.

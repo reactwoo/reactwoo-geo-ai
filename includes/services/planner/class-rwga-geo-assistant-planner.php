@@ -324,22 +324,37 @@ class RWGA_Geo_Assistant_Planner {
 	 * @return array<string,mixed>|null
 	 */
 	private static function build_unresolved_entity_clarification( array $actions ) {
-		$audiences = array();
-		$campaigns = array();
+		$audiences   = array();
+		$campaigns   = array();
+		$ambiguities = array();
 
+		$position = 0;
 		foreach ( $actions as $action ) {
-			if ( ! is_array( $action ) || empty( $action['unresolved'] ) || ! is_array( $action['unresolved'] ) ) {
+			if ( ! is_array( $action ) ) {
 				continue;
 			}
+			$position++;
+			if ( empty( $action['unresolved'] ) || ! is_array( $action['unresolved'] ) ) {
+				continue;
+			}
+			$target_label = self::action_target_label( $action );
 			foreach ( (array) ( $action['unresolved']['audiences'] ?? array() ) as $row ) {
-				if ( is_array( $row ) && '' !== (string) ( $row['raw'] ?? '' ) ) {
-					$audiences[] = $row;
+				if ( ! is_array( $row ) || '' === (string) ( $row['raw'] ?? '' ) ) {
+					continue;
 				}
+				$row['action_index'] = $position;
+				$row['target_label'] = $target_label;
+				$audiences[]         = $row;
+				$ambiguities[]       = self::entity_ambiguity_row( 'audience', $row, $position, $target_label );
 			}
 			foreach ( (array) ( $action['unresolved']['campaigns'] ?? array() ) as $row ) {
-				if ( is_array( $row ) && '' !== (string) ( $row['raw'] ?? '' ) ) {
-					$campaigns[] = $row;
+				if ( ! is_array( $row ) || '' === (string) ( $row['raw'] ?? '' ) ) {
+					continue;
 				}
+				$row['action_index'] = $position;
+				$row['target_label'] = $target_label;
+				$campaigns[]         = $row;
+				$ambiguities[]       = self::entity_ambiguity_row( 'campaign', $row, $position, $target_label );
 			}
 		}
 
@@ -356,19 +371,96 @@ class RWGA_Geo_Assistant_Planner {
 		}
 
 		return array(
-			'type'       => 'synced_entity_unresolved',
-			'reason'     => $reason,
-			'message'    => $message,
-			'unresolved' => array(
+			'type'        => 'synced_entity_unresolved',
+			'reason'      => $reason,
+			'message'     => $message,
+			'unresolved'  => array(
 				'audiences' => $audiences,
 				'campaigns' => $campaigns,
 			),
-			'options'    => array(
+			'ambiguities' => $ambiguities,
+			'options'     => array(
 				array( 'label' => __( 'Choose audience/campaign', 'reactwoo-geo-ai' ), 'value' => 'choose_entity' ),
 				array( 'label' => __( 'Ignore this condition', 'reactwoo-geo-ai' ), 'value' => 'ignore_condition' ),
 				array( 'label' => __( 'Cancel', 'reactwoo-geo-ai' ), 'value' => 'cancel' ),
 			),
 		);
+	}
+
+	/**
+	 * Human-readable target label for an action (page/variant/rule/popup, etc.).
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @return string
+	 */
+	private static function action_target_label( array $action ) {
+		$target = is_array( $action['target'] ?? null ) ? $action['target'] : array();
+		$label  = trim( (string) ( $target['label'] ?? '' ) );
+		if ( '' === $label && is_array( $action['variant'] ?? null ) ) {
+			$label = trim( (string) ( $action['variant']['label'] ?? '' ) );
+		}
+		return $label;
+	}
+
+	/**
+	 * Build a per-action ambiguity row for an unresolved synced audience/campaign
+	 * so the assistant can name the exact action it relates to.
+	 *
+	 * @param string              $field        'audience' or 'campaign'.
+	 * @param array<string,mixed> $row          Unresolved row.
+	 * @param int                 $position     1-based action index.
+	 * @param string              $target_label Owning action target label.
+	 * @return array<string,mixed>
+	 */
+	private static function entity_ambiguity_row( $field, array $row, $position, $target_label ) {
+		$suggestions  = array();
+		$alternatives = array();
+		foreach ( (array) ( $row['suggestions'] ?? array() ) as $suggestion ) {
+			if ( ! is_array( $suggestion ) ) {
+				continue;
+			}
+			$name = trim( (string) ( $suggestion['name'] ?? '' ) );
+			if ( '' === $name ) {
+				continue;
+			}
+			$suggestions[]  = $suggestion;
+			$alternatives[] = $name;
+		}
+
+		return array(
+			'field'        => $field,
+			'raw'          => (string) ( $row['raw'] ?? '' ),
+			'status'       => (string) ( $row['status'] ?? '' ),
+			'likely'       => '',
+			'alternatives' => $alternatives,
+			'suggestions'  => $suggestions,
+			'action_index' => (int) $position,
+			'target_label' => (string) $target_label,
+			'question'     => self::entity_clarification_question( $field, (string) ( $row['raw'] ?? '' ), $position, $target_label ),
+			'notes'        => array_values( array_filter( array( (string) ( $row['message'] ?? '' ) ) ) ),
+		);
+	}
+
+	/**
+	 * @param string $field        'audience' or 'campaign'.
+	 * @param string $raw          Raw phrase.
+	 * @param int    $position     1-based action index.
+	 * @param string $target_label Owning action target label.
+	 * @return string
+	 */
+	private static function entity_clarification_question( $field, $raw, $position, $target_label ) {
+		$where = '' !== (string) $target_label
+			/* translators: 1: action number, 2: target label. */
+			? sprintf( __( 'action %1$d (%2$s)', 'reactwoo-geo-ai' ), (int) $position, $target_label )
+			/* translators: %d: action number. */
+			: sprintf( __( 'action %d', 'reactwoo-geo-ai' ), (int) $position );
+
+		if ( 'campaign' === $field ) {
+			/* translators: 1: detected phrase, 2: action reference. */
+			return sprintf( __( 'Which synced campaign should “%1$s” use for %2$s?', 'reactwoo-geo-ai' ), $raw, $where );
+		}
+		/* translators: 1: detected phrase, 2: action reference. */
+		return sprintf( __( 'Which synced audience should “%1$s” use for %2$s?', 'reactwoo-geo-ai' ), $raw, $where );
 	}
 
 	/**
