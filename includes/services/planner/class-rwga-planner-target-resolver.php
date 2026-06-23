@@ -29,6 +29,13 @@ class RWGA_Planner_Target_Resolver {
 			}
 		}
 
+		if ( RWGA_Geo_Action_Types::UPDATE_RULE === $action_type ) {
+			$rule_target = self::existing_rule_target( $clause );
+			if ( null !== $rule_target ) {
+				return $rule_target;
+			}
+		}
+
 		if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
 			$inherited = RWGA_Planner_Inherited_Target_Resolver::detect_named_target( $clause, $phrase, $session );
 			if ( is_array( $inherited ) ) {
@@ -170,6 +177,38 @@ class RWGA_Planner_Target_Resolver {
 			'slug'       => sanitize_title( $label ),
 			'sourcePage' => self::variant_source_page( $name ),
 			'source'     => 'existing_variant',
+		);
+	}
+
+	/**
+	 * Resolve an existing/named rule target ("the existing VIP discount rule").
+	 *
+	 * @param string $clause Clause text.
+	 * @return array{type:string,label:string,slug:string,source:string}|null
+	 */
+	private static function existing_rule_target( $clause ) {
+		$clause = RWGA_Local_Intent_Interpreter::normalise( $clause );
+		if ( ! preg_match( '/\b(?:the\s+)?(?:existing\s+)?([\w\s-]+?)\s+rule\b/i', $clause, $m ) ) {
+			return null;
+		}
+
+		$name = trim( (string) $m[1] );
+		$prev = '';
+		while ( $prev !== $name ) {
+			$prev = $name;
+			$name = trim( (string) preg_replace( '/^(?:update|change|edit|modify|tweak|adjust|the|existing|a|an|new)\s+/i', '', $name ) );
+		}
+		$name = trim( (string) preg_replace( '/\s+/', ' ', $name ) );
+		if ( '' === $name ) {
+			return null;
+		}
+
+		$label = $name . ' rule';
+		return array(
+			'type'   => 'rule',
+			'label'  => $label,
+			'slug'   => sanitize_title( $label ),
+			'source' => 'existing_rule',
 		);
 	}
 

@@ -101,8 +101,9 @@ class RWGA_Planner_Inherited_Target_Resolver {
 	 */
 	public static function category_target( $label ) {
 		$label = trim( (string) $label );
+		$type  = preg_match( '/\bcategory\s+page$/i', $label ) ? 'category_page' : 'category';
 		return array(
-			'type'   => 'category',
+			'type'   => $type,
 			'label'  => $label,
 			'slug'   => sanitize_title( $label ),
 			'source' => 'detected',
@@ -127,10 +128,11 @@ class RWGA_Planner_Inherited_Target_Resolver {
 	 */
 	public static function extract_category_label( $text ) {
 		$text = RWGA_Local_Intent_Interpreter::normalise( $text );
-		if ( preg_match( '/\bthe\s+([\w\s-]+?)\s+category\b/i', $text, $m ) ) {
-			return trim( (string) $m[1] ) . ' category';
+		$suffix = preg_match( '/\bcategory\s+page\b/i', $text ) ? ' category page' : ' category';
+		if ( preg_match( '/\bthe\s+([\w\s-]+?)\s+category(?:\s+page)?\b/i', $text, $m ) ) {
+			return trim( (string) $m[1] ) . $suffix;
 		}
-		if ( preg_match( '/\b([\w\s-]+?)\s+category\b/i', $text, $m ) ) {
+		if ( preg_match( '/\b([\w\s-]+?)\s+category(?:\s+page)?\b/i', $text, $m ) ) {
 			$label = trim( (string) $m[1] );
 			$label = preg_replace( '/^(?:show|hide|display|target|update|create|make)\s+(?:the\s+)?/i', '', $label );
 			$label = preg_replace( '/^(?:the|a|an)\s+/i', '', $label );
@@ -138,7 +140,7 @@ class RWGA_Planner_Inherited_Target_Resolver {
 			if ( '' === $label || preg_match( '/^(?:only|just)$/i', $label ) ) {
 				return null;
 			}
-			return $label . ' category';
+			return $label . $suffix;
 		}
 		return null;
 	}

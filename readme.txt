@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.113
+Stable tag: 0.4.114
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.114 =
+* **Geo Assistant:** Detect "update the existing [name] rule" as `update_rule` targeting a named rule (not a generic page/hide); recognise "logged-in customers" audiences and "exclude anyone arriving from utm_source=…" UTM exclusions; classify "X category page" as `category_page`. Side panel now shows every detected condition type (target, visibility, devices, audiences, weather, URL/UTM, exclusions) and fails safe when an existing-rule update is misclassified.
 
 = 0.4.106 =
 * **Geo Assistant:** Fix variant plan clause splitting — attach countries per “one / the other” clause instead of merging globally; support `one variant should` and `the other in`; detect shop vs homepage page mismatch; resolve England on source clauses.

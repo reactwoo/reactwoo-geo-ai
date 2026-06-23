@@ -89,6 +89,10 @@ class RWGA_Planner_Plan_Validator {
 			$issues[] = 'preview_target_mismatch';
 		}
 
+		if ( self::has_existing_rule_mismatch( $phrase, $actions ) ) {
+			$issues[] = 'existing_rule_not_update';
+		}
+
 		if ( empty( $issues ) ) {
 			return null;
 		}
@@ -159,7 +163,7 @@ class RWGA_Planner_Plan_Validator {
 			return true;
 		}
 
-		if ( preg_match( '/\bexisting\s+[\w\s-]+\bvariant\b/i', $phrase ) ) {
+		if ( preg_match( '/\bexisting\s+[\w\s-]+\b(?:variant|rule)\b/i', $phrase ) ) {
 			return true;
 		}
 
@@ -278,15 +282,15 @@ class RWGA_Planner_Plan_Validator {
 				$device_slots[ (string) $device ]   = (array) ( $device_slots[ (string) $device ] ?? array() );
 				$device_slots[ (string) $device ][] = $slot;
 			}
-			foreach ( (array) ( $include['audiences'] ?? array() ) as $audience ) {
+			foreach ( array_merge( (array) ( $include['audiences'] ?? array() ), (array) ( $exclude['audiences'] ?? array() ) ) as $audience ) {
 				$audience_slots[ (string) $audience ]   = (array) ( $audience_slots[ (string) $audience ] ?? array() );
 				$audience_slots[ (string) $audience ][] = $slot;
 			}
-			foreach ( (array) ( $include['urls'] ?? array() ) as $url ) {
+			foreach ( array_merge( (array) ( $include['urls'] ?? array() ), (array) ( $exclude['urls'] ?? array() ) ) as $url ) {
 				$url_slots[ (string) $url ]   = (array) ( $url_slots[ (string) $url ] ?? array() );
 				$url_slots[ (string) $url ][] = $slot;
 			}
-			foreach ( (array) ( $include['utm'] ?? array() ) as $row ) {
+			foreach ( array_merge( (array) ( $include['utm'] ?? array() ), (array) ( $exclude['utm'] ?? array() ) ) as $row ) {
 				if ( is_array( $row ) && ! empty( $row['key'] ) ) {
 					$utm[] = $row;
 				}
@@ -345,6 +349,32 @@ class RWGA_Planner_Plan_Validator {
 		}
 
 		return false;
+	}
+
+	/**
+	 * When the phrase says "update the existing [name] rule" there must be an
+	 * update_rule action targeting a rule — not a generic page/create_rule.
+	 *
+	 * @param string                         $phrase  Phrase.
+	 * @param array<int,array<string,mixed>> $actions Actions.
+	 * @return bool
+	 */
+	private static function has_existing_rule_mismatch( $phrase, array $actions ) {
+		if ( ! preg_match( '/\b(?:update|change|edit|modify|tweak|adjust)\s+(?:the\s+)?existing\s+[\w\s-]*?\brule\b/i', $phrase ) ) {
+			return false;
+		}
+
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			if ( RWGA_Geo_Action_Types::UPDATE_RULE === (string) ( $action['type'] ?? '' )
+				&& 'rule' === (string) ( $action['target']['type'] ?? '' ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

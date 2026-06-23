@@ -26,6 +26,12 @@ class RWGA_Planner_Audience_Resolver {
 		if ( preg_match( '/\bnew\s+visitors?\b/i', $text ) ) {
 			$audiences[] = 'new_visitors';
 		}
+		if ( preg_match( '/\blogged[-\s]?in\s+(?:customers?|users?|visitors?|members?)\b/i', $text ) ) {
+			$audiences[] = 'logged_in_customers';
+		}
+		if ( preg_match( '/\b(?:logged[-\s]?out|guest|anonymous)\s+(?:customers?|users?|visitors?)\b/i', $text ) ) {
+			$audiences[] = 'logged_out_customers';
+		}
 
 		return array_values( array_unique( $audiences ) );
 	}

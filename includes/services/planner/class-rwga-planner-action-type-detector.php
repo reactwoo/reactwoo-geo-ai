@@ -50,6 +50,19 @@ class RWGA_Planner_Action_Type_Detector {
 			);
 		}
 
+		if ( preg_match( '/\b(?:update|change|edit|modify|tweak|adjust)\s+(?:the\s+)?(?:existing\s+)?[\w\s-]*?\brule\b/i', $clause )
+			&& ! preg_match( '/\b(?:create|make|build|add)\s+(?:a\s+)?(?:new\s+)?rule\b/i', $clause ) ) {
+			$visibility = preg_match( '/\bonly\s+appl(?:y|ies)\b|\bappl(?:y|ies)\s+only\b/i', $clause )
+				? 'only_apply'
+				: ( self::is_only_show_clause( $clause ) ? 'only_show' : 'apply' );
+			return array(
+				'type'       => RWGA_Geo_Action_Types::UPDATE_RULE,
+				'visibility' => $visibility,
+				'mode'       => 'update',
+				'confidence' => 0.9,
+			);
+		}
+
 		if ( 'variant_version' === (string) ( $clause_row['type'] ?? '' )
 			|| 'variant_create' === (string) ( $clause_row['type'] ?? '' )
 			|| ( class_exists( 'RWGA_Planner_Second_Version_Resolver', false )

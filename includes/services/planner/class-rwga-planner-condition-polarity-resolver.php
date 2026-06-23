@@ -54,6 +54,8 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 
 		$patterns = array(
 			'/\bexcept\s+when\s+(?:the\s+)?weather\s+is\s+(.+)$/i',
+			'/\b(?:but\s+)?exclude\s+(?:anyone|everyone|users|visitors|people|those|customers)\s+(?:who\s+)?(?:are\s+)?(?:arriving|coming|landing)\s+from\s+(.+)$/i',
+			'/\b(?:but\s+)?exclude\s+(?:anyone|everyone|users|visitors|people|those|customers)\s+(?:in|from)\s+(.+)$/i',
 			'/\b(?:except|excluding)\s+(?:users|visitors)\s+in\s+(.+)$/i',
 			'/\b(?:except|excluding)\s+for\s+(?:users|visitors)\s+in\s+(.+)$/i',
 			'/\bexcluding\s+(.+)$/i',

@@ -48,26 +48,28 @@ class RWGA_Planner_Confirmation_Builder {
 			if ( ! is_array( $action ) ) {
 				continue;
 			}
-			$num          = $idx + 1;
-			$title        = self::action_title( $action );
-			$type_label   = self::type_label( (string) ( $action['type'] ?? '' ) );
-			$location     = self::location_line( $action );
+			$num             = $idx + 1;
+			$title           = self::action_title( $action );
+			$type_label      = self::type_label( (string) ( $action['type'] ?? '' ) );
+			$condition_lines = self::condition_lines( $action );
+
 			$summary_lines[] = sprintf( '%d. %s', $num, $title );
-			if ( $location ) {
-				$summary_lines[] = '   ' . sprintf(
-					/* translators: %s: location label */
-					__( 'Location: %s', 'reactwoo-geocore' ),
-					$location
-				);
+			foreach ( $condition_lines as $line ) {
+				$summary_lines[] = '   ' . $line;
 			}
+
 			$setup_lines[] = sprintf( '%d. %s', $num, $title );
 			$setup_lines[] = $type_label;
-			if ( $location ) {
-				$setup_lines[] = sprintf(
-					/* translators: %s: location label */
-					__( 'Location: %s', 'reactwoo-geocore' ),
-					$location
-				);
+			$target_label  = self::target_line( $action );
+			if ( '' !== $target_label ) {
+				$setup_lines[] = $target_label;
+			}
+			$visibility_label = self::visibility_line( $action );
+			if ( '' !== $visibility_label ) {
+				$setup_lines[] = $visibility_label;
+			}
+			foreach ( $condition_lines as $line ) {
+				$setup_lines[] = $line;
 			}
 			$setup_lines[] = '';
 		}
@@ -129,6 +131,18 @@ class RWGA_Planner_Confirmation_Builder {
 					__( 'Create %s variant', 'reactwoo-geo-ai' ),
 					$label
 				);
+			case RWGA_Geo_Action_Types::UPDATE_VARIANT:
+				return sprintf(
+					/* translators: %s: variant label */
+					__( 'Update %s', 'reactwoo-geo-ai' ),
+					$label
+				);
+			case RWGA_Geo_Action_Types::UPDATE_RULE:
+				return sprintf(
+					/* translators: %s: rule label */
+					__( 'Update %s', 'reactwoo-geo-ai' ),
+					$label
+				);
 			case RWGA_Geo_Action_Types::CREATE_RULE:
 				return sprintf(
 					/* translators: %s: target label */
@@ -139,6 +153,12 @@ class RWGA_Planner_Confirmation_Builder {
 				return sprintf(
 					/* translators: %s: page label */
 					__( 'Test %s view', 'reactwoo-geo-ai' ),
+					$label
+				);
+			case RWGA_Geo_Action_Types::DIAGNOSE:
+				return sprintf(
+					/* translators: %s: page label */
+					__( 'Diagnose %s', 'reactwoo-geo-ai' ),
 					$label
 				);
 			default:
@@ -155,11 +175,156 @@ class RWGA_Planner_Confirmation_Builder {
 			RWGA_Geo_Action_Types::UPDATE_CAMPAIGN_TARGETING => __( 'Update campaign targeting', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING => __( 'Update original targeting', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::CREATE_VARIANT            => __( 'Create variant', 'reactwoo-geo-ai' ),
+			RWGA_Geo_Action_Types::UPDATE_VARIANT            => __( 'Update variant', 'reactwoo-geo-ai' ),
+			RWGA_Geo_Action_Types::UPDATE_RULE               => __( 'Update rule', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::CREATE_RULE               => __( 'Create rule', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::CREATE_TEST               => __( 'Create test', 'reactwoo-geo-ai' ),
 			RWGA_Geo_Action_Types::DIAGNOSE                  => __( 'Diagnose', 'reactwoo-geo-ai' ),
 		);
 		return $map[ $type ] ?? $type;
+	}
+
+	/**
+	 * Target type + label line, e.g. "Target: rule — VIP discount rule".
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @return string
+	 */
+	private static function target_line( array $action ) {
+		$target = is_array( $action['target'] ?? null ) ? $action['target'] : array();
+		$label  = trim( (string) ( $target['label'] ?? '' ) );
+		$type   = trim( (string) ( $target['type'] ?? '' ) );
+		if ( '' === $label && '' === $type ) {
+			return '';
+		}
+		if ( '' === $type ) {
+			return sprintf( __( 'Target: %s', 'reactwoo-geocore' ), $label );
+		}
+		$type = str_replace( '_', ' ', $type );
+		if ( '' === $label ) {
+			return sprintf( __( 'Target: %s', 'reactwoo-geocore' ), $type );
+		}
+		return sprintf( __( 'Target: %1$s — %2$s', 'reactwoo-geocore' ), $type, $label );
+	}
+
+	/**
+	 * Visibility/mode line.
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @return string
+	 */
+	private static function visibility_line( array $action ) {
+		$operation  = is_array( $action['operation'] ?? null ) ? $action['operation'] : array();
+		$visibility = trim( (string) ( $operation['visibility'] ?? '' ) );
+		if ( '' === $visibility ) {
+			return '';
+		}
+		return sprintf( __( 'Visibility: %s', 'reactwoo-geocore' ), str_replace( '_', ' ', $visibility ) );
+	}
+
+	/**
+	 * Build per-action condition lines for every detected condition type.
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @return array<int,string>
+	 */
+	private static function condition_lines( array $action ) {
+		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
+		$include    = RWGA_Planner_Condition_Polarity_Resolver::include_group( $conditions );
+		$exclude    = RWGA_Planner_Condition_Polarity_Resolver::exclude_group( $conditions );
+		$lines      = array();
+
+		$location = self::location_line( $action );
+		if ( '' !== $location ) {
+			$lines[] = sprintf( __( 'Location: %s', 'reactwoo-geocore' ), $location );
+		}
+
+		$devices = array_values( array_filter( (array) ( $include['devices'] ?? array() ) ) );
+		if ( ! empty( $devices ) ) {
+			$lines[] = sprintf( __( 'Devices: %s', 'reactwoo-geocore' ), implode( ', ', $devices ) );
+		}
+
+		$audiences = array_values( array_filter( (array) ( $include['audiences'] ?? array() ) ) );
+		if ( ! empty( $audiences ) ) {
+			$lines[] = sprintf( __( 'Audiences: %s', 'reactwoo-geocore' ), implode( ', ', array_map( static function ( $a ) {
+				return str_replace( '_', ' ', (string) $a );
+			}, $audiences ) ) );
+		}
+
+		$weather = array_values( array_filter( (array) ( $include['weather'] ?? array() ) ) );
+		if ( ! empty( $weather ) ) {
+			$lines[] = sprintf( __( 'Weather: %s', 'reactwoo-geocore' ), implode( ', ', $weather ) );
+		}
+
+		$urls = array_values( array_filter( (array) ( $include['urls'] ?? array() ) ) );
+		if ( ! empty( $urls ) ) {
+			$lines[] = sprintf( __( 'URL/path: %s', 'reactwoo-geocore' ), implode( ', ', $urls ) );
+		}
+
+		$utm = self::format_utm( (array) ( $include['utm'] ?? array() ) );
+		if ( '' !== $utm ) {
+			$lines[] = sprintf( __( 'UTM: %s', 'reactwoo-geocore' ), $utm );
+		}
+
+		foreach ( self::exclusion_lines( $exclude ) as $line ) {
+			$lines[] = $line;
+		}
+
+		return $lines;
+	}
+
+	/**
+	 * @param array<string,mixed> $exclude Exclude condition group.
+	 * @return array<int,string>
+	 */
+	private static function exclusion_lines( array $exclude ) {
+		$parts = array();
+
+		$countries = array_values( array_filter( (array) ( $exclude['countries'] ?? array() ) ) );
+		$regions   = array_values( array_filter( (array) ( $exclude['regions'] ?? array() ) ) );
+		$locations = array_merge( $countries, $regions );
+		if ( ! empty( $locations ) ) {
+			$parts[] = sprintf( __( 'Exclude location: %s', 'reactwoo-geocore' ), implode( ', ', $locations ) );
+		}
+
+		$devices = array_values( array_filter( (array) ( $exclude['devices'] ?? array() ) ) );
+		if ( ! empty( $devices ) ) {
+			$parts[] = sprintf( __( 'Exclude devices: %s', 'reactwoo-geocore' ), implode( ', ', $devices ) );
+		}
+
+		$audiences = array_values( array_filter( (array) ( $exclude['audiences'] ?? array() ) ) );
+		if ( ! empty( $audiences ) ) {
+			$parts[] = sprintf( __( 'Exclude audiences: %s', 'reactwoo-geocore' ), implode( ', ', array_map( static function ( $a ) {
+				return str_replace( '_', ' ', (string) $a );
+			}, $audiences ) ) );
+		}
+
+		$weather = array_values( array_filter( (array) ( $exclude['weather'] ?? array() ) ) );
+		if ( ! empty( $weather ) ) {
+			$parts[] = sprintf( __( 'Exclude weather: %s', 'reactwoo-geocore' ), implode( ', ', $weather ) );
+		}
+
+		$utm = self::format_utm( (array) ( $exclude['utm'] ?? array() ) );
+		if ( '' !== $utm ) {
+			$parts[] = sprintf( __( 'Exclude UTM: %s', 'reactwoo-geocore' ), $utm );
+		}
+
+		return $parts;
+	}
+
+	/**
+	 * @param array<int,mixed> $rows UTM rows.
+	 * @return string
+	 */
+	private static function format_utm( array $rows ) {
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || empty( $row['key'] ) ) {
+				continue;
+			}
+			$out[] = (string) $row['key'] . '=' . (string) ( $row['value'] ?? '' );
+		}
+		return implode( ', ', $out );
 	}
 
 	/**

@@ -500,6 +500,66 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertSame( array( 'desktop' ), $include_preview['devices'] );
 	}
 
+	public function test_existing_rule_update_with_audience_and_utm_exclusion(): void {
+		$input = 'Update the existing VIP discount rule so it only applies to logged-in customers in Belgium and Netherlands, but exclude anyone arriving from utm_source=email. Then create a new variant of the accessories category page for mobile users in Switzerland, hide the exit-intent popup for visitors in Austria, and check what a desktop user from Poland would see on the accessories category page.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
+
+		$update  = $plan['actions'][0];
+		$variant = $plan['actions'][1];
+		$rule    = $plan['actions'][2];
+		$test    = $plan['actions'][3];
+
+		$this->assertSame( 'update_rule', $update['type'] );
+		$this->assertSame( 'rule', $update['target']['type'] );
+		$this->assertStringContainsString( 'vip discount rule', strtolower( (string) ( $update['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'only_apply', $update['operation']['visibility'] );
+		$include_update = $this->include_of( $update );
+		$exclude_update = $this->exclude_of( $update );
+		$this->assertEqualsCanonicalizing( array( 'BE', 'NL' ), $include_update['countries'] );
+		$this->assertSame( array( 'logged_in_customers' ), $include_update['audiences'] );
+		$this->assertSame( 'utm_source', $exclude_update['utm'][0]['key'] ?? '' );
+		$this->assertSame( 'email', $exclude_update['utm'][0]['value'] ?? '' );
+
+		$this->assertSame( 'create_variant', $variant['type'] );
+		$this->assertStringContainsString( 'accessories category page', strtolower( (string) ( $variant['target']['label'] ?? '' ) ) );
+		$include_variant = $this->include_of( $variant );
+		$this->assertSame( array( 'CH' ), $include_variant['countries'] );
+		$this->assertSame( array( 'mobile' ), $include_variant['devices'] );
+
+		$this->assertSame( 'create_rule', $rule['type'] );
+		$this->assertSame( 'popup', $rule['target']['type'] );
+		$this->assertStringContainsString( 'exit-intent popup', strtolower( (string) ( $rule['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'hide', $rule['operation']['visibility'] );
+		$this->assertSame( array( 'AT' ), $this->include_of( $rule )['countries'] );
+
+		$this->assertSame( 'create_test', $test['type'] );
+		$this->assertStringContainsString( 'accessories category page', strtolower( (string) ( $test['target']['label'] ?? '' ) ) );
+		$include_test = $this->include_of( $test );
+		$this->assertSame( array( 'PL' ), $include_test['countries'] );
+		$this->assertSame( array( 'desktop' ), $include_test['devices'] );
+	}
+
+	public function test_existing_rule_classified_as_page_fails_safe(): void {
+		$actions = array(
+			array(
+				'type'       => 'create_rule',
+				'target'     => array( 'type' => 'page', 'label' => 'page' ),
+				'operation'  => array( 'visibility' => 'hide', 'mode' => 'create' ),
+				'conditions' => array(
+					'include' => array( 'countries' => array( 'BE', 'NL' ) ),
+					'exclude' => array(),
+				),
+			),
+		);
+		$phrase     = 'update the existing vip discount rule so it only applies to logged-in customers in belgium and netherlands';
+		$validation = RWGA_Planner_Plan_Validator::validate( $phrase, $actions, $this->entities(), array() );
+		$this->assertIsArray( $validation );
+		$this->assertContains( 'existing_rule_not_update', (array) ( $validation['issues'] ?? array() ) );
+	}
+
 	public function test_preview_target_mismatch_fails_safe(): void {
 		$actions = array(
 			array(
