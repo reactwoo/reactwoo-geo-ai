@@ -43,7 +43,48 @@ class RWGA_Planner_Action_Card_Builder {
 			'cards'                    => $cards,
 			'fields_needing_attention' => $total,
 			'requires_resolution'      => $total > 0,
+			'shared_targets'           => self::collect_shared_targets( $cards ),
 		);
+	}
+
+	/**
+	 * Group unresolved targets shared by more than one action so the user can
+	 * resolve a single dependency once and apply it everywhere it is used.
+	 *
+	 * @param array<int,array<string,mixed>> $cards Built cards.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function collect_shared_targets( array $cards ) {
+		$groups = array();
+		foreach ( $cards as $card ) {
+			$target = is_array( $card['target'] ?? null ) ? $card['target'] : array();
+			if ( ! self::target_needs_resolution( $target ) ) {
+				continue;
+			}
+			$dependency = (string) ( $target['dependencyId'] ?? '' );
+			if ( '' === $dependency ) {
+				continue;
+			}
+			if ( ! isset( $groups[ $dependency ] ) ) {
+				$groups[ $dependency ] = array(
+					'dependencyId' => $dependency,
+					'raw'          => (string) ( $target['raw'] ?? '' ),
+					'type'         => (string) ( $target['type'] ?? 'page' ),
+					'status'       => (string) ( $target['status'] ?? '' ),
+					'suggestions'  => is_array( $target['suggestions'] ?? null ) ? $target['suggestions'] : array(),
+					'linkedActions' => array(),
+				);
+			}
+			$groups[ $dependency ]['linkedActions'][] = (int) ( $card['index'] ?? 0 );
+		}
+
+		$shared = array();
+		foreach ( $groups as $group ) {
+			if ( count( $group['linkedActions'] ) > 1 ) {
+				$shared[] = $group;
+			}
+		}
+		return $shared;
 	}
 
 	/**
@@ -123,24 +164,30 @@ class RWGA_Planner_Action_Card_Builder {
 
 		if ( ! empty( $raw_target['user_resolved'] ) && is_array( $raw_target['user_resolved'] ) ) {
 			$chosen = $raw_target['user_resolved'];
-			return array(
-				'type'        => (string) ( $chosen['type'] ?? ( $raw_target['type'] ?? 'page' ) ),
-				'raw'         => (string) ( $chosen['name'] ?? ( $raw_target['label'] ?? '' ) ),
-				'resolved'    => array(
-					'id'   => (string) ( $chosen['id'] ?? '' ),
-					'name' => (string) ( $chosen['name'] ?? '' ),
+			return self::stamp_dependency(
+				array(
+					'type'        => (string) ( $chosen['type'] ?? ( $raw_target['type'] ?? 'page' ) ),
+					'raw'         => (string) ( $chosen['name'] ?? ( $raw_target['label'] ?? '' ) ),
+					'resolved'    => array(
+						'id'   => (string) ( $chosen['id'] ?? '' ),
+						'name' => (string) ( $chosen['name'] ?? '' ),
+					),
+					'status'      => 'matched',
+					'suggestions' => array(),
 				),
-				'status'      => 'matched',
-				'suggestions' => array(),
+				$raw_target
 			);
 		}
 		if ( ! empty( $raw_target['user_ignored'] ) ) {
-			return array(
-				'type'        => (string) ( $raw_target['type'] ?? 'page' ),
-				'raw'         => (string) ( $raw_target['label'] ?? '' ),
-				'resolved'    => null,
-				'status'      => 'ignored',
-				'suggestions' => array(),
+			return self::stamp_dependency(
+				array(
+					'type'        => (string) ( $raw_target['type'] ?? 'page' ),
+					'raw'         => (string) ( $raw_target['label'] ?? '' ),
+					'resolved'    => null,
+					'status'      => 'ignored',
+					'suggestions' => array(),
+				),
+				$raw_target
 			);
 		}
 
@@ -163,6 +210,26 @@ class RWGA_Planner_Action_Card_Builder {
 			}
 		}
 
+		return self::stamp_dependency( $resolution, $raw_target );
+	}
+
+	/**
+	 * Attach a stable dependency id derived from the inherited origin (so linked
+	 * variant actions share the same id) or the resolved raw target label.
+	 *
+	 * @param array<string,mixed> $resolution Target resolution.
+	 * @param array<string,mixed> $raw_target Raw action target.
+	 * @return array<string,mixed>
+	 */
+	private static function stamp_dependency( array $resolution, array $raw_target ) {
+		$key = (string) ( $raw_target['inheritedFrom'] ?? '' );
+		if ( '' === $key ) {
+			$key = (string) ( $resolution['raw'] ?? '' );
+		}
+		$key = trim( $key );
+		if ( '' !== $key ) {
+			$resolution['dependencyId'] = 'target_' . sanitize_title( $key );
+		}
 		return $resolution;
 	}
 

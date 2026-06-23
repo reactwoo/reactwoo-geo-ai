@@ -900,6 +900,7 @@ class RWGA_Assistant_Service {
 			'interpretation_plan'   => isset( $raw['interpretation_plan'] ) && is_array( $raw['interpretation_plan'] ) ? $raw['interpretation_plan'] : null,
 			'ambiguities'           => isset( $raw['ambiguities'] ) && is_array( $raw['ambiguities'] ) ? $raw['ambiguities'] : array(),
 			'action_cards'          => isset( $raw['action_cards'] ) && is_array( $raw['action_cards'] ) ? $raw['action_cards'] : array(),
+			'shared_targets'        => isset( $raw['shared_targets'] ) && is_array( $raw['shared_targets'] ) ? $raw['shared_targets'] : array(),
 			'fields_needing_attention' => (int) ( $raw['fields_needing_attention'] ?? 0 ),
 			'requires_resolution'   => ! empty( $raw['requires_resolution'] ),
 			'ai_interpretation'     => isset( $raw['ai_interpretation'] ) && is_array( $raw['ai_interpretation'] ) ? $raw['ai_interpretation'] : null,

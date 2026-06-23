@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.118
+Stable tag: 0.4.119
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.119 =
+* **Geo Assistant — inherited & shared targets:** Variant clauses such as "create two new versions of the same category page: one for mobile users in Finland and the other for desktop users in Denmark" now inherit the previous named target ("ski jackets category page") instead of collapsing to a generic "category" page. Inherited targets carry `inheritedFrom` and are blocked (not "ready") while the source target is unresolved. Every unresolved target also carries a stable `dependencyId`, and the plan exposes a `shared_targets` list grouping the same raw target across actions (with `linkedActions`) so it can be resolved once and applied everywhere it is used.
 
 = 0.4.118 =
 * **Geo Assistant — server-side plan executor:** Confirming a reviewed multi-action plan now builds real Geo Core entities instead of only redirecting. Each action becomes a **draft** visibility rule via the Geo Core rule library; variant / original-targeting actions create a draft rule plus a listed manual step; preview/test actions create nothing. Field-level card resolutions (choose synced entity, ignore, remove action) are applied server-side, the plan is re-validated, and execution is hard-gated (HTTP 409) while any required mapping is still unresolved. Include/exclude condition groups convert to portable conditions with the correct visibility mode (`show_if`/`hide_if`); regions, raw URLs, and unsupported visitor states are reported as manual follow-ups rather than dropped silently. Proposals that carry an action plan are now persisted even while unresolved so resolutions can be submitted to the execute endpoint.

@@ -60,8 +60,8 @@ class RWGA_Planner_Inherited_Target_Resolver {
 	 * @param array<string,mixed> $target Target row from session state.
 	 * @return array<string,mixed>
 	 */
-	private static function mark_inherited( array $target ) {
-		$origin            = (string) ( $target['label'] ?? '' );
+	public static function mark_inherited( array $target ) {
+		$origin            = (string) ( $target['inheritedFrom'] ?? $target['label'] ?? '' );
 		$target['source']  = 'inherited';
 		$target['inheritedFrom'] = $origin;
 		return $target;

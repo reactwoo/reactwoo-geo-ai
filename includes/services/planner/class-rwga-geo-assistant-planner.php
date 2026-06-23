@@ -167,6 +167,7 @@ class RWGA_Geo_Assistant_Planner {
 			$plan['action_cards']             = $cards['cards'];
 			$plan['fields_needing_attention'] = $cards['fields_needing_attention'];
 			$plan['requires_resolution']      = $cards['requires_resolution'];
+			$plan['shared_targets']           = $cards['shared_targets'];
 			if ( $cards['requires_resolution'] && RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION !== $plan['status'] ) {
 				$plan['status']     = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION;
 				$plan['confidence'] = min( (float) $plan['confidence'], 0.5 );

@@ -115,7 +115,29 @@ class RWGA_Planner_Target_Resolver {
 		}
 
 		$variant_source = (string) ( $page_context['variant_source'] ?? '' );
-		if ( '' !== $variant_source && in_array( $action_type, array( RWGA_Geo_Action_Types::CREATE_VARIANT, RWGA_Geo_Action_Types::UPDATE_VARIANT ), true ) ) {
+		$is_variant     = in_array( $action_type, array( RWGA_Geo_Action_Types::CREATE_VARIANT, RWGA_Geo_Action_Types::UPDATE_VARIANT ), true );
+		$generic_source = in_array(
+			strtolower( trim( $variant_source ) ),
+			array( '', 'page', 'category', 'category page', 'product', 'product page' ),
+			true
+		);
+
+		// A specific variant source ("shop", "homepage") wins outright.
+		if ( $is_variant && '' !== $variant_source && ! $generic_source ) {
+			return self::page_target( $variant_source );
+		}
+
+		// Variant segments such as "one for mobile users in Finland" carry no
+		// target of their own and the phrase only yields a generic token (e.g.
+		// "category" from "the same category page"). Inherit the previous named
+		// target so the dependency stays linked and is blocked until resolved.
+		if ( $is_variant
+			&& class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false )
+			&& RWGA_Planner_Inherited_Target_Resolver::is_named_target( $session['currentTarget'] ?? null ) ) {
+			return RWGA_Planner_Inherited_Target_Resolver::mark_inherited( $session['currentTarget'] );
+		}
+
+		if ( $is_variant && '' !== $variant_source ) {
 			return self::page_target( $variant_source );
 		}
 

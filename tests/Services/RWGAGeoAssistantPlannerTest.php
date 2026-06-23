@@ -186,6 +186,30 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertContains( 'GB-ENG', (array) $signatures[2][2] );
 	}
 
+	public function test_same_category_page_variants_inherit_named_target(): void {
+		$input = 'update the ski jackets category page so it only shows in Norway, then create two new versions of the same category page: one for mobile users in Finland and the other for desktop users in Denmark';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$this->assertCount( 3, $plan['actions'] );
+
+		$variant_two   = $plan['actions'][1];
+		$variant_three = $plan['actions'][2];
+
+		$this->assertSame( 'create_variant', (string) $variant_two['type'] );
+		$this->assertSame( 'ski jackets category page', (string) ( $variant_two['target']['label'] ?? '' ) );
+		$this->assertSame( 'inherited', (string) ( $variant_two['target']['source'] ?? '' ) );
+		$this->assertSame( 'ski jackets category page', (string) ( $variant_two['target']['inheritedFrom'] ?? '' ) );
+
+		$this->assertSame( 'ski jackets category page', (string) ( $variant_three['target']['label'] ?? '' ) );
+		$this->assertSame( 'inherited', (string) ( $variant_three['target']['source'] ?? '' ) );
+
+		// The inherited target shares one dependency id across all three cards.
+		$cards = $plan['action_cards'];
+		$dep1  = (string) ( $cards[0]['target']['dependencyId'] ?? '' );
+		$this->assertNotSame( '', $dep1 );
+		$this->assertSame( $dep1, (string) ( $cards[1]['target']['dependencyId'] ?? '' ) );
+		$this->assertSame( $dep1, (string) ( $cards[2]['target']['dependencyId'] ?? '' ) );
+	}
+
 	public function test_show_homepage_only_in_france(): void {
 		$input = 'show homepage only in France';
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
