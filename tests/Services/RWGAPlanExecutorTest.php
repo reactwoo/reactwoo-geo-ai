@@ -133,6 +133,53 @@ class RWGAPlanExecutorTest extends TestCase {
 		$this->assertSame( 'VIP Customers', $first['conditions']['include']['audiences'][0]['name'] );
 	}
 
+	public function test_applier_resolves_location_country_region_and_any_audience() {
+		$actions = array(
+			array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'target'     => array( 'type' => 'page', 'label' => 'Home page' ),
+				'unresolved' => array(
+					'locations' => array( array( 'raw' => 'England', 'status' => 'needs_resolution' ) ),
+					'audiences' => array( array( 'raw' => 'audience matches any', 'status' => 'audience_any' ) ),
+				),
+				'conditions' => array( 'include' => array( 'weather' => array( 'sunny' ) ), 'exclude' => array() ),
+			),
+		);
+
+		// Choose England region; treat "audience matches any" as any audience (ignore).
+		$out = RWGA_Card_Resolution_Applier::apply(
+			$actions,
+			array(
+				array( 'card' => 0, 'field' => 'location', 'raw' => 'England', 'action' => 'choose', 'id' => 'region:GB-ENG' ),
+				array( 'card' => 0, 'field' => 'audience', 'raw' => 'audience matches any', 'action' => 'ignore' ),
+				array( 'card' => 0, 'field' => 'logic', 'action' => 'set', 'id' => 'AND' ),
+			)
+		);
+
+		$first = $out[0];
+		$this->assertSame( array( 'GB-ENG' ), $first['conditions']['include']['regions'] );
+		$this->assertSame( array(), $first['unresolved']['locations'] );
+		$this->assertSame( array(), $first['unresolved']['audiences'] );
+		$this->assertSame( 'all', $first['condition_match'] );
+		$this->assertSame( array( 'sunny' ), $first['conditions']['include']['weather'] );
+	}
+
+	public function test_applier_resolves_location_to_country() {
+		$actions = array(
+			array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'target'     => array( 'type' => 'page', 'label' => 'Home page' ),
+				'unresolved' => array( 'locations' => array( array( 'raw' => 'England', 'status' => 'needs_resolution' ) ) ),
+				'conditions' => array( 'include' => array(), 'exclude' => array() ),
+			),
+		);
+		$out = RWGA_Card_Resolution_Applier::apply(
+			$actions,
+			array( array( 'card' => 0, 'field' => 'location', 'raw' => 'England', 'action' => 'choose', 'id' => 'country:GB' ) )
+		);
+		$this->assertSame( array( 'GB' ), $out[0]['conditions']['include']['countries'] );
+	}
+
 	public function test_condition_converter_maps_include_and_exclude() {
 		$conditions = array(
 			'include' => array(

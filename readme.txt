@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.120
+Stable tag: 0.4.121
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.121 =
+* **Geo Assistant — per-condition resolution model:** Action cards now expose a normalised `condition_rows` list (location, weather, audience, device, URL, UTM, visitor) plus a `logic` operator, so every detected condition can be reviewed and resolved on its own. Ambiguous nation names (England/Scotland/Wales/Northern Ireland) are no longer silently converted: when the command explicitly asks to clarify (e.g. "if England is unclear, ask me whether I mean United Kingdom country targeting or England region targeting"), the location becomes a resolvable decision with *country*, *region*, and *remove* options. "audience matches any" is surfaced as an explicit any-audience vs. selected-groups decision instead of a synced-list-not-found error, and weather (e.g. "sunny") is kept as detected rather than mapped to a different condition. The resolution applier applies country/region picks, any-audience, and per-action match logic before execution; the interpret response also returns an `actions` alias and a coarse `source` badge (local_parser/local_memory/remote_memory/ai_fallback/clarification).
 
 = 0.4.119 =
 * **Geo Assistant — inherited & shared targets:** Variant clauses such as "create two new versions of the same category page: one for mobile users in Finland and the other for desktop users in Denmark" now inherit the previous named target ("ski jackets category page") instead of collapsing to a generic "category" page. Inherited targets carry `inheritedFrom` and are blocked (not "ready") while the source target is unresolved. Every unresolved target also carries a stable `dependencyId`, and the plan exposes a `shared_targets` list grouping the same raw target across actions (with `linkedActions`) so it can be resolved once and applied everywhere it is used.
