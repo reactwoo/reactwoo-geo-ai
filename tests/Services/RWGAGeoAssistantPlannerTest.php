@@ -32,6 +32,12 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 				return 'test-uuid-' . bin2hex( random_bytes( 4 ) );
 			}
 		}
+		if ( ! function_exists( 'get_posts' ) ) {
+			function get_posts( $args = array() ) {
+				unset( $args );
+				return array();
+			}
+		}
 		$base = dirname( __DIR__, 2 ) . '/includes/';
 		require_once $base . 'intelligence/class-rwga-intelligence-bundle-bootstrap.php';
 		require_once $base . 'services/class-rwga-compound-condition-interpreter.php';
@@ -41,6 +47,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/class-rwga-country-rule-interpreter.php';
 		require_once $base . 'services/class-rwga-multi-variant-interpreter.php';
 		require_once $base . 'services/class-rwga-variant-plan-parser.php';
+		require_once $base . 'services/class-rwga-rule-plan-parser.php';
 		require_once $base . 'services/class-rwga-segment-condition-extractor.php';
 		require_once $base . 'services/class-rwga-site-interpretation-preferences.php';
 		require_once $base . 'services/planner/class-rwga-geo-action-types.php';
@@ -503,8 +510,12 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertSame( array( 'GB' ), $include_campaign['countries'] );
 		$this->assertSame( array( 'Returning Visitors' ), $this->audience_names( $include_campaign ) );
 		$this->assertSame(
-			array( array( 'key' => 'utm_campaign', 'value' => 'ny-sale' ) ),
-			$include_campaign['utm']
+			'ny-sale',
+			(string) ( $include_campaign['utm'][0]['value'] ?? '' )
+		);
+		$this->assertSame(
+			'utm_campaign',
+			(string) ( $include_campaign['utm'][0]['key'] ?? '' )
 		);
 		$this->assertNotContains( 'IE', $include_campaign['countries'] );
 
@@ -932,5 +943,103 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertContains( 'GB', (array) ( $include['countries'] ?? array() ) );
 		$this->assertContains( 'no_weather_restriction', (array) ( $plan['actions'][0]['notes'] ?? array() ) );
 		$this->assertSame( array(), (array) ( $include['weather'] ?? array() ) );
+	}
+
+	public function test_winter_sale_full_rule_single_create_rule_action(): void {
+		$input = 'Create a rule for the Winter Sale page. Show it only to mobile visitors from Canada or the United States when the campaign is winter-clearance, but exclude visitors from email traffic. The audience should match any VIP or returning customer segment. Show me the full rule before creating it.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 1, (int) ( $plan['debug']['action_count'] ?? 0 ) );
+		$this->assertSame( 'rule_plan_parser', $plan['debug']['parser_used'] ?? '' );
+		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
+
+		$conf = $plan['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+
+		$include = $this->include_of( $plan['actions'][0] );
+		$exclude = $this->exclude_of( $plan['actions'][0] );
+
+		$this->assertSame( array( 'mobile' ), (array) ( $include['devices'] ?? array() ) );
+		$this->assertEqualsCanonicalizing( array( 'CA', 'US' ), (array) ( $include['countries'] ?? array() ) );
+		$this->assertSame( 'winter-clearance', $this->utm_field_value( $include, 'campaign' ) );
+		$this->assertSame( 'email', $this->utm_field_value( $exclude, 'medium' ) );
+
+		$audience_rows = (array) ( $plan['actions'][0]['unresolved']['audiences'] ?? array() );
+		$this->assertCount( 1, $audience_rows );
+		$this->assertSame( 'matches_any', (string) ( $audience_rows[0]['status'] ?? '' ) );
+		$this->assertEqualsCanonicalizing(
+			array( 'vip', 'returning_customer' ),
+			(array) ( $audience_rows[0]['segment_keys'] ?? array() )
+		);
+
+		$this->assertStringContainsString( 'winter sale', strtolower( (string) ( $plan['actions'][0]['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'needs_resolution', (string) ( $plan['action_cards'][0]['status'] ?? '' ) );
+
+		foreach ( $plan['actions'] as $action ) {
+			$this->assertNotSame( 'update_original_targeting', $action['type'] ?? '' );
+			$this->assertNotSame( 'show', $action['type'] ?? '' );
+			$this->assertNotSame( 'hide', $action['type'] ?? '' );
+		}
+	}
+
+	public function test_exclude_does_not_create_hide_action(): void {
+		$input = 'Show the sale page to UK visitors but exclude email traffic.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
+
+		$include = $this->include_of( $plan['actions'][0] );
+		$exclude = $this->exclude_of( $plan['actions'][0] );
+
+		$this->assertSame( array( 'GB' ), (array) ( $include['countries'] ?? array() ) );
+		$this->assertSame( 'email', $this->utm_field_value( $exclude, 'medium' ) );
+	}
+
+	public function test_audience_phrase_remains_grouped(): void {
+		$result = RWGA_Planner_Audience_Resolver::resolve(
+			'Audience should match any VIP or returning customer segment.',
+			array(),
+			array()
+		);
+
+		$unresolved = (array) ( $result['unresolved'] ?? array() );
+		$this->assertCount( 1, $unresolved );
+		$this->assertSame( 'matches_any', (string) ( $unresolved[0]['status'] ?? '' ) );
+		$this->assertEqualsCanonicalizing(
+			array( 'vip', 'returning_customer' ),
+			(array) ( $unresolved[0]['segment_keys'] ?? array() )
+		);
+	}
+
+	public function test_full_rule_confirmation_phrase_alone_is_not_an_action(): void {
+		$input = 'Show me the full rule before creating it.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( array(), $plan['actions'] );
+		$this->assertSame( 0, (int) ( $plan['debug']['action_count'] ?? -1 ) );
+		$conf = $plan['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+	}
+
+	/**
+	 * @param array<string,mixed> $group Condition group.
+	 * @param string              $field UTM field name.
+	 * @return string|null
+	 */
+	private function utm_field_value( array $group, string $field ): ?string {
+		foreach ( (array) ( $group['utm'] ?? array() ) as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$row_field = (string) ( $row['field'] ?? str_replace( 'utm_', '', (string) ( $row['key'] ?? '' ) ) );
+			if ( $field === $row_field ) {
+				return (string) ( $row['value'] ?? '' );
+			}
+		}
+		return null;
 	}
 }

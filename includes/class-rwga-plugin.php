@@ -166,6 +166,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/class-rwga-parser-hints-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-learning-promotion-service.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-variant-plan-parser.php';
+		require_once RWGA_PATH . 'includes/services/class-rwga-rule-plan-parser.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-geo-action-types.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-location-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-action-clause-splitter.php';

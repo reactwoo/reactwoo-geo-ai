@@ -259,8 +259,28 @@ class RWGA_Planner_Action_Card_Builder {
 
 		// Resolved locations (countries / regions), include + exclude.
 		foreach ( array( 'include' => $include, 'exclude' => $exclude ) as $mode => $group ) {
-			foreach ( (array) ( $group['countries'] ?? array() ) as $code ) {
-				$rows[] = self::valid_row( $id(), 'location', $mode, (string) $code, 'public', sprintf( __( 'Country: %s', 'reactwoo-geocore' ), (string) $code ) );
+			$countries = array_values( (array) ( $group['countries'] ?? array() ) );
+			if ( count( $countries ) > 1 ) {
+				$labels = array();
+				foreach ( $countries as $code ) {
+					$labels[] = (string) $code;
+				}
+				$rows[] = self::valid_row(
+					$id(),
+					'location',
+					$mode,
+					implode( '|', $countries ),
+					'public',
+					sprintf(
+						/* translators: %s: country list joined with OR */
+						__( 'Country: %s', 'reactwoo-geocore' ),
+						implode( ' OR ', $labels )
+					)
+				);
+			} else {
+				foreach ( $countries as $code ) {
+					$rows[] = self::valid_row( $id(), 'location', $mode, (string) $code, 'public', sprintf( __( 'Country: %s', 'reactwoo-geocore' ), (string) $code ) );
+				}
 			}
 			foreach ( (array) ( $group['regions'] ?? array() ) as $code ) {
 				$rows[] = self::valid_row( $id(), 'location', $mode, (string) $code, 'public', sprintf( __( 'Region: %s', 'reactwoo-geocore' ), (string) $code ) );
@@ -298,8 +318,14 @@ class RWGA_Planner_Action_Card_Builder {
 				$rows[] = self::valid_row( $id(), 'url', $mode, (string) $u, 'admin-links', (string) $u );
 			}
 			foreach ( (array) ( $group['utm'] ?? array() ) as $u ) {
-				$label  = is_array( $u ) ? ( (string) ( $u['key'] ?? '' ) . '=' . (string) ( $u['value'] ?? '' ) ) : (string) $u;
-				$rows[] = self::valid_row( $id(), 'utm', $mode, $label, 'megaphone', $label );
+				if ( is_array( $u ) ) {
+					$field = (string) ( $u['field'] ?? str_replace( 'utm_', '', (string) ( $u['key'] ?? '' ) ) );
+					$val   = (string) ( $u['value'] ?? '' );
+					$label = self::utm_label( $field, $val );
+					$rows[] = self::valid_row( $id(), 'utm', $mode, $field . '=' . $val, 'megaphone', $label );
+				} else {
+					$rows[] = self::valid_row( $id(), 'utm', $mode, (string) $u, 'megaphone', (string) $u );
+				}
 			}
 			foreach ( (array) ( $group['visitorStates'] ?? array() ) as $v ) {
 				$rows[] = self::valid_row( $id(), 'visitor', $mode, (string) $v, 'admin-users', ucwords( str_replace( '_', ' ', (string) $v ) ) );
@@ -310,15 +336,19 @@ class RWGA_Planner_Action_Card_Builder {
 		foreach ( $audiences as $audience ) {
 			$status = (string) ( $audience['status'] ?? '' );
 			$valid  = 'matched' === $status;
+			$label  = (string) ( $audience['raw'] ?? '' );
+			if ( 'matches_any' === $status ) {
+				$label = self::matches_any_audience_label( $audience );
+			} elseif ( $valid && is_array( $audience['resolved'] ?? null ) ) {
+				$label = (string) ( $audience['resolved']['name'] ?? $label );
+			}
 			$rows[] = array(
 				'id'                 => $id(),
 				'type'               => 'audience',
 				'mode'               => 'include',
 				'raw'                => (string) ( $audience['raw'] ?? '' ),
-				'label'              => $valid && is_array( $audience['resolved'] ?? null )
-					? (string) ( $audience['resolved']['name'] ?? $audience['raw'] )
-					: (string) ( $audience['raw'] ?? '' ),
-				'value'              => $valid ? ( is_array( $audience['resolved'] ?? null ) ? $audience['resolved'] : null ) : null,
+				'label'              => $label,
+				'value'              => $valid ? ( is_array( $audience['resolved'] ?? null ) ? $audience['resolved'] : null ) : ( $audience['segment_keys'] ?? null ),
 				'status'             => $valid ? 'valid' : 'needs_resolution',
 				'icon'               => 'groups',
 				'warning'            => $valid ? '' : self::audience_warning( $status ),
@@ -380,7 +410,45 @@ class RWGA_Planner_Action_Card_Builder {
 		if ( 'audience_any' === $status ) {
 			return __( 'Choose whether this means any audience or selected audience groups.', 'reactwoo-geocore' );
 		}
+		if ( 'matches_any' === $status ) {
+			return __( 'Audience segments must be selected or synced before this can be created.', 'reactwoo-geocore' );
+		}
 		return __( 'No synced audience list is available yet.', 'reactwoo-geocore' );
+	}
+
+	/**
+	 * @param array<string,mixed> $audience Audience row.
+	 * @return string
+	 */
+	private static function matches_any_audience_label( array $audience ) {
+		$keys = (array) ( $audience['segment_keys'] ?? array() );
+		$parts = array();
+		foreach ( $keys as $key ) {
+			if ( 'vip' === $key ) {
+				$parts[] = 'VIP';
+			} elseif ( 'returning_customer' === $key ) {
+				$parts[] = __( 'Returning Customer', 'reactwoo-geocore' );
+			}
+		}
+		if ( ! empty( $parts ) ) {
+			return implode( ' ' . __( 'or', 'reactwoo-geocore' ) . ' ', $parts );
+		}
+		return (string) ( $audience['raw'] ?? '' );
+	}
+
+	/**
+	 * @param string $field UTM field (campaign, medium, …).
+	 * @param string $value Value.
+	 * @return string
+	 */
+	private static function utm_label( $field, $value ) {
+		if ( 'campaign' === $field ) {
+			return sprintf( __( 'Campaign: %s', 'reactwoo-geocore' ), $value );
+		}
+		if ( 'medium' === $field ) {
+			return sprintf( __( 'Traffic medium: %s', 'reactwoo-geocore' ), $value );
+		}
+		return 'utm_' . $field . '=' . $value;
 	}
 
 	/**
@@ -393,6 +461,13 @@ class RWGA_Planner_Action_Card_Builder {
 				array( 'key' => 'any_audience', 'label' => __( 'Any audience', 'reactwoo-geocore' ) ),
 				array( 'key' => 'choose_audiences', 'label' => __( 'Choose audience groups', 'reactwoo-geocore' ), 'picker' => true ),
 				array( 'key' => 'remove', 'label' => __( 'Remove audience condition', 'reactwoo-geocore' ) ),
+			);
+		}
+		if ( 'matches_any' === $status ) {
+			return array(
+				array( 'key' => 'choose_audience_segments', 'label' => __( 'Choose audience segments', 'reactwoo-geocore' ), 'picker' => true ),
+				array( 'key' => 'refresh_synced_audiences', 'label' => __( 'Refresh synced audiences', 'reactwoo-geocore' ) ),
+				array( 'key' => 'remove_audience_condition', 'label' => __( 'Remove audience condition', 'reactwoo-geocore' ) ),
 			);
 		}
 		return array(
@@ -560,10 +635,11 @@ class RWGA_Planner_Action_Card_Builder {
 				continue;
 			}
 			$audiences[] = array(
-				'raw'         => (string) $row['raw'],
-				'resolved'    => null,
-				'status'      => (string) ( $row['status'] ?? 'not_found' ),
-				'suggestions' => self::entity_suggestions( (array) ( $row['suggestions'] ?? array() ) ),
+				'raw'          => (string) $row['raw'],
+				'resolved'     => null,
+				'status'       => (string) ( $row['status'] ?? 'not_found' ),
+				'segment_keys' => is_array( $row['segment_keys'] ?? null ) ? $row['segment_keys'] : array(),
+				'suggestions'  => self::entity_suggestions( (array) ( $row['suggestions'] ?? array() ) ),
 			);
 		}
 

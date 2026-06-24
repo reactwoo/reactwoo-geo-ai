@@ -340,6 +340,11 @@ class RWGA_Planner_Action_Clause_Splitter {
 	 * @return array<int,array{raw:string,index:int}>
 	 */
 	private static function coarse_split( $phrase ) {
+		if ( class_exists( 'RWGA_Rule_Plan_Parser', false )
+			&& RWGA_Rule_Plan_Parser::is_rule_plan_command( $phrase ) ) {
+			return array();
+		}
+
 		$pattern = '/(?:^|[,.;]|\s+-\s+|\s*[—–]\s+|\band then\b|\bthen\b)(?=\s*(?:update|create|change|show|hide|only show|display|make|test|diagnose)\b)/i';
 		$parts   = preg_split( $pattern, $phrase, -1, PREG_SPLIT_NO_EMPTY );
 		if ( ! is_array( $parts ) || count( $parts ) < 2 ) {

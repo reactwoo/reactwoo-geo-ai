@@ -57,7 +57,29 @@ class RWGA_Geo_Assistant_Planner {
 		$clauses = array();
 		$raw_for_parse = self::strip_confirmation_from_raw( $raw_phrase, $plan['debug']['ignored_meta_phrases'] );
 
-		if ( self::should_use_variant_plan_parser( $phrase_for_parse ) ) {
+		if ( self::should_use_rule_plan_parser( $phrase_for_parse ) ) {
+			$clause_row = array(
+				'raw'   => $phrase_for_parse,
+				'type'  => 'rule',
+				'index' => 0,
+			);
+			$actions    = self::build_actions_from_clause(
+				$phrase_for_parse,
+				$phrase_for_parse,
+				$entities,
+				$context,
+				array(),
+				$clause_row
+			);
+			if ( ! empty( $actions ) ) {
+				$decisions[]                  = 'rule_plan_parser';
+				$plan['debug']['parser_used'] = 'rule_plan_parser';
+				$plan['debug']['intent']      = 'create_rule';
+				self::attach_rule_plan_debug( $plan, $actions );
+			}
+		}
+
+		if ( empty( $actions ) && self::should_use_variant_plan_parser( $phrase_for_parse ) ) {
 			$variant_plan = RWGA_Variant_Plan_Parser::parse( $raw_for_parse, $entities, $context );
 			$actions      = RWGA_Planner_Variant_Resolver::from_variant_plan_parse( $variant_plan, $entities );
 			if ( ! empty( $actions ) ) {
@@ -537,6 +559,122 @@ class RWGA_Geo_Assistant_Planner {
 	private static function has_multi_action_markers( $phrase ) {
 		return class_exists( 'RWGA_Planner_Plan_Validator', false )
 			&& RWGA_Planner_Plan_Validator::expected_action_count( $phrase ) > 1;
+	}
+
+	/**
+	 * Whether the stripped phrase should use the single-action rule plan parser
+	 * instead of multi-clause splitting (show/hide inside one create_rule).
+	 *
+	 * @param string $phrase Normalised phrase without confirmation/meta tail.
+	 * @return bool
+	 */
+	private static function should_use_rule_plan_parser( $phrase ) {
+		if ( '' === trim( (string) $phrase ) ) {
+			return false;
+		}
+		if ( ! class_exists( 'RWGA_Rule_Plan_Parser', false )
+			|| ! RWGA_Rule_Plan_Parser::is_rule_plan_command( $phrase ) ) {
+			return false;
+		}
+		if ( self::has_multi_action_markers( $phrase )
+			&& preg_match( '/\b(?:also|plus|as well as|and then)\b/i', $phrase ) ) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * @param array<string,mixed>            $plan    Plan (by ref).
+	 * @param array<int,array<string,mixed>> $actions Built actions.
+	 * @return void
+	 */
+	private static function attach_rule_plan_debug( array &$plan, array $actions ) {
+		if ( empty( $actions[0] ) || ! is_array( $actions[0] ) ) {
+			return;
+		}
+		$action     = $actions[0];
+		$conditions = is_array( $action['conditions'] ?? null ) ? $action['conditions'] : array();
+		$include    = class_exists( 'RWGA_Planner_Condition_Polarity_Resolver', false )
+			? RWGA_Planner_Condition_Polarity_Resolver::include_group( $conditions )
+			: (array) ( $conditions['include'] ?? array() );
+		$exclude    = class_exists( 'RWGA_Planner_Condition_Polarity_Resolver', false )
+			? RWGA_Planner_Condition_Polarity_Resolver::exclude_group( $conditions )
+			: (array) ( $conditions['exclude'] ?? array() );
+
+		$plan['debug']['include_conditions'] = self::debug_condition_snapshot( $include, $action );
+		$plan['debug']['exclude_conditions'] = self::debug_condition_snapshot( $exclude );
+
+		$target = is_array( $action['target'] ?? null ) ? $action['target'] : array();
+		if ( ! empty( $target['label'] ) || ! empty( $target['raw'] ) ) {
+			$plan['debug']['shared_target'] = array(
+				'raw'    => (string) ( $target['raw'] ?? $target['label'] ?? '' ),
+				'status' => (string) ( $target['status'] ?? 'needs_resolution' ),
+			);
+		}
+	}
+
+	/**
+	 * @param array<string,mixed>            $group  Include or exclude group.
+	 * @param array<string,mixed>|null       $action Optional action for unresolved audiences.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function debug_condition_snapshot( array $group, $action = null ) {
+		$rows = array();
+		foreach ( (array) ( $group['devices'] ?? array() ) as $device ) {
+			$rows[] = array(
+				'type'  => 'device',
+				'value' => (string) $device,
+			);
+		}
+		$countries = (array) ( $group['countries'] ?? array() );
+		if ( ! empty( $countries ) ) {
+			$row = array(
+				'type'  => 'country',
+				'value' => $countries,
+			);
+			if ( count( $countries ) > 1 ) {
+				$row['join'] = 'OR';
+			}
+			$rows[] = $row;
+		}
+		foreach ( (array) ( $group['utm'] ?? array() ) as $utm ) {
+			if ( ! is_array( $utm ) ) {
+				continue;
+			}
+			$field = (string) ( $utm['field'] ?? str_replace( 'utm_', '', (string) ( $utm['key'] ?? '' ) ) );
+			$rows[] = array(
+				'type'  => 'utm',
+				'field' => $field,
+				'value' => (string) ( $utm['value'] ?? '' ),
+			);
+		}
+		foreach ( (array) ( $group['audiences'] ?? array() ) as $audience ) {
+			if ( is_array( $audience ) ) {
+				$rows[] = array(
+					'type'  => 'audience',
+					'value' => (string) ( $audience['name'] ?? $audience['raw'] ?? '' ),
+				);
+			}
+		}
+		if ( is_array( $action ) ) {
+			foreach ( (array) ( $action['unresolved']['audiences'] ?? array() ) as $audience ) {
+				if ( ! is_array( $audience ) ) {
+					continue;
+				}
+				$row = array(
+					'type'   => 'audience',
+					'status' => (string) ( $audience['status'] ?? 'needs_resolution' ),
+				);
+				if ( 'matches_any' === ( $row['status'] ?? '' ) && is_array( $audience['segment_keys'] ?? null ) ) {
+					$row['operator'] = 'matches_any';
+					$row['value']    = $audience['segment_keys'];
+				} else {
+					$row['value'] = (string) ( $audience['raw'] ?? '' );
+				}
+				$rows[] = $row;
+			}
+		}
+		return $rows;
 	}
 
 	/**

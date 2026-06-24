@@ -54,7 +54,13 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 		$exclude = '';
 
 		$patterns = array(
+			'/\b(?:but\s+)?exclude\s+(?:visitors?|users?|people|customers?|traffic)\s+from\s+(.+)$/i',
+			'/\b(?:but\s+)?exclude\s+traffic\s+from\s+(.+)$/i',
+			'/\b(?:but\s+)?exclude\s+(email\s+traffic|[\w-]+\s+traffic)\.?/i',
+			'/\bhide\s+from\s+(.+)$/i',
 			'/\bexcept\s+when\s+(?:the\s+)?weather\s+is\s+(.+)$/i',
+			'/\bnot\s+when\s+(.+)$/i',
+			'/\bexcept\s+when\s+(.+)$/i',
 			'/\b(?:but\s+)?exclude\s+(?:anyone|everyone|users|visitors|people|those|customers)\s+(?:who\s+)?(?:are\s+)?(?:arriving|coming|landing)\s+from\s+(.+)$/i',
 			'/\b(?:but\s+)?exclude\s+(?:anyone|everyone|users|visitors|people|those|customers)\s+(?:in|from)\s+(.+)$/i',
 			'/\b(?:except|excluding)\s+(?:users|visitors)\s+in\s+(.+)$/i',

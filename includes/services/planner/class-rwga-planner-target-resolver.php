@@ -43,6 +43,11 @@ class RWGA_Planner_Target_Resolver {
 			}
 		}
 
+		$rule_page = self::rule_creation_page_target( $clause );
+		if ( is_array( $rule_page ) ) {
+			return $rule_page;
+		}
+
 		if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
 			$category = RWGA_Planner_Inherited_Target_Resolver::extract_category_label( $clause );
 			if ( null !== $category ) {
@@ -166,6 +171,34 @@ class RWGA_Planner_Target_Resolver {
 			'label'  => 'page',
 			'slug'   => 'page',
 			'source' => 'unknown',
+		);
+	}
+
+	/**
+	 * @param string $clause Clause text.
+	 * @return array{type:string,label:string,slug:string,source:string}|null
+	 */
+	private static function rule_creation_page_target( $clause ) {
+		if ( preg_match( '/\b(?:create|add)\s+(?:a\s+)?rule\s+for\s+(?:the\s+)?(.+?)\s+page\b/i', $clause, $m ) ) {
+			return self::named_page_target( trim( (string) $m[1] ) . ' page' );
+		}
+		if ( preg_match( '/\b(?:show|display)\s+(?:the\s+)?(.+?)\s+page\s+to\b/i', $clause, $m ) ) {
+			return self::named_page_target( trim( (string) $m[1] ) . ' page' );
+		}
+		return null;
+	}
+
+	/**
+	 * @param string $label Page label.
+	 * @return array{type:string,label:string,slug:string,source:string}
+	 */
+	private static function named_page_target( $label ) {
+		$label = trim( (string) $label );
+		return array(
+			'type'   => 'page',
+			'label'  => $label,
+			'slug'   => sanitize_title( $label ),
+			'source' => 'detected',
 		);
 	}
 

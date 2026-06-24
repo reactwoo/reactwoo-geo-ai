@@ -70,6 +70,11 @@ class RWGA_Planner_Audience_Resolver {
 		// audience lookup. Surface it as a distinct ambiguity and strip it so the
 		// generic phrase detector does not also flag a bare "audience".
 		$audience_any = false;
+		$grouped      = self::resolve_grouped_audience_match( $text );
+		if ( is_array( $grouped ) ) {
+			$text = (string) ( $grouped['remaining_text'] ?? $text );
+		}
+
 		if ( preg_match( '/\b(?:audiences?\s+match(?:es)?\s+any|match(?:es)?\s+any\s+audience|any\s+audience|all\s+audiences?)\b/i', $text ) ) {
 			$audience_any = true;
 			$text         = (string) preg_replace( '/\b(?:the\s+)?audiences?\s+match(?:es)?\s+any\b/i', ' ', $text );
@@ -113,11 +118,87 @@ class RWGA_Planner_Audience_Resolver {
 			);
 		}
 
+		if ( is_array( $grouped ) && is_array( $grouped['unresolved'] ?? null ) ) {
+			$unresolved[] = $grouped['unresolved'];
+		}
+
 		return array(
 			'audiences'     => $matched,
 			'visitorStates' => array_values( array_unique( $states ) ),
 			'unresolved'    => $unresolved,
 		);
+	}
+
+	/**
+	 * Detect grouped audience OR phrases (e.g. VIP or returning customer segment).
+	 *
+	 * @param string $text Normalised text.
+	 * @return array{remaining_text:string,unresolved:array<string,mixed>}|null
+	 */
+	private static function resolve_grouped_audience_match( $text ) {
+		$text = RWGA_Local_Intent_Interpreter::normalise( $text );
+		$patterns = array(
+			'/\b(?:the\s+)?audience\s+should\s+match\s+any\s+(.+?)(?:\s+segment)?\.?\s*$/i',
+			'/\bmatch(?:es)?\s+any\s+((?:vip|returning\s+customer(?:s)?)(?:\s+or\s+(?:vip|returning\s+customer(?:s)?))*(?:\s+segment)?)\b/i',
+			'/\bany\s+((?:vip|returning\s+customer(?:s)?)(?:\s+or\s+(?:vip|returning\s+customer(?:s)?))*(?:\s+segment)?)\b/i',
+		);
+
+		foreach ( $patterns as $pattern ) {
+			if ( ! preg_match( $pattern, $text, $m ) ) {
+				continue;
+			}
+			$tail = trim( (string) ( $m[1] ?? '' ) );
+			$tail = (string) preg_replace( '/\s+segment$/i', '', $tail );
+			if ( '' === $tail ) {
+				continue;
+			}
+
+			$segment_keys = self::audience_segment_keys_from_phrase( $tail );
+			if ( empty( $segment_keys ) ) {
+				continue;
+			}
+
+			$remaining = trim( (string) preg_replace( $pattern, ' ', $text ) );
+			$remaining = trim( (string) preg_replace( '/\s+/', ' ', $remaining ) );
+
+			return array(
+				'remaining_text' => $remaining,
+				'unresolved'     => array(
+					'raw'          => $tail,
+					'status'       => 'matches_any',
+					'mode'         => 'matches_any',
+					'operator'     => 'matches_any',
+					'segment_keys' => $segment_keys,
+					'suggestions'  => array(),
+					'message'      => __( 'Audience segments must be selected or synced before this can be created.', 'reactwoo-geocore' ),
+				),
+			);
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param string $phrase Audience tail phrase.
+	 * @return array<int,string>
+	 */
+	private static function audience_segment_keys_from_phrase( $phrase ) {
+		$phrase = strtolower( trim( (string) $phrase ) );
+		$parts  = preg_split( '/\s+or\s+/', $phrase );
+		if ( ! is_array( $parts ) ) {
+			$parts = array( $phrase );
+		}
+		$keys = array();
+		foreach ( $parts as $part ) {
+			$part = trim( (string) $part );
+			if ( preg_match( '/\bvip\b/', $part ) ) {
+				$keys[] = 'vip';
+			}
+			if ( preg_match( '/\breturning\s+customers?\b/', $part ) ) {
+				$keys[] = 'returning_customer';
+			}
+		}
+		return array_values( array_unique( $keys ) );
 	}
 
 	/**

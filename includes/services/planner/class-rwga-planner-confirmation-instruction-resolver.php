@@ -34,6 +34,9 @@ class RWGA_Planner_Confirmation_Instruction_Resolver {
 		'review before creating',
 		'show me before creating',
 		'show me the plan before creating',
+		'show me the full rule before creating',
+		'show full rule before creating',
+		'show me the full rule',
 	);
 
 	/**
@@ -97,7 +100,7 @@ class RWGA_Planner_Confirmation_Instruction_Resolver {
 				return true;
 			}
 		}
-		if ( preg_match( '/\b(?:show\s+me\s+(?:the\s+)?split|before\s+creat(?:e|ing)|wait\s+for\s+confirm|confirm\s+before\s+creat|review\s+before\s+creat)\b/i', $clause )
+		if ( preg_match( '/\b(?:show\s+me\s+(?:the\s+)?(?:split|full\s+rule)|before\s+creat(?:e|ing)|wait\s+for\s+confirm|confirm\s+before\s+creat|review\s+before\s+creat)\b/i', $clause )
 			&& ! preg_match( '/\b(?:portugal|germany|russia|uk|homepage|variant|version|original|country|weather|rain|sunny)\b/i', $clause ) ) {
 			return true;
 		}

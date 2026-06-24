@@ -203,6 +203,14 @@ class RWGA_Planner_Action_Type_Detector {
 			if ( preg_match( '/\b(?:only|just)\b/i', $clause ) ) {
 				$visibility = 'only_show';
 			}
+			if ( preg_match( '/\b(?:show|display)\b.+\bbut\s+exclude\b/is', $clause ) ) {
+				return array(
+					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+					'visibility' => $visibility,
+					'mode'       => 'create',
+					'confidence' => 0.9,
+				);
+			}
 			if ( preg_match( '/\bpopup\b/i', $clause ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
