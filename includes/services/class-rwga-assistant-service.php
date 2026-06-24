@@ -900,6 +900,8 @@ class RWGA_Assistant_Service {
 			'interpretation_plan'   => isset( $raw['interpretation_plan'] ) && is_array( $raw['interpretation_plan'] ) ? $raw['interpretation_plan'] : null,
 			'ambiguities'           => isset( $raw['ambiguities'] ) && is_array( $raw['ambiguities'] ) ? $raw['ambiguities'] : array(),
 			'action_cards'          => isset( $raw['action_cards'] ) && is_array( $raw['action_cards'] ) ? $raw['action_cards'] : array(),
+			'actions'               => isset( $raw['action_cards'] ) && is_array( $raw['action_cards'] ) ? $raw['action_cards'] : array(),
+			'source'                => self::resolve_source( $raw ),
 			'shared_targets'        => isset( $raw['shared_targets'] ) && is_array( $raw['shared_targets'] ) ? $raw['shared_targets'] : array(),
 			'fields_needing_attention' => (int) ( $raw['fields_needing_attention'] ?? 0 ),
 			'requires_resolution'   => ! empty( $raw['requires_resolution'] ),
@@ -919,6 +921,28 @@ class RWGA_Assistant_Service {
 			'interpretation_source' => (string) ( $raw['interpretation_source'] ?? '' ),
 			'interpretation_badge'  => self::interpretation_badge( $raw ),
 		);
+	}
+
+	/**
+	 * Map the interpreter output to a coarse "source" badge for the chat UI:
+	 * local_parser | local_memory | remote_memory | ai_fallback | clarification.
+	 *
+	 * @param array<string,mixed> $raw Interpreter output.
+	 * @return string
+	 */
+	private static function resolve_source( array $raw ) {
+		if ( ! empty( $raw['ai_interpretation'] ) ) {
+			return 'ai_fallback';
+		}
+		$source = (string) ( $raw['interpretation_source'] ?? ( $raw['source'] ?? '' ) );
+		if ( in_array( $source, array( 'local_parser', 'local_memory', 'remote_memory', 'ai_fallback', 'clarification' ), true ) ) {
+			return $source;
+		}
+		$status = (string) ( $raw['interpretation_status'] ?? $raw['status'] ?? '' );
+		if ( in_array( $status, array( 'needs_clarification', 'needs_resolution' ), true ) || ! empty( $raw['requires_resolution'] ) ) {
+			return 'clarification';
+		}
+		return 'local_parser';
 	}
 
 	/**

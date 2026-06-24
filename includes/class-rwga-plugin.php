@@ -171,6 +171,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-action-clause-splitter.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-action-type-detector.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-target-resolver.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-region-ambiguity-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-condition-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-variant-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-parent-variant-resolver.php';
@@ -237,7 +238,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-intelligence.php';
 		require_once RWGA_PATH . 'includes/workflows/class-rwga-workflow-intelligence-definitions.php';
 		require_once RWGA_PATH . 'includes/class-rwga-workflow-registry.php';
-		RWGA_Workflow_Registry::init();
+		add_action( 'init', array( 'RWGA_Workflow_Registry', 'init' ), 2 );
 
 		require_once RWGA_PATH . 'includes/class-rwga-agent-registry.php';
 		require_once RWGA_PATH . 'includes/services/class-rwga-weather-facet-suggester.php';

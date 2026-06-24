@@ -65,6 +65,19 @@ class RWGA_Planner_Audience_Resolver {
 		$text   = RWGA_Local_Intent_Interpreter::normalise( $text );
 		$states = array();
 
+		// "audience matches any" / "any audience" is an explicit decision between
+		// "no audience restriction" and "selected audience groups" — not a synced
+		// audience lookup. Surface it as a distinct ambiguity and strip it so the
+		// generic phrase detector does not also flag a bare "audience".
+		$audience_any = false;
+		if ( preg_match( '/\b(?:audiences?\s+match(?:es)?\s+any|match(?:es)?\s+any\s+audience|any\s+audience|all\s+audiences?)\b/i', $text ) ) {
+			$audience_any = true;
+			$text         = (string) preg_replace( '/\b(?:the\s+)?audiences?\s+match(?:es)?\s+any\b/i', ' ', $text );
+			$text         = (string) preg_replace( '/\b(?:to\s+|for\s+)?any\s+audience\b/i', ' ', $text );
+			$text         = (string) preg_replace( '/\b(?:match(?:es)?\s+any\s+audience|all\s+audiences?)\b/i', ' ', $text );
+			$text         = trim( (string) preg_replace( '/\s+/', ' ', $text ) );
+		}
+
 		foreach ( self::NATIVE_VISITOR_STATES as $pattern => $state ) {
 			if ( preg_match( $pattern, $text ) ) {
 				$states[] = $state;
@@ -88,6 +101,16 @@ class RWGA_Planner_Audience_Resolver {
 			} else {
 				$unresolved[] = $resolution;
 			}
+		}
+
+		if ( $audience_any ) {
+			$unresolved[] = array(
+				'raw'         => 'audience matches any',
+				'status'      => 'audience_any',
+				'mode'        => 'any',
+				'suggestions' => array(),
+				'message'     => __( 'Choose whether this means any audience or selected audience groups.', 'reactwoo-geocore' ),
+			);
 		}
 
 		return array(

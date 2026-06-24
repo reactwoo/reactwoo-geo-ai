@@ -45,6 +45,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/class-rwga-site-interpretation-preferences.php';
 		require_once $base . 'services/planner/class-rwga-geo-action-types.php';
 		require_once $base . 'services/planner/class-rwga-planner-location-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-region-ambiguity-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-condition-polarity-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-audience-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-utm-condition-resolver.php';
@@ -208,6 +209,68 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertNotSame( '', $dep1 );
 		$this->assertSame( $dep1, (string) ( $cards[1]['target']['dependencyId'] ?? '' ) );
 		$this->assertSame( $dep1, (string) ( $cards[2]['target']['dependencyId'] ?? '' ) );
+	}
+
+	public function test_explicit_region_clarification_marks_location_and_audience_unresolved(): void {
+		$input = 'I want you to create a rule for the Home page. It should show only when the visitor is in England, the weather is sunny, and the audience matches any. If England is unclear, ask me whether I mean United Kingdom country targeting or England region targeting before creating anything.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$card = $plan['action_cards'][0];
+		$this->assertSame( 'needs_resolution', (string) $card['status'] );
+		$this->assertSame( 2, (int) $plan['fields_needing_attention'] );
+
+		// England is NOT silently converted: no regions resolved on the include group.
+		$this->assertSame( array(), (array) $card['conditions']['include']['regions'] );
+		$this->assertSame( array(), (array) $card['conditions']['include']['countries'] );
+
+		// Weather "sunny" is detected and not mapped to "hot".
+		$this->assertSame( array( 'sunny' ), (array) $card['conditions']['include']['weather'] );
+
+		$rows  = $card['condition_rows'];
+		$types = array_column( $rows, 'type' );
+		$this->assertContains( 'location', $types );
+		$this->assertContains( 'weather', $types );
+		$this->assertContains( 'audience', $types );
+
+		$location = $this->row_of_type( $rows, 'location' );
+		$this->assertSame( 'needs_resolution', (string) $location['status'] );
+		$option_keys = array_column( (array) $location['resolution_options'], 'key' );
+		$this->assertContains( 'country_gb', $option_keys );
+		$this->assertContains( 'region_gb_eng', $option_keys );
+		$this->assertContains( 'remove', $option_keys );
+
+		$weather = $this->row_of_type( $rows, 'weather' );
+		$this->assertSame( 'valid', (string) $weather['status'] );
+		$this->assertSame( 'sunny', (string) $weather['value'] );
+
+		$audience = $this->row_of_type( $rows, 'audience' );
+		$this->assertSame( 'needs_resolution', (string) $audience['status'] );
+		$audience_keys = array_column( (array) $audience['resolution_options'], 'key' );
+		$this->assertContains( 'any_audience', $audience_keys );
+		$this->assertContains( 'choose_audiences', $audience_keys );
+	}
+
+	public function test_bare_nation_still_resolves_without_clarification_request(): void {
+		$input = 'show the homepage in England';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$this->assertCount( 1, $plan['actions'] );
+		$include = $this->include_of( $plan['actions'][0] );
+		$this->assertSame( array( 'GB-ENG' ), (array) $include['regions'] );
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $rows Condition rows.
+	 * @param string                         $type Condition type.
+	 * @return array<string,mixed>
+	 */
+	private function row_of_type( array $rows, string $type ): array {
+		foreach ( $rows as $row ) {
+			if ( ( $row['type'] ?? '' ) === $type ) {
+				return $row;
+			}
+		}
+		return array();
 	}
 
 	public function test_show_homepage_only_in_france(): void {

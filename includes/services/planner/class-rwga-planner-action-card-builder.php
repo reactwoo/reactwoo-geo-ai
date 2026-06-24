@@ -135,21 +135,243 @@ class RWGA_Planner_Action_Card_Builder {
 			}
 		}
 
+		$locations = array();
+		foreach ( (array) ( $action['unresolved']['locations'] ?? array() ) as $loc ) {
+			if ( ! is_array( $loc ) || '' === (string) ( $loc['raw'] ?? '' ) ) {
+				continue;
+			}
+			$locations[] = $loc;
+			$required[]  = array(
+				'field'   => 'location',
+				'raw'     => (string) $loc['raw'],
+				'status'  => (string) ( $loc['status'] ?? 'needs_resolution' ),
+				'actions' => array(),
+				'options' => self::location_options( $loc ),
+			);
+		}
+
+		$public_include = self::public_include( $include );
+		$conditions     = array(
+			'include' => $public_include,
+			'exclude' => $exclude,
+		);
+
 		return array(
 			'id'                  => (string) ( $action['id'] ?? 'action_' . $position ),
 			'index'               => $position,
 			'type'                => (string) ( $action['type'] ?? '' ),
+			'label'               => self::action_label( (string) ( $action['type'] ?? '' ) ),
 			'status'              => empty( $required ) ? self::STATUS_READY : self::STATUS_NEEDS_RESOLUTION,
 			'target'              => $target,
 			'campaign'            => $campaign,
 			'operation'           => is_array( $action['operation'] ?? null ) ? $action['operation'] : array(),
-			'conditions'          => array(
-				'include' => self::public_include( $include ),
-				'exclude' => $exclude,
-			),
+			'logic'               => self::build_logic( $action ),
+			'conditions'          => $conditions,
+			'condition_rows'      => self::build_condition_rows( $public_include, $exclude, $audiences, $locations ),
 			'audiences'           => $audiences,
 			'warnings'            => array_values( (array) ( $action['warnings'] ?? array() ) ),
 			'requiredResolutions' => $required,
+		);
+	}
+
+	/**
+	 * Human label for an action type.
+	 *
+	 * @param string $type Action type.
+	 * @return string
+	 */
+	private static function action_label( $type ) {
+		$map = array(
+			'create_rule'               => __( 'Create rule', 'reactwoo-geocore' ),
+			'create_variant'            => __( 'Create variant', 'reactwoo-geocore' ),
+			'update_variant'            => __( 'Update variant', 'reactwoo-geocore' ),
+			'update_rule'               => __( 'Update rule', 'reactwoo-geocore' ),
+			'update_campaign_targeting' => __( 'Update campaign targeting', 'reactwoo-geocore' ),
+			'update_original_targeting' => __( 'Update original targeting', 'reactwoo-geocore' ),
+			'create_test'               => __( 'Preview / test', 'reactwoo-geocore' ),
+		);
+		return $map[ $type ] ?? ucwords( str_replace( '_', ' ', (string) $type ) );
+	}
+
+	/**
+	 * Logic operator for the action (default: match all). "any"/"or" phrasing in
+	 * the source clause maps to OR.
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @return array<string,mixed>
+	 */
+	private static function build_logic( array $action ) {
+		$clause   = strtolower( (string) ( $action['sourceClause'] ?? '' ) );
+		$operator = 'AND';
+		if ( preg_match( '/\b(?:any\s+of\s+(?:these|the\s+following)|match(?:es)?\s+any\s+of|one\s+of\s+(?:these|the\s+following))\b/i', $clause ) ) {
+			$operator = 'OR';
+		}
+		return array(
+			'operator' => $operator,
+			'label'    => 'OR' === $operator
+				? __( 'Match any condition', 'reactwoo-geocore' )
+				: __( 'Match all conditions', 'reactwoo-geocore' ),
+			'status'   => 'valid',
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $loc Unresolved location row.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function location_options( array $loc ) {
+		$options = array();
+		foreach ( (array) ( $loc['candidates'] ?? array() ) as $candidate ) {
+			if ( ! is_array( $candidate ) ) {
+				continue;
+			}
+			$options[] = array(
+				'key'   => (string) ( $candidate['key'] ?? '' ),
+				'label' => (string) ( $candidate['label'] ?? '' ),
+				'value' => is_array( $candidate['value'] ?? null ) ? $candidate['value'] : null,
+			);
+		}
+		return $options;
+	}
+
+	/**
+	 * Build the normalised per-condition rows used by the Action Review UI.
+	 *
+	 * @param array<string,mixed>            $include   Public include group.
+	 * @param array<string,mixed>            $exclude   Exclude group.
+	 * @param array<int,array<string,mixed>> $audiences Audience rows.
+	 * @param array<int,array<string,mixed>> $locations Unresolved location rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function build_condition_rows( array $include, array $exclude, array $audiences, array $locations ) {
+		$rows = array();
+		$n    = 0;
+		$id   = static function () use ( &$n ) {
+			$n++;
+			return 'condition_' . $n;
+		};
+
+		// Resolved locations (countries / regions), include + exclude.
+		foreach ( array( 'include' => $include, 'exclude' => $exclude ) as $mode => $group ) {
+			foreach ( (array) ( $group['countries'] ?? array() ) as $code ) {
+				$rows[] = self::valid_row( $id(), 'location', $mode, (string) $code, 'public', sprintf( __( 'Country: %s', 'reactwoo-geocore' ), (string) $code ) );
+			}
+			foreach ( (array) ( $group['regions'] ?? array() ) as $code ) {
+				$rows[] = self::valid_row( $id(), 'location', $mode, (string) $code, 'public', sprintf( __( 'Region: %s', 'reactwoo-geocore' ), (string) $code ) );
+			}
+		}
+
+		// Unresolved location decisions (country vs region).
+		foreach ( $locations as $loc ) {
+			$rows[] = array(
+				'id'                 => $id(),
+				'type'               => 'location',
+				'mode'               => 'include',
+				'raw'                => (string) ( $loc['raw'] ?? '' ),
+				'label'              => (string) ( $loc['raw'] ?? '' ),
+				'value'              => null,
+				'status'             => 'needs_resolution',
+				'icon'               => 'admin-site-alt3',
+				'warning'            => (string) ( $loc['warning'] ?? '' ),
+				'resolution_options' => self::location_options( $loc ),
+			);
+		}
+
+		// Weather, devices, urls, utm, visitor states.
+		foreach ( array( 'include' => $include, 'exclude' => $exclude ) as $mode => $group ) {
+			foreach ( (array) ( $group['weather'] ?? array() ) as $w ) {
+				$rows[] = self::valid_row( $id(), 'weather', $mode, (string) $w, 'cloud', ucfirst( (string) $w ) );
+			}
+			foreach ( (array) ( $group['devices'] ?? array() ) as $d ) {
+				$rows[] = self::valid_row( $id(), 'device', $mode, (string) $d, 'smartphone', ucfirst( (string) $d ) );
+			}
+			foreach ( (array) ( $group['urls'] ?? array() ) as $u ) {
+				$rows[] = self::valid_row( $id(), 'url', $mode, (string) $u, 'admin-links', (string) $u );
+			}
+			foreach ( (array) ( $group['utm'] ?? array() ) as $u ) {
+				$label  = is_array( $u ) ? ( (string) ( $u['key'] ?? '' ) . '=' . (string) ( $u['value'] ?? '' ) ) : (string) $u;
+				$rows[] = self::valid_row( $id(), 'utm', $mode, $label, 'megaphone', $label );
+			}
+			foreach ( (array) ( $group['visitorStates'] ?? array() ) as $v ) {
+				$rows[] = self::valid_row( $id(), 'visitor', $mode, (string) $v, 'admin-users', ucwords( str_replace( '_', ' ', (string) $v ) ) );
+			}
+		}
+
+		// Audiences.
+		foreach ( $audiences as $audience ) {
+			$status = (string) ( $audience['status'] ?? '' );
+			$valid  = 'matched' === $status;
+			$rows[] = array(
+				'id'                 => $id(),
+				'type'               => 'audience',
+				'mode'               => 'include',
+				'raw'                => (string) ( $audience['raw'] ?? '' ),
+				'label'              => $valid && is_array( $audience['resolved'] ?? null )
+					? (string) ( $audience['resolved']['name'] ?? $audience['raw'] )
+					: (string) ( $audience['raw'] ?? '' ),
+				'value'              => $valid ? ( is_array( $audience['resolved'] ?? null ) ? $audience['resolved'] : null ) : null,
+				'status'             => $valid ? 'valid' : 'needs_resolution',
+				'icon'               => 'groups',
+				'warning'            => $valid ? '' : self::audience_warning( $status ),
+				'suggestions'        => is_array( $audience['suggestions'] ?? null ) ? $audience['suggestions'] : array(),
+				'resolution_options' => $valid ? array() : self::audience_options( $status ),
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * @param string $id    Row id.
+	 * @param string $type  Condition type.
+	 * @param string $mode  include|exclude.
+	 * @param string $value Stored value.
+	 * @param string $icon  Dashicon name.
+	 * @param string $label Display label.
+	 * @return array<string,mixed>
+	 */
+	private static function valid_row( $id, $type, $mode, $value, $icon, $label ) {
+		return array(
+			'id'                 => $id,
+			'type'               => $type,
+			'mode'               => $mode,
+			'raw'                => $value,
+			'label'              => $label,
+			'value'              => $value,
+			'status'             => 'valid',
+			'icon'               => $icon,
+			'warning'            => '',
+			'resolution_options' => array(),
+		);
+	}
+
+	/**
+	 * @param string $status Audience status.
+	 * @return string
+	 */
+	private static function audience_warning( $status ) {
+		if ( 'audience_any' === $status ) {
+			return __( 'Choose whether this means any audience or selected audience groups.', 'reactwoo-geocore' );
+		}
+		return __( 'No synced audience list is available yet.', 'reactwoo-geocore' );
+	}
+
+	/**
+	 * @param string $status Audience status.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function audience_options( $status ) {
+		if ( 'audience_any' === $status ) {
+			return array(
+				array( 'key' => 'any_audience', 'label' => __( 'Any audience', 'reactwoo-geocore' ) ),
+				array( 'key' => 'choose_audiences', 'label' => __( 'Choose audience groups', 'reactwoo-geocore' ), 'picker' => true ),
+				array( 'key' => 'remove', 'label' => __( 'Remove audience condition', 'reactwoo-geocore' ) ),
+			);
+		}
+		return array(
+			array( 'key' => 'choose_audiences', 'label' => __( 'Choose audience', 'reactwoo-geocore' ), 'picker' => true ),
+			array( 'key' => 'refresh', 'label' => __( 'Refresh synced audiences', 'reactwoo-geocore' ) ),
+			array( 'key' => 'remove', 'label' => __( 'Remove audience condition', 'reactwoo-geocore' ) ),
 		);
 	}
 

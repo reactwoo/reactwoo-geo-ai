@@ -35,6 +35,10 @@ class RWGA_Planner_Condition_Resolver {
 				(array) ( $include['unresolved_audiences'] ?? array() ),
 				(array) ( $exclude['unresolved_audiences'] ?? array() )
 			),
+			'locations' => array_merge(
+				(array) ( $include['unresolved_locations'] ?? array() ),
+				(array) ( $exclude['unresolved_locations'] ?? array() )
+			),
 		);
 
 		$confidence = 0.7;
@@ -119,9 +123,25 @@ class RWGA_Planner_Condition_Resolver {
 			: array( 'audiences' => array(), 'visitorStates' => array(), 'unresolved' => array() );
 		$weather_values = self::detect_weather_values( $text, $entities, $weather );
 
+		$regions              = (array) $location['regions'];
+		$unresolved_locations = array();
+		if ( ! empty( $context['location_clarification'] )
+			&& class_exists( 'RWGA_Planner_Region_Ambiguity_Resolver', false ) ) {
+			$kept = array();
+			foreach ( $regions as $region ) {
+				$ambiguity = RWGA_Planner_Region_Ambiguity_Resolver::ambiguity_for_region( (string) $region );
+				if ( null === $ambiguity ) {
+					$kept[] = $region;
+					continue;
+				}
+				$unresolved_locations[] = $ambiguity;
+			}
+			$regions = $kept;
+		}
+
 		return array(
 			'countries'            => $location['countries'],
-			'regions'              => $location['regions'],
+			'regions'              => $regions,
 			'devices'              => $devices,
 			'weather'              => $weather_values,
 			'urls'                 => $urls,
@@ -130,6 +150,7 @@ class RWGA_Planner_Condition_Resolver {
 			'audiences'            => (array) ( $audience['audiences'] ?? array() ),
 			'visitorStates'        => (array) ( $audience['visitorStates'] ?? array() ),
 			'unresolved_audiences' => (array) ( $audience['unresolved'] ?? array() ),
+			'unresolved_locations' => $unresolved_locations,
 			'warnings'             => $location['warnings'],
 			'labels'               => $location['labels'],
 		);

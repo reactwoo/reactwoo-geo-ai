@@ -34,6 +34,8 @@ class RWGA_Geo_Assistant_Planner {
 
 		$page_context = array();
 		$session      = array( 'currentTarget' => null );
+		$context['location_clarification'] = class_exists( 'RWGA_Planner_Region_Ambiguity_Resolver', false )
+			&& RWGA_Planner_Region_Ambiguity_Resolver::wants_clarification( $phrase );
 		$campaign     = class_exists( 'RWGA_Planner_Campaign_Resolver', false )
 			? RWGA_Planner_Campaign_Resolver::detect_from_clause( $phrase )
 			: null;
@@ -273,6 +275,7 @@ class RWGA_Geo_Assistant_Planner {
 		$unresolved = array(
 			'audiences' => (array) ( $cond['unresolved']['audiences'] ?? array() ),
 			'campaigns' => array(),
+			'locations' => (array) ( $cond['unresolved']['locations'] ?? array() ),
 		);
 
 		$action = array(

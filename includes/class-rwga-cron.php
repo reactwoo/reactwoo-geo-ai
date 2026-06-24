@@ -22,7 +22,7 @@ class RWGA_Cron {
 	 */
 	public static function init() {
 		add_filter( 'cron_schedules', array( __CLASS__, 'register_schedule' ) );
-		add_action( 'rwga_loaded', array( __CLASS__, 'maybe_schedule_event' ), 30 );
+		add_action( 'init', array( __CLASS__, 'maybe_schedule_event' ), 2 );
 		add_action( self::HOOK, array( __CLASS__, 'run_due_rules' ) );
 	}
 
@@ -59,7 +59,9 @@ class RWGA_Cron {
 		}
 		$schedules[ self::SCHEDULE ] = array(
 			'interval' => 15 * MINUTE_IN_SECONDS,
-			'display'  => __( 'Every 15 minutes (ReactWoo Geo AI)', 'reactwoo-geo-ai' ),
+			'display'  => did_action( 'init' )
+				? __( 'Every 15 minutes (ReactWoo Geo AI)', 'reactwoo-geo-ai' )
+				: 'Every 15 minutes (ReactWoo Geo AI)',
 		);
 		return $schedules;
 	}

@@ -20,9 +20,20 @@ class RWGA_Workflow_Registry {
 	private static $workflows = array();
 
 	/**
+	 * @var bool
+	 */
+	private static $initialized = false;
+
+	/**
+	 * Register workflows after textdomains load (WP 6.7+).
+	 *
 	 * @return void
 	 */
 	public static function init() {
+		if ( self::$initialized ) {
+			return;
+		}
+		self::$initialized = true;
 		self::$workflows['ux_analysis']      = new RWGA_Workflow_UX_Analysis();
 		self::$workflows['ux_recommend']     = new RWGA_Workflow_UX_Recommend();
 		self::$workflows['copy_implement']   = new RWGA_Workflow_Copy_Implement();
@@ -57,6 +68,7 @@ class RWGA_Workflow_Registry {
 	 * @return RWGA_Workflow_Interface|null
 	 */
 	public static function get( $key ) {
+		self::init();
 		$key = sanitize_key( (string) $key );
 		return isset( self::$workflows[ $key ] ) ? self::$workflows[ $key ] : null;
 	}
@@ -65,6 +77,7 @@ class RWGA_Workflow_Registry {
 	 * @return array<string, RWGA_Workflow_Interface>
 	 */
 	public static function all() {
+		self::init();
 		return self::$workflows;
 	}
 }

@@ -74,6 +74,11 @@ class RWGA_Card_Resolution_Applier {
 				$action = self::apply_campaign( $action, $kind, $id, $label, $raw );
 			} elseif ( 'audience' === $field ) {
 				$action = self::apply_audience( $action, $kind, $id, $label, $raw );
+			} elseif ( 'location' === $field ) {
+				$action = self::apply_location( $action, $kind, $id, $raw );
+			} elseif ( 'logic' === $field ) {
+				$operator = 'OR' === strtoupper( (string) $id ) ? 'any' : 'all';
+				$action['condition_match'] = $operator;
 			}
 		}
 		return $action;
@@ -161,10 +166,49 @@ class RWGA_Card_Resolution_Applier {
 	}
 
 	/**
-	 * Remove an unresolved entity row (campaign/audience) matching a raw phrase.
+	 * Apply a country/region decision for an ambiguous nation (e.g. England).
+	 *
+	 * The chosen id encodes the decision as "type:code" (e.g. "country:GB" or
+	 * "region:GB-ENG"). "ignore"/remove simply drops the unresolved location.
+	 *
+	 * @param array<string,mixed> $action Action.
+	 * @param string              $kind   choose|ignore.
+	 * @param string              $id     Encoded decision "type:code".
+	 * @param string              $raw    Raw nation phrase.
+	 * @return array<string,mixed>
+	 */
+	private static function apply_location( array $action, $kind, $id, $raw ) {
+		self::clear_unresolved( $action, 'locations', $raw );
+		if ( 'choose' !== $kind ) {
+			return $action;
+		}
+		$parts = explode( ':', (string) $id, 2 );
+		$type  = strtolower( trim( $parts[0] ?? '' ) );
+		$code  = trim( $parts[1] ?? '' );
+		if ( '' === $code ) {
+			return $action;
+		}
+		if ( ! is_array( $action['conditions'] ?? null ) ) {
+			$action['conditions'] = array();
+		}
+		if ( ! is_array( $action['conditions']['include'] ?? null ) ) {
+			$action['conditions']['include'] = array();
+		}
+		$bucket = 'country' === $type ? 'countries' : 'regions';
+		$code   = 'country' === $type ? strtoupper( $code ) : strtoupper( $code );
+		if ( ! is_array( $action['conditions']['include'][ $bucket ] ?? null ) ) {
+			$action['conditions']['include'][ $bucket ] = array();
+		}
+		$action['conditions']['include'][ $bucket ][] = $code;
+		$action['conditions']['include'][ $bucket ]   = array_values( array_unique( $action['conditions']['include'][ $bucket ] ) );
+		return $action;
+	}
+
+	/**
+	 * Remove an unresolved entity row (campaign/audience/location) matching a raw phrase.
 	 *
 	 * @param array<string,mixed> $action Action (by reference).
-	 * @param string              $type   'campaigns'|'audiences'.
+	 * @param string              $type   'campaigns'|'audiences'|'locations'.
 	 * @param string              $raw    Raw phrase to drop.
 	 * @return void
 	 */
