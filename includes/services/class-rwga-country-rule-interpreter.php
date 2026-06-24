@@ -20,6 +20,11 @@ class RWGA_Country_Rule_Interpreter {
 			return array( 'matched' => false );
 		}
 
+		if ( class_exists( 'RWGA_Rule_Plan_Parser', false )
+			&& RWGA_Rule_Plan_Parser::has_create_rule_primary_intent( $phrase ) ) {
+			return array( 'matched' => false );
+		}
+
 		if ( class_exists( 'RWGA_Variant_Group_Extractor', false )
 			&& RWGA_Variant_Group_Extractor::is_multi_variant_command( $phrase ) ) {
 			return array( 'matched' => false );

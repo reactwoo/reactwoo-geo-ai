@@ -19,10 +19,12 @@ class RWGA_Planner_Condition_Resolver {
 	public static function resolve( $clause, array $entities, array $context = array() ) {
 		$clause  = RWGA_Local_Intent_Interpreter::normalise( $clause );
 		$split   = RWGA_Planner_Condition_Polarity_Resolver::split_text( $clause );
-		$include = self::resolve_group( (string) $split['include_text'], $entities, $context );
+		$include = self::resolve_group( self::strip_rule_preamble( (string) $split['include_text'] ), $entities, $context );
 		$exclude = '' !== (string) $split['exclude_text']
 			? self::resolve_group( (string) $split['exclude_text'], $entities, $context )
 			: self::empty_group();
+
+		self::apply_trigger_or_group( (string) $split['include_text'], $include, $context );
 
 		$conditions = array(
 			'include' => self::group_conditions( $include ),
@@ -31,14 +33,15 @@ class RWGA_Planner_Condition_Resolver {
 
 		$warnings   = array_values( array_unique( array_merge( $include['warnings'], $exclude['warnings'] ) ) );
 		$unresolved = array(
-			'audiences' => array_merge(
+			'audiences'       => array_merge(
 				(array) ( $include['unresolved_audiences'] ?? array() ),
 				(array) ( $exclude['unresolved_audiences'] ?? array() )
 			),
-			'locations' => array_merge(
+			'locations'       => array_merge(
 				(array) ( $include['unresolved_locations'] ?? array() ),
 				(array) ( $exclude['unresolved_locations'] ?? array() )
 			),
+			'traffic_sources' => (array) ( $include['unresolved_traffic_sources'] ?? array() ),
 		);
 
 		$confidence = 0.7;
@@ -67,15 +70,17 @@ class RWGA_Planner_Condition_Resolver {
 	 */
 	private static function group_conditions( array $group ) {
 		return array(
-			'countries'     => $group['countries'],
-			'regions'       => $group['regions'],
-			'devices'       => $group['devices'],
-			'weather'       => $group['weather'],
-			'urls'          => $group['urls'],
-			'utm'           => $group['utm'],
-			'campaigns'     => $group['campaigns'],
-			'audiences'     => $group['audiences'],
-			'visitorStates' => $group['visitorStates'],
+			'countries'        => $group['countries'],
+			'regions'          => $group['regions'],
+			'devices'          => $group['devices'],
+			'weather'          => $group['weather'],
+			'urls'             => $group['urls'],
+			'utm'              => $group['utm'],
+			'campaigns'        => $group['campaigns'],
+			'audiences'        => $group['audiences'],
+			'visitorStates'    => $group['visitorStates'],
+			'pageTypes'        => $group['pageTypes'],
+			'condition_groups' => $group['condition_groups'],
 		);
 	}
 
@@ -84,18 +89,21 @@ class RWGA_Planner_Condition_Resolver {
 	 */
 	private static function empty_group() {
 		return array(
-			'countries'            => array(),
-			'regions'              => array(),
-			'devices'              => array(),
-			'weather'              => array(),
-			'urls'                 => array(),
-			'utm'                  => array(),
-			'campaigns'            => array(),
-			'audiences'            => array(),
-			'visitorStates'        => array(),
-			'unresolved_audiences' => array(),
-			'warnings'             => array(),
-			'labels'               => array(),
+			'countries'                 => array(),
+			'regions'                   => array(),
+			'devices'                   => array(),
+			'weather'                   => array(),
+			'urls'                      => array(),
+			'utm'                       => array(),
+			'campaigns'                 => array(),
+			'audiences'                 => array(),
+			'visitorStates'             => array(),
+			'pageTypes'                 => array(),
+			'condition_groups'          => array(),
+			'unresolved_audiences'      => array(),
+			'unresolved_traffic_sources' => array(),
+			'warnings'                  => array(),
+			'labels'                    => array(),
 		);
 	}
 
@@ -122,6 +130,7 @@ class RWGA_Planner_Condition_Resolver {
 			? RWGA_Planner_Audience_Resolver::resolve( $text, $entities, $context )
 			: array( 'audiences' => array(), 'visitorStates' => array(), 'unresolved' => array() );
 		$weather_values = self::detect_weather_values( $text, $entities, $weather );
+		$page_types     = self::detect_page_types( $text );
 
 		$regions              = (array) $location['regions'];
 		$unresolved_locations = array();
@@ -140,20 +149,127 @@ class RWGA_Planner_Condition_Resolver {
 		}
 
 		return array(
-			'countries'            => $location['countries'],
-			'regions'              => $regions,
-			'devices'              => $devices,
-			'weather'              => $weather_values,
-			'urls'                 => $urls,
-			'utm'                  => $utm,
-			'campaigns'            => array(),
-			'audiences'            => (array) ( $audience['audiences'] ?? array() ),
-			'visitorStates'        => (array) ( $audience['visitorStates'] ?? array() ),
-			'unresolved_audiences' => (array) ( $audience['unresolved'] ?? array() ),
-			'unresolved_locations' => $unresolved_locations,
-			'warnings'             => $location['warnings'],
-			'labels'               => $location['labels'],
+			'countries'                 => $location['countries'],
+			'regions'                   => $regions,
+			'devices'                   => $devices,
+			'weather'                   => $weather_values,
+			'urls'                      => $urls,
+			'utm'                       => $utm,
+			'campaigns'                 => array(),
+			'audiences'                 => (array) ( $audience['audiences'] ?? array() ),
+			'visitorStates'             => (array) ( $audience['visitorStates'] ?? array() ),
+			'pageTypes'                 => $page_types,
+			'condition_groups'          => array(),
+			'unresolved_audiences'      => (array) ( $audience['unresolved'] ?? array() ),
+			'unresolved_traffic_sources' => array(),
+			'unresolved_locations'      => $unresolved_locations,
+			'warnings'                  => $location['warnings'],
+			'labels'                    => $location['labels'],
 		);
+	}
+
+	/**
+	 * @param string $text Include text (may still contain rule preamble).
+	 * @return string
+	 */
+	private static function strip_rule_preamble( $text ) {
+		$text = RWGA_Local_Intent_Interpreter::normalise( (string) $text );
+		if ( preg_match( '/\b(?:show|display|only\s+trigger|only\s+show)\b/i', $text ) ) {
+			$text = (string) preg_replace(
+				'/^(?:create|add|set\s+up|build)\s+(?:a\s+)?(?:targeting\s+)?rule\s+(?:for\s+)?(?:the\s+)?[^.]+?\.\s*/i',
+				'',
+				$text
+			);
+		}
+		return trim( $text );
+	}
+
+	/**
+	 * Build an OR group when Google Ads traffic and URL path triggers are paired.
+	 *
+	 * @param string              $include_text Original include phrase.
+	 * @param array<string,mixed> $include      Include group (by ref).
+	 * @param array<string,mixed> $context      Planner context.
+	 * @return void
+	 */
+	private static function apply_trigger_or_group( $include_text, array &$include, array $context = array() ) {
+		unset( $context );
+		$include_text = RWGA_Local_Intent_Interpreter::normalise( (string) $include_text );
+		$has_google   = (bool) preg_match( '/\bgoogle\s+ads\b/i', $include_text );
+		$urls         = (array) ( $include['urls'] ?? array() );
+		$paired_or    = $has_google && ! empty( $urls )
+			&& preg_match( '/\b(?:google\s+ads|from\s+google\s+ads)\s+or\b/i', $include_text );
+
+		if ( ! $paired_or ) {
+			if ( $has_google && class_exists( 'RWGA_Planner_Utm_Condition_Resolver', false ) ) {
+				$google = RWGA_Planner_Utm_Condition_Resolver::extract_google_ads( $include_text );
+				if ( is_array( $google ) ) {
+					$include['unresolved_traffic_sources'][] = $google;
+				}
+			}
+			return;
+		}
+
+		$conditions = array();
+		if ( class_exists( 'RWGA_Planner_Utm_Condition_Resolver', false ) ) {
+			$google = RWGA_Planner_Utm_Condition_Resolver::extract_google_ads( $include_text );
+			if ( is_array( $google ) ) {
+				$conditions[] = array(
+					'type'   => 'traffic_source',
+					'value'  => 'google_ads',
+					'status' => (string) ( $google['status'] ?? 'needs_mapping' ),
+				);
+				$include['unresolved_traffic_sources'][] = $google;
+			}
+		}
+		foreach ( $urls as $url ) {
+			$conditions[] = array(
+				'type'     => 'url',
+				'operator' => 'contains',
+				'value'    => (string) $url,
+				'status'   => 'valid',
+			);
+		}
+
+		if ( count( $conditions ) < 2 ) {
+			return;
+		}
+
+		$label = __( 'Google Ads or URL contains /winter-sale', 'reactwoo-geocore' );
+		if ( ! empty( $urls[0] ) ) {
+			$label = sprintf(
+				/* translators: %s: URL path fragment */
+				__( 'Google Ads or URL contains %s', 'reactwoo-geocore' ),
+				(string) $urls[0]
+			);
+		}
+
+		$include['condition_groups'][] = array(
+			'type'       => 'condition_group',
+			'label'      => $label,
+			'logic'      => 'OR',
+			'group'      => 'traffic_or_url_trigger',
+			'conditions' => $conditions,
+		);
+		$include['urls'] = array();
+	}
+
+	/**
+	 * @param string $text Text segment.
+	 * @return array<int,string>
+	 */
+	private static function detect_page_types( $text ) {
+		$types = array();
+		if ( preg_match( '/\bproduct\s+pages?\b/i', $text ) ) {
+			$types[] = 'product';
+		}
+		if ( preg_match( '/\bcategory\s+pages?\b/i', $text ) ) {
+			$types[] = 'category';
+		}
+		if ( preg_match( '/\b(?:home\s+page|homepage)\b/i', $text ) ) {
+			$types[] = 'homepage';
+		}
+		return array_values( array_unique( $types ) );
 	}
 
 	/**

@@ -172,6 +172,9 @@ class RWGA_Geo_Assistant_Planner {
 		$plan['warnings'] = array_values( array_unique( $warnings ) );
 		$actions          = self::apply_weather_notes( $actions );
 		$plan['actions']  = $actions;
+		if ( ! empty( $plan['confirmation_instruction'] ) && ! empty( $plan['actions'][0] ) && is_array( $plan['actions'][0] ) ) {
+			$plan['actions'][0]['confirmation_instruction'] = $plan['confirmation_instruction'];
+		}
 		$plan['confidence'] = self::plan_confidence( $actions, $learned );
 		$plan['debug']['decisions'] = $decisions;
 
@@ -347,9 +350,10 @@ class RWGA_Geo_Assistant_Planner {
 		}
 
 		$unresolved = array(
-			'audiences' => (array) ( $cond['unresolved']['audiences'] ?? array() ),
-			'campaigns' => array(),
-			'locations' => (array) ( $cond['unresolved']['locations'] ?? array() ),
+			'audiences'       => (array) ( $cond['unresolved']['audiences'] ?? array() ),
+			'campaigns'       => array(),
+			'locations'       => (array) ( $cond['unresolved']['locations'] ?? array() ),
+			'traffic_sources' => (array) ( $cond['unresolved']['traffic_sources'] ?? array() ),
 		);
 
 		$action = array(
@@ -557,6 +561,11 @@ class RWGA_Geo_Assistant_Planner {
 	 * @return bool
 	 */
 	private static function has_multi_action_markers( $phrase ) {
+		if ( class_exists( 'RWGA_Rule_Plan_Parser', false )
+			&& RWGA_Rule_Plan_Parser::has_create_rule_primary_intent( $phrase )
+			&& ! RWGA_Rule_Plan_Parser::has_explicit_multi_action_boundary( $phrase ) ) {
+			return false;
+		}
 		return class_exists( 'RWGA_Planner_Plan_Validator', false )
 			&& RWGA_Planner_Plan_Validator::expected_action_count( $phrase ) > 1;
 	}
@@ -574,10 +583,6 @@ class RWGA_Geo_Assistant_Planner {
 		}
 		if ( ! class_exists( 'RWGA_Rule_Plan_Parser', false )
 			|| ! RWGA_Rule_Plan_Parser::is_rule_plan_command( $phrase ) ) {
-			return false;
-		}
-		if ( self::has_multi_action_markers( $phrase )
-			&& preg_match( '/\b(?:also|plus|as well as|and then)\b/i', $phrase ) ) {
 			return false;
 		}
 		return true;
@@ -646,6 +651,23 @@ class RWGA_Geo_Assistant_Planner {
 				'type'  => 'utm',
 				'field' => $field,
 				'value' => (string) ( $utm['value'] ?? '' ),
+			);
+		}
+		foreach ( (array) ( $group['pageTypes'] ?? array() ) as $page_type ) {
+			$rows[] = array(
+				'type'  => 'page_type',
+				'value' => (string) $page_type,
+			);
+		}
+		foreach ( (array) ( $group['condition_groups'] ?? array() ) as $condition_group ) {
+			if ( ! is_array( $condition_group ) ) {
+				continue;
+			}
+			$rows[] = array(
+				'type'       => 'condition_group',
+				'label'      => (string) ( $condition_group['label'] ?? '' ),
+				'logic'      => (string) ( $condition_group['logic'] ?? 'OR' ),
+				'conditions' => (array) ( $condition_group['conditions'] ?? array() ),
 			);
 		}
 		foreach ( (array) ( $group['audiences'] ?? array() ) as $audience ) {

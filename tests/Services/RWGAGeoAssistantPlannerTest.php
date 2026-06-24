@@ -1025,6 +1025,106 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
 	}
 
+	public function test_free_delivery_popup_include_exclude_create_rule(): void {
+		$input = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale. Show me the full rule before creating anything.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 1, (int) ( $plan['debug']['action_count'] ?? 0 ) );
+		$this->assertSame( 'rule_plan_parser', $plan['debug']['parser_used'] ?? '' );
+		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
+		$this->assertSame( 'popup', $plan['actions'][0]['target']['type'] ?? '' );
+		$this->assertStringContainsString( 'free delivery', strtolower( (string) ( $plan['actions'][0]['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'only_show', $plan['actions'][0]['operation']['visibility'] ?? '' );
+
+		$include = $this->include_of( $plan['actions'][0] );
+		$exclude = $this->exclude_of( $plan['actions'][0] );
+
+		$this->assertEqualsCanonicalizing( array( 'IE', 'GB' ), (array) ( $include['countries'] ?? array() ) );
+		$this->assertEqualsCanonicalizing( array( 'FR', 'DE' ), (array) ( $exclude['countries'] ?? array() ) );
+		$this->assertSame( array( 'desktop' ), (array) ( $include['devices'] ?? array() ) );
+		$this->assertSame( array( 'product' ), (array) ( $include['pageTypes'] ?? array() ) );
+
+		$groups = (array) ( $include['condition_groups'] ?? array() );
+		$this->assertCount( 1, $groups );
+		$this->assertSame( 'OR', (string) ( $groups[0]['logic'] ?? '' ) );
+		$group_conditions = (array) ( $groups[0]['conditions'] ?? array() );
+		$this->assertCount( 2, $group_conditions );
+		$this->assertSame( 'traffic_source', (string) ( $group_conditions[0]['type'] ?? '' ) );
+		$this->assertSame( 'google_ads', (string) ( $group_conditions[0]['value'] ?? '' ) );
+		$this->assertSame( 'url', (string) ( $group_conditions[1]['type'] ?? '' ) );
+		$this->assertSame( '/winter-sale', (string) ( $group_conditions[1]['value'] ?? '' ) );
+
+		$conf = $plan['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+		$action_conf = $plan['actions'][0]['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $action_conf );
+		$this->assertTrue( (bool) ( $action_conf['requires_confirmation'] ?? false ) );
+
+		foreach ( $plan['actions'] as $action ) {
+			$this->assertNotSame( 'hide', $action['type'] ?? '' );
+			$this->assertNotSame( 'hide', $action['operation']['visibility'] ?? '' );
+		}
+
+		$this->assertGreaterThan( 0, (int) ( $plan['fields_needing_attention'] ?? 0 ) );
+	}
+
+	public function test_show_include_exclude_countries_single_rule(): void {
+		$input = 'Show this to Ireland and UK but not France or Germany.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
+		$include = $this->include_of( $plan['actions'][0] );
+		$exclude = $this->exclude_of( $plan['actions'][0] );
+		$this->assertContains( 'IE', (array) ( $include['countries'] ?? array() ) );
+		$this->assertContains( 'GB', (array) ( $include['countries'] ?? array() ) );
+		$this->assertContains( 'FR', (array) ( $exclude['countries'] ?? array() ) );
+		$this->assertContains( 'DE', (array) ( $exclude['countries'] ?? array() ) );
+	}
+
+	public function test_popup_rule_desktop_product_pages(): void {
+		$input = 'Create a popup rule for desktop product pages.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
+		$include = $this->include_of( $plan['actions'][0] );
+		$this->assertSame( array( 'desktop' ), (array) ( $include['devices'] ?? array() ) );
+		$this->assertSame( array( 'product' ), (array) ( $include['pageTypes'] ?? array() ) );
+	}
+
+	public function test_trigger_or_group_google_ads_and_url(): void {
+		$input = 'Only trigger from Google Ads or URL contains /winter-sale.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$include = $this->include_of( $plan['actions'][0] );
+		$groups  = (array) ( $include['condition_groups'] ?? array() );
+		$this->assertCount( 1, $groups );
+		$this->assertSame( 'OR', (string) ( $groups[0]['logic'] ?? '' ) );
+		$conditions = (array) ( $groups[0]['conditions'] ?? array() );
+		$this->assertSame( 'google_ads', (string) ( $conditions[0]['value'] ?? '' ) );
+		$this->assertSame( '/winter-sale', (string) ( $conditions[1]['value'] ?? '' ) );
+	}
+
+	public function test_do_not_create_until_confirm_is_metadata_only(): void {
+		$input = 'Do not create until I confirm.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( array(), $plan['actions'] );
+		$conf = $plan['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+	}
+
+	public function test_country_rule_interpreter_skips_create_rule_phrase(): void {
+		$input  = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany.';
+		$result = RWGA_Country_Rule_Interpreter::parse( $input, $this->entities() );
+		$this->assertFalse( (bool) ( $result['matched'] ?? true ) );
+	}
+
 	/**
 	 * @param array<string,mixed> $group Condition group.
 	 * @param string              $field UTM field name.

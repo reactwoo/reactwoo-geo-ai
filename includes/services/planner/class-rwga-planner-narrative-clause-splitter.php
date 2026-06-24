@@ -15,6 +15,10 @@ class RWGA_Planner_Narrative_Clause_Splitter {
 	 */
 	public static function split( $phrase ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+		if ( class_exists( 'RWGA_Rule_Plan_Parser', false )
+			&& RWGA_Rule_Plan_Parser::is_rule_plan_command( $phrase ) ) {
+			return array();
+		}
 		if ( ! self::is_multi_action_narrative( $phrase ) ) {
 			return array();
 		}
@@ -90,8 +94,14 @@ class RWGA_Planner_Narrative_Clause_Splitter {
 			return (bool) preg_match( '/\b(?:then|but|add\s+a\s+rule)\b/i', $phrase );
 		}
 		if ( preg_match( '/\bproduct\s+page\b/i', $phrase )
-			&& preg_match( '/\b(?:then|but|add\s+a\s+rule|also)\b/i', $phrase ) ) {
+			&& preg_match( '/\b(?:then|add\s+a\s+rule)\b/i', $phrase ) ) {
 			return true;
+		}
+		if ( preg_match( '/\bproduct\s+pages?\b/i', $phrase )
+			&& preg_match( '/\b(?:,\s*)?but\s+(?:don\'t|do not)\s+show\b/i', $phrase )
+			&& class_exists( 'RWGA_Rule_Plan_Parser', false )
+			&& RWGA_Rule_Plan_Parser::has_create_rule_primary_intent( $phrase ) ) {
+			return false;
 		}
 		return false;
 	}

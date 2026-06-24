@@ -66,6 +66,31 @@ class RWGA_Planner_Utm_Condition_Resolver {
 	}
 
 	/**
+	 * Detect Google Ads traffic phrasing (may need UTM mapping before execution).
+	 *
+	 * @param string $text Normalised text.
+	 * @return array<string,mixed>|null
+	 */
+	public static function extract_google_ads( $text ) {
+		$text = RWGA_Local_Intent_Interpreter::normalise( (string) $text );
+		if ( ! preg_match( '/\bgoogle\s+ads\b/i', $text ) ) {
+			return null;
+		}
+
+		return array(
+			'type'               => 'traffic_source',
+			'value'              => 'google_ads',
+			'status'             => 'needs_mapping',
+			'label'              => __( 'Google Ads traffic', 'reactwoo-geocore' ),
+			'resolution_options' => array(
+				'utm_source=google',
+				'utm_medium=cpc',
+				'utm_source=google AND utm_medium=cpc',
+			),
+		);
+	}
+
+	/**
 	 * @param array<int,array{key:string,field:string,value:string}> $rows Rows.
 	 * @return array<int,array{key:string,field:string,value:string}>
 	 */

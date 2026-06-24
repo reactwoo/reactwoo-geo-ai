@@ -149,6 +149,18 @@ class RWGA_Planner_Action_Card_Builder {
 				'options' => self::location_options( $loc ),
 			);
 		}
+		foreach ( (array) ( $action['unresolved']['traffic_sources'] ?? array() ) as $traffic ) {
+			if ( ! is_array( $traffic ) || '' === (string) ( $traffic['value'] ?? '' ) ) {
+				continue;
+			}
+			$required[] = array(
+				'field'   => 'traffic_source',
+				'raw'     => (string) ( $traffic['label'] ?? $traffic['value'] ?? '' ),
+				'status'  => (string) ( $traffic['status'] ?? 'needs_mapping' ),
+				'actions' => array( 'choose_traffic_mapping', 'ignore_traffic_source' ),
+				'options' => (array) ( $traffic['resolution_options'] ?? array() ),
+			);
+		}
 
 		$public_include = self::public_include( $include );
 		$action_notes     = is_array( $action['notes'] ?? null ) ? $action['notes'] : array();
@@ -329,6 +341,28 @@ class RWGA_Planner_Action_Card_Builder {
 			}
 			foreach ( (array) ( $group['visitorStates'] ?? array() ) as $v ) {
 				$rows[] = self::valid_row( $id(), 'visitor', $mode, (string) $v, 'admin-users', ucwords( str_replace( '_', ' ', (string) $v ) ) );
+			}
+			foreach ( (array) ( $group['pageTypes'] ?? array() ) as $page_type ) {
+				$label = 'product' === $page_type ? __( 'Product pages', 'reactwoo-geocore' ) : ucwords( str_replace( '_', ' ', (string) $page_type ) );
+				$rows[] = self::valid_row( $id(), 'page_type', $mode, (string) $page_type, 'admin-page', $label );
+			}
+			foreach ( (array) ( $group['condition_groups'] ?? array() ) as $condition_group ) {
+				if ( ! is_array( $condition_group ) ) {
+					continue;
+				}
+				$rows[] = array(
+					'id'                 => $id(),
+					'type'               => 'condition_group',
+					'mode'               => $mode,
+					'raw'                => (string) ( $condition_group['label'] ?? '' ),
+					'label'              => (string) ( $condition_group['label'] ?? '' ),
+					'value'              => (array) ( $condition_group['conditions'] ?? array() ),
+					'status'             => 'valid',
+					'icon'               => 'randomize',
+					'warning'            => '',
+					'logic'              => (string) ( $condition_group['logic'] ?? 'OR' ),
+					'resolution_options' => array(),
+				);
 			}
 		}
 

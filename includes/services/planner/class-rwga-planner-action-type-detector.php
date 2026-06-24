@@ -94,8 +94,15 @@ class RWGA_Planner_Action_Type_Detector {
 		}
 
 		if ( 'rule' === (string) ( $clause_row['type'] ?? '' )
-			|| preg_match( '/\b(?:create|add)\s+(?:a\s+)?rule\b/i', $clause ) ) {
-			if ( preg_match( '/\b(?:hide|exclude|block|don\'t show|do not show)\b/i', $clause ) ) {
+			|| preg_match( '/\b(?:create|add|set\s+up|build)\s+(?:a\s+)?(?:(?:targeting|[\w-]+)\s+)?rule\b/i', $clause ) ) {
+			$has_positive_show = (bool) preg_match(
+				'/\b(?:show\s+it\s+only|only\s+trigger|only\s+show|shows?\s+only|only\s+shows?)\b/i',
+				$clause
+			);
+			if ( ! $has_positive_show
+				&& ( preg_match( '/\b(?:don\'t|do not)\s+show\s+it\b/i', $clause )
+					|| ( preg_match( '/\b(?:hide|block)\b/i', $clause )
+						&& ! preg_match( '/\b(?:show|display)\b/i', $clause ) ) ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
 					'visibility' => 'hide',
@@ -103,14 +110,21 @@ class RWGA_Planner_Action_Type_Detector {
 					'confidence' => 0.9,
 				);
 			}
-			if ( preg_match( '/\b(?:show|display|sees?)\b/i', $clause ) ) {
-				return array(
-					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
-					'visibility' => 'show',
-					'mode'       => 'create',
-					'confidence' => 0.9,
-				);
+			$visibility = 'show';
+			if ( self::is_only_show_clause( $clause )
+				|| preg_match( '/\bshow\s+it\s+only\b/i', $clause )
+				|| preg_match( '/\bonly\s+trigger\b/i', $clause ) ) {
+				$visibility = 'only_show';
+			} elseif ( preg_match( '/\b(?:hide|block)\s+(?:the\s+)?/i', $clause )
+				&& ! preg_match( '/\b(?:show|display|only\s+show|only\s+trigger)\b/i', $clause ) ) {
+				$visibility = 'hide';
 			}
+			return array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'visibility' => $visibility,
+				'mode'       => 'create',
+				'confidence' => 0.9,
+			);
 		}
 
 		if ( 'variant_child' === (string) ( $clause_row['type'] ?? '' )

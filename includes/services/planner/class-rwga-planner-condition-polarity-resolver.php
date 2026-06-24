@@ -28,15 +28,17 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 	 */
 	public static function empty_groups() {
 		$empty = array(
-			'countries'     => array(),
-			'regions'       => array(),
-			'devices'       => array(),
-			'weather'       => array(),
-			'urls'          => array(),
-			'utm'           => array(),
-			'campaigns'     => array(),
-			'audiences'     => array(),
-			'visitorStates' => array(),
+			'countries'        => array(),
+			'regions'          => array(),
+			'devices'          => array(),
+			'weather'          => array(),
+			'urls'             => array(),
+			'utm'              => array(),
+			'campaigns'        => array(),
+			'audiences'        => array(),
+			'visitorStates'    => array(),
+			'pageTypes'        => array(),
+			'condition_groups' => array(),
 		);
 		return array(
 			'include' => $empty,
@@ -84,15 +86,17 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 		// itself is the hide action and the condition stays in the include group.
 		if ( '' === $exclude ) {
 			$pronoun_patterns = array(
-				'/\bbut\s+(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+(.+)$/i',
-				'/\b(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+(.+)$/i',
-				'/\bbut\s+(?:hide|exclude)\s+it\s+from\s+(.+)$/i',
+				'/\bbut\s+(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+visitors?\s+from\s+(.+?)(?:\.\s*(?:also\b|and\b)|\.\s*$|$)/is',
+				'/\b(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+visitors?\s+from\s+(.+?)(?:\.\s*(?:also\b|and\b)|\.\s*$|$)/is',
+				'/\bbut\s+(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+(.+?)(?:\.\s*(?:also\b|and\b)|\.\s*$|$)/is',
+				'/\b(?:don\'t|do not|dont)\s+(?:show|display)\s+it\s+to\s+(.+?)(?:\.\s*(?:also\b|and\b)|\.\s*$|$)/is',
+				'/\bbut\s+(?:hide|exclude)\s+it\s+from\s+(.+?)(?:\.\s*(?:also\b|and\b)|\.\s*$|$)/is',
 			);
 			foreach ( $pronoun_patterns as $pattern ) {
 				if ( ! preg_match( $pattern, $include, $m ) ) {
 					continue;
 				}
-				$candidate_exclude = trim( (string) $m[1] );
+				$candidate_exclude = trim( (string) $m[1], " \t\n\r\0\x0B,." );
 				$candidate_include = trim( (string) preg_replace( $pattern, '', $include ) );
 				if ( self::is_substantial_include( $candidate_include ) ) {
 					$exclude = $candidate_exclude;
@@ -102,10 +106,43 @@ class RWGA_Planner_Condition_Polarity_Resolver {
 			}
 		}
 
+		self::reclaim_include_tail_from_exclude( $include, $exclude );
+		$exclude = self::normalise_exclude_fragment( $exclude );
+
 		return array(
 			'include_text' => trim( $include, " \t\n\r\0\x0B,." ),
 			'exclude_text' => trim( $exclude, " \t\n\r\0\x0B,." ),
 		);
+	}
+
+	/**
+	 * Move trailing include/trigger clauses accidentally captured in exclude text.
+	 *
+	 * @param string $include Include text (by ref).
+	 * @param string $exclude Exclude text (by ref).
+	 * @return void
+	 */
+	private static function reclaim_include_tail_from_exclude( &$include, &$exclude ) {
+		if ( '' === trim( (string) $exclude ) ) {
+			return;
+		}
+		if ( preg_match( '/^(.+?)(?:\.\s*(?:also\s+)?(?:only\s+trigger|only\s+when|only\s+show|only\s+display)\b.+)$/is', $exclude, $m ) ) {
+			$exclude = trim( (string) $m[1], " \t\n\r\0\x0B,." );
+			$include = trim( $include . '. Also ' . trim( (string) $m[2] ) );
+		}
+	}
+
+	/**
+	 * @param string $exclude Exclude fragment.
+	 * @return string
+	 */
+	private static function normalise_exclude_fragment( $exclude ) {
+		$exclude = trim( (string) $exclude, " \t\n\r\0\x0B,." );
+		if ( '' === $exclude ) {
+			return '';
+		}
+		$exclude = (string) preg_replace( '/^(?:visitors?|users?|people|customers?)\s+from\s+/i', '', $exclude );
+		return trim( $exclude, " \t\n\r\0\x0B,." );
 	}
 
 	/**

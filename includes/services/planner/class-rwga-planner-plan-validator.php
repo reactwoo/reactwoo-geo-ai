@@ -104,6 +104,12 @@ class RWGA_Planner_Plan_Validator {
 	 */
 	public static function expected_action_count( $phrase ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+		if ( class_exists( 'RWGA_Rule_Plan_Parser', false )
+			&& RWGA_Rule_Plan_Parser::has_create_rule_primary_intent( $phrase )
+			&& ! RWGA_Rule_Plan_Parser::has_explicit_multi_action_boundary( $phrase ) ) {
+			return 1;
+		}
+
 		$count  = 1;
 
 		if ( preg_match( '/\b(?:,\s*)?but\s+(?:don\'t|do not|hide)\b/i', $phrase ) ) {
@@ -147,6 +153,11 @@ class RWGA_Planner_Plan_Validator {
 	 */
 	public static function should_use_safe_failure( $phrase ) {
 		$phrase = RWGA_Local_Intent_Interpreter::normalise( $phrase );
+
+		if ( class_exists( 'RWGA_Rule_Plan_Parser', false )
+			&& RWGA_Rule_Plan_Parser::is_rule_plan_command( $phrase ) ) {
+			return false;
+		}
 
 		if ( self::declared_variant_count( $phrase ) >= 2 ) {
 			return true;
@@ -278,6 +289,10 @@ class RWGA_Planner_Plan_Validator {
 				$url_slots[ (string) $url ]   = (array) ( $url_slots[ (string) $url ] ?? array() );
 				$url_slots[ (string) $url ][] = $slot;
 			}
+			foreach ( self::urls_from_condition_groups( $include ) as $url ) {
+				$url_slots[ (string) $url ]   = (array) ( $url_slots[ (string) $url ] ?? array() );
+				$url_slots[ (string) $url ][] = $slot;
+			}
 			foreach ( array_merge( (array) ( $include['utm'] ?? array() ), (array) ( $exclude['utm'] ?? array() ) ) as $row ) {
 				if ( is_array( $row ) && ! empty( $row['key'] ) ) {
 					$utm[] = $row;
@@ -292,6 +307,29 @@ class RWGA_Planner_Plan_Validator {
 			'url_slots'      => $url_slots,
 			'utm'            => $utm,
 		);
+	}
+
+	/**
+	 * @param array<string,mixed> $include Include condition group.
+	 * @return array<int,string>
+	 */
+	private static function urls_from_condition_groups( array $include ) {
+		$urls = array();
+		foreach ( (array) ( $include['condition_groups'] ?? array() ) as $group ) {
+			if ( ! is_array( $group ) ) {
+				continue;
+			}
+			foreach ( (array) ( $group['conditions'] ?? array() ) as $condition ) {
+				if ( ! is_array( $condition ) || 'url' !== (string) ( $condition['type'] ?? '' ) ) {
+					continue;
+				}
+				$value = (string) ( $condition['value'] ?? '' );
+				if ( '' !== $value ) {
+					$urls[] = $value;
+				}
+			}
+		}
+		return array_values( array_unique( $urls ) );
 	}
 
 	/**
