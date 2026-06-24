@@ -47,6 +47,14 @@ class RWGA_Planner_Action_Clause_Splitter {
 			return array();
 		}
 
+		if ( class_exists( 'RWGA_Planner_Confirmation_Instruction_Resolver', false ) ) {
+			$confirmation = RWGA_Planner_Confirmation_Instruction_Resolver::extract( $phrase );
+			$phrase       = (string) ( $confirmation['phrase'] ?? $phrase );
+			if ( '' === $phrase ) {
+				return array();
+			}
+		}
+
 		$peeled   = self::peel_trailing_actions( $phrase );
 		$block    = (string) ( $peeled['variant_block'] ?? $phrase );
 		$trailing = is_array( $peeled['trailing'] ?? null ) ? $peeled['trailing'] : array();
@@ -142,7 +150,30 @@ class RWGA_Planner_Action_Clause_Splitter {
 			);
 		}
 
-		return self::merge_modifier_preamble( $clauses );
+		return self::merge_modifier_preamble( self::filter_confirmation_clauses( $clauses ) );
+	}
+
+	/**
+	 * Drop confirmation-only clauses that must not become actions.
+	 *
+	 * @param array<int,array<string,mixed>> $clauses Clause rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function filter_confirmation_clauses( array $clauses ) {
+		if ( ! class_exists( 'RWGA_Planner_Confirmation_Instruction_Resolver', false ) ) {
+			return $clauses;
+		}
+		$filtered = array();
+		foreach ( $clauses as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			if ( RWGA_Planner_Confirmation_Instruction_Resolver::is_confirmation_only( (string) ( $row['raw'] ?? '' ) ) ) {
+				continue;
+			}
+			$filtered[] = $row;
+		}
+		return $filtered;
 	}
 
 	/**

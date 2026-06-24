@@ -22,64 +22,89 @@ class RWGA_Geo_Assistant_Planner {
 		$plan   = self::empty_plan( $raw_phrase );
 		$decisions = array();
 
-		if ( '' === $phrase ) {
+		$confirmation = class_exists( 'RWGA_Planner_Confirmation_Instruction_Resolver', false )
+			? RWGA_Planner_Confirmation_Instruction_Resolver::extract( $phrase )
+			: array(
+				'phrase'                   => $phrase,
+				'confirmation_instruction' => null,
+				'ignored'                  => array(),
+			);
+		$phrase_for_parse = (string) ( $confirmation['phrase'] ?? $phrase );
+		$plan['confirmation_instruction'] = $confirmation['confirmation_instruction'] ?? null;
+		$plan['debug']['normalised_input']     = $phrase;
+		$plan['debug']['ignored_meta_phrases'] = is_array( $confirmation['ignored'] ?? null ) ? $confirmation['ignored'] : array();
+
+		if ( '' === $phrase_for_parse && empty( $plan['confirmation_instruction'] ) ) {
 			$plan['status'] = RWGA_Geo_Action_Types::STATUS_FAILED;
 			return $plan;
 		}
 
-		$learned = RWGA_Planner_Learned_Patterns::match( $phrase );
+		$learned = '' !== $phrase_for_parse ? RWGA_Planner_Learned_Patterns::match( $phrase_for_parse ) : null;
 		if ( is_array( $learned ) ) {
 			$decisions[] = 'learned_pattern_matched';
 		}
 
 		$page_context = array();
 		$session      = array( 'currentTarget' => null );
-		$context['location_clarification'] = class_exists( 'RWGA_Planner_Region_Ambiguity_Resolver', false )
-			&& RWGA_Planner_Region_Ambiguity_Resolver::wants_clarification( $phrase );
-		$campaign     = class_exists( 'RWGA_Planner_Campaign_Resolver', false )
-			? RWGA_Planner_Campaign_Resolver::detect_from_clause( $phrase )
+		$context['location_clarification'] = '' !== $phrase_for_parse
+			&& class_exists( 'RWGA_Planner_Region_Ambiguity_Resolver', false )
+			&& RWGA_Planner_Region_Ambiguity_Resolver::wants_clarification( $phrase_for_parse );
+		$campaign     = '' !== $phrase_for_parse && class_exists( 'RWGA_Planner_Campaign_Resolver', false )
+			? RWGA_Planner_Campaign_Resolver::detect_from_clause( $phrase_for_parse )
 			: null;
 
 		$actions = array();
-		$clauses = RWGA_Planner_Action_Clause_Splitter::split( $phrase );
-		$plan['debug']['clauses'] = $clauses;
+		$clauses = array();
+		$raw_for_parse = self::strip_confirmation_from_raw( $raw_phrase, $plan['debug']['ignored_meta_phrases'] );
 
-		if ( count( $clauses ) > 1 || self::clauses_have_typed_rows( $clauses ) ) {
-			foreach ( $clauses as $clause_row ) {
-				$context['session']  = $session;
-				$context['campaign'] = $campaign;
-				$built = self::build_actions_from_clause_row(
-					$clause_row,
-					$phrase,
-					$entities,
-					$context,
-					$page_context
-				);
-				foreach ( $built as $action ) {
-					if ( is_array( $action ) && class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
-						$session = RWGA_Planner_Inherited_Target_Resolver::remember_target(
-							$session,
-							is_array( $action['target'] ?? null ) ? $action['target'] : array()
-						);
-					}
-				}
-				$actions = array_merge( $actions, $built );
-			}
-			$decisions[] = 'multi_clause_split';
-		} elseif ( ! self::has_multi_action_markers( $phrase )
-			&& class_exists( 'RWGA_Variant_Plan_Parser', false )
-			&& RWGA_Variant_Plan_Parser::is_variant_plan_command( $phrase ) ) {
-			$variant_plan = RWGA_Variant_Plan_Parser::parse( $raw_phrase, $entities, $context );
+		if ( self::should_use_variant_plan_parser( $phrase_for_parse ) ) {
+			$variant_plan = RWGA_Variant_Plan_Parser::parse( $raw_for_parse, $entities, $context );
 			$actions      = RWGA_Planner_Variant_Resolver::from_variant_plan_parse( $variant_plan, $entities );
-			if ( empty( $actions ) ) {
-				$actions = self::build_actions_from_clause( $phrase, $phrase, $entities, $context, $page_context );
+			if ( ! empty( $actions ) ) {
+				$decisions[] = 'variant_plan_parser';
+				$plan['debug']['parser_used'] = 'variant_plan_parser';
 			}
-			$decisions[] = 'variant_plan_parser';
-		} else {
-			$actions = self::build_actions_from_clause( $phrase, $phrase, $entities, $context, $page_context );
 		}
 
-		if ( self::is_variant_list_grouping_ambiguous( $phrase, $entities )
+		if ( empty( $actions ) && '' !== $phrase_for_parse ) {
+			$clauses = RWGA_Planner_Action_Clause_Splitter::split( $phrase_for_parse );
+			$plan['debug']['clauses'] = $clauses;
+
+			if ( count( $clauses ) > 1 || self::clauses_have_typed_rows( $clauses ) ) {
+				foreach ( $clauses as $clause_row ) {
+					$context['session']  = $session;
+					$context['campaign'] = $campaign;
+					$built = self::build_actions_from_clause_row(
+						$clause_row,
+						$phrase_for_parse,
+						$entities,
+						$context,
+						$page_context
+					);
+					foreach ( $built as $action ) {
+						if ( is_array( $action ) && class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
+							$session = RWGA_Planner_Inherited_Target_Resolver::remember_target(
+								$session,
+								is_array( $action['target'] ?? null ) ? $action['target'] : array()
+							);
+						}
+					}
+					$actions = array_merge( $actions, $built );
+				}
+				$decisions[] = 'multi_clause_split';
+			} else {
+				$actions = self::build_actions_from_clause( $phrase_for_parse, $phrase_for_parse, $entities, $context, $page_context );
+			}
+		}
+
+		if ( ! empty( $plan['debug']['ignored_meta_phrases'] ) ) {
+			$plan['debug']['phantom_actions_removed'] = true;
+		}
+		$actions          = self::mark_shared_variant_targets( $actions, $phrase_for_parse );
+		$plan['debug']['action_count'] = count( $actions );
+
+		if ( '' !== $phrase_for_parse
+			&& self::is_variant_list_grouping_ambiguous( $phrase_for_parse, $entities )
 			&& count( $actions ) < 2 ) {
 			$plan['clarification'] = array(
 				'type'    => 'variant_grouping',
@@ -93,10 +118,12 @@ class RWGA_Geo_Assistant_Planner {
 			$decisions[]    = 'variant_grouping_ambiguous';
 		}
 
-		$page_context = class_exists( 'RWGA_Variant_Plan_Parser', false )
-			? RWGA_Variant_Plan_Parser::detect_page_context( $phrase )
+		$page_context = '' !== $phrase_for_parse && class_exists( 'RWGA_Variant_Plan_Parser', false )
+			? RWGA_Variant_Plan_Parser::detect_page_context( $phrase_for_parse )
 			: array();
-		$clarification = RWGA_Planner_Resolve_Clarifications::detect( $actions, $phrase, $page_context, $entities );
+		$clarification = '' !== $phrase_for_parse
+			? RWGA_Planner_Resolve_Clarifications::detect( $actions, $phrase_for_parse, $page_context, $entities )
+			: null;
 		if ( is_array( $clarification ) ) {
 			$plan['clarification'] = $clarification;
 			$plan['status']        = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION;
@@ -112,7 +139,7 @@ class RWGA_Geo_Assistant_Planner {
 				continue;
 			}
 			$loc = RWGA_Planner_Location_Resolver::resolve_from_text(
-				(string) ( $action['sourceClause'] ?? $phrase ),
+				(string) ( $action['sourceClause'] ?? $phrase_for_parse ),
 				$entities
 			);
 			if ( ! empty( $loc['warnings'] ) ) {
@@ -121,6 +148,7 @@ class RWGA_Geo_Assistant_Planner {
 			}
 		}
 		$plan['warnings'] = array_values( array_unique( $warnings ) );
+		$actions          = self::apply_weather_notes( $actions );
 		$plan['actions']  = $actions;
 		$plan['confidence'] = self::plan_confidence( $actions, $learned );
 		$plan['debug']['decisions'] = $decisions;
@@ -135,7 +163,7 @@ class RWGA_Geo_Assistant_Planner {
 			$decisions[]                = 'synced_entity_clarification';
 			$plan['debug']['decisions'] = $decisions;
 		} elseif ( class_exists( 'RWGA_Planner_Plan_Validator', false ) ) {
-			$validation = RWGA_Planner_Plan_Validator::validate( $phrase, $actions, $entities, $clauses );
+			$validation = RWGA_Planner_Plan_Validator::validate( $phrase_for_parse, $actions, $entities, $clauses );
 			if ( is_array( $validation ) ) {
 				$plan['debug']['draft_actions'] = $actions;
 				$plan['actions']                = array();
@@ -148,6 +176,11 @@ class RWGA_Geo_Assistant_Planner {
 		}
 
 		if ( empty( $plan['actions'] ) && empty( $plan['clarification'] ) ) {
+			if ( ! empty( $plan['confirmation_instruction'] ) ) {
+				$plan['status']     = RWGA_Geo_Action_Types::STATUS_NEEDS_CONFIRMATION;
+				$plan['confidence'] = 0.85;
+				return $plan;
+			}
 			$plan['status'] = RWGA_Geo_Action_Types::STATUS_FAILED;
 			return $plan;
 		}
@@ -170,6 +203,20 @@ class RWGA_Geo_Assistant_Planner {
 			$plan['fields_needing_attention'] = $cards['fields_needing_attention'];
 			$plan['requires_resolution']      = $cards['requires_resolution'];
 			$plan['shared_targets']           = $cards['shared_targets'];
+			if ( ! empty( $cards['shared_targets'][0] ) && is_array( $cards['shared_targets'][0] ) ) {
+				$shared = $cards['shared_targets'][0];
+				$plan['shared_target'] = array(
+					'type'    => (string) ( $shared['type'] ?? 'page' ),
+					'raw'     => (string) ( $shared['raw'] ?? '' ),
+					'status'  => (string) ( $shared['status'] ?? 'needs_confirmation' ),
+					'matches' => is_array( $shared['suggestions'] ?? null ) ? $shared['suggestions'] : array(),
+				);
+			} else {
+				$shared = self::infer_shared_target( $plan['actions'], $phrase_for_parse );
+				if ( is_array( $shared ) ) {
+					$plan['shared_target'] = $shared;
+				}
+			}
 			if ( $cards['requires_resolution'] && RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION !== $plan['status'] ) {
 				$plan['status']     = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION;
 				$plan['confidence'] = min( (float) $plan['confidence'], 0.5 );
@@ -194,6 +241,11 @@ class RWGA_Geo_Assistant_Planner {
 	private static function build_actions_from_clause_row( array $clause_row, $phrase, array $entities, array $context, array $page_context ) {
 		$clause = trim( (string) ( $clause_row['raw'] ?? '' ) );
 		$type   = (string) ( $clause_row['type'] ?? '' );
+
+		if ( class_exists( 'RWGA_Planner_Confirmation_Instruction_Resolver', false )
+			&& RWGA_Planner_Confirmation_Instruction_Resolver::is_confirmation_only( $clause ) ) {
+			return array();
+		}
 
 		if ( 'variant_child' === $type && ! empty( $clause_row['parent'] ) && is_array( $clause_row['parent'] ) ) {
 			$child_index = isset( $clause_row['childIndex'] )
@@ -488,6 +540,38 @@ class RWGA_Geo_Assistant_Planner {
 	}
 
 	/**
+	 * Whether the stripped phrase should use the structured variant plan parser
+	 * instead of generic multi-clause splitting.
+	 *
+	 * @param string $phrase Normalised phrase without confirmation/meta tail.
+	 * @return bool
+	 */
+	private static function should_use_variant_plan_parser( $phrase ) {
+		if ( '' === trim( (string) $phrase ) ) {
+			return false;
+		}
+		if ( self::has_multi_action_markers( $phrase ) ) {
+			return false;
+		}
+		if ( ! class_exists( 'RWGA_Variant_Plan_Parser', false )
+			|| ! RWGA_Variant_Plan_Parser::is_variant_plan_command( $phrase ) ) {
+			return false;
+		}
+		// Compound phrases with trailing rules, popups, or diagnose clauses belong on
+		// the multi-clause path even when they mention versions/variants.
+		if ( preg_match( '/\b(?:,\.\s*)?(?:then|and)\s+(?:hide|show|create\s+a\s+rule|diagnose|test\s+what|preview\s+what|check\s+what)\b/i', $phrase ) ) {
+			return false;
+		}
+		// Shop/category variants plus a separate "update the original homepage" action
+		// must stay on the multi-clause path so page mismatch is preserved.
+		if ( preg_match( '/\b(?:update|change|keep|leave)\s+(?:the\s+)?original\b/i', $phrase )
+			&& preg_match( '/\b(?:variant|variation|version)s?\s+of\s+(?!homepage\b|home\b)/i', $phrase ) ) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
 	 * @param array<string,mixed> $target Target row.
 	 * @param array<string,mixed> $cond   Condition bundle.
 	 * @return string
@@ -578,25 +662,161 @@ class RWGA_Geo_Assistant_Planner {
 	}
 
 	/**
+	 * Flag variant-plan actions that share one detected page target.
+	 *
+	 * @param array<int,array<string,mixed>> $actions Actions.
+	 * @param string                         $phrase  Normalised phrase.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function mark_shared_variant_targets( array $actions, $phrase ) {
+		if ( ! is_array( self::infer_shared_target( $actions, $phrase ) ) ) {
+			return $actions;
+		}
+		foreach ( $actions as $idx => $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			$type = (string) ( $action['type'] ?? '' );
+			if ( in_array( $type, array( RWGA_Geo_Action_Types::CREATE_VARIANT, RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING ), true ) ) {
+				$actions[ $idx ]['uses_shared_target'] = true;
+			}
+		}
+		return $actions;
+	}
+
+	/**
+	 * Infer a shared page target when every action points at the same detected page.
+	 *
+	 * @param array<int,array<string,mixed>> $actions Parsed actions.
+	 * @param string                         $phrase  Normalised phrase.
+	 * @return array<string,mixed>|null
+	 */
+	private static function infer_shared_target( array $actions, $phrase ) {
+		if ( count( $actions ) < 2 ) {
+			return null;
+		}
+		$labels = array();
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			$label = strtolower( trim( (string) ( $action['target']['label'] ?? '' ) ) );
+			if ( '' !== $label ) {
+				$labels[] = $label;
+			}
+		}
+		if ( count( $labels ) >= 2 && 1 === count( array_unique( $labels ) ) ) {
+			return array(
+				'type'    => 'page',
+				'raw'     => (string) ( $actions[0]['target']['label'] ?? $labels[0] ),
+				'status'  => 'needs_confirmation',
+				'matches' => array(),
+			);
+		}
+		if ( ! class_exists( 'RWGA_Variant_Plan_Parser', false )
+			|| ! preg_match( '/\b(?:variant|variation|version)s?\s+of\b/i', $phrase ) ) {
+			return null;
+		}
+		$page_ctx = RWGA_Variant_Plan_Parser::detect_page_context( $phrase );
+		$raw      = (string) ( $page_ctx['variant_source'] ?? $page_ctx['primary'] ?? '' );
+		if ( '' === $raw ) {
+			return null;
+		}
+		return array(
+			'type'    => 'page',
+			'raw'     => $raw,
+			'status'  => 'needs_confirmation',
+			'matches' => array(),
+		);
+	}
+
+	/**
+	 * Attach no-weather-restriction notes when the source clause explicitly allows all weather.
+	 *
+	 * @param array<int,array<string,mixed>> $actions Actions.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function apply_weather_notes( array $actions ) {
+		foreach ( $actions as $idx => $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			$clause = (string) ( $action['sourceClause'] ?? '' );
+			if ( ! preg_match( '/\b(?:all\s+weather(?:\s+conditions)?|any\s+weather|regardless\s+of\s+weather|whatever\s+the\s+weather)\b/i', $clause ) ) {
+				continue;
+			}
+			$notes = is_array( $action['notes'] ?? null ) ? $action['notes'] : array();
+			if ( ! in_array( 'no_weather_restriction', $notes, true ) ) {
+				$notes[] = 'no_weather_restriction';
+			}
+			$actions[ $idx ]['notes'] = $notes;
+			if ( is_array( $action['conditions'] ?? null ) ) {
+				$conditions = $action['conditions'];
+				if ( isset( $conditions['weather'] ) && is_array( $conditions['weather'] ) ) {
+					$conditions['weather'] = array_values(
+						array_filter(
+							$conditions['weather'],
+							static function ( $value ) {
+								return 'any' !== strtolower( (string) $value );
+							}
+						)
+					);
+				}
+				if ( isset( $conditions['include']['weather'] ) && is_array( $conditions['include']['weather'] ) ) {
+					$conditions['include']['weather'] = array_values(
+						array_filter(
+							$conditions['include']['weather'],
+							static function ( $value ) {
+								return 'any' !== strtolower( (string) $value );
+							}
+						)
+					);
+				}
+				$actions[ $idx ]['conditions'] = $conditions;
+			}
+		}
+		return $actions;
+	}
+
+	/**
 	 * @param string $source_text Source text.
 	 * @return array<string,mixed>
 	 */
 	private static function empty_plan( $source_text ) {
 		return array(
-			'id'          => self::new_id(),
-			'intent'      => RWGA_Geo_Action_Types::PLAN_INTENT,
-			'status'      => RWGA_Geo_Action_Types::STATUS_DRAFT,
-			'sourceText'  => $source_text,
-			'confidence'  => 0,
-			'actions'     => array(),
-			'clarification' => null,
-			'warnings'    => array(),
-			'debug'       => array(
+			'id'                       => self::new_id(),
+			'intent'                   => RWGA_Geo_Action_Types::PLAN_INTENT,
+			'status'                   => RWGA_Geo_Action_Types::STATUS_DRAFT,
+			'sourceText'               => $source_text,
+			'confidence'               => 0,
+			'actions'                  => array(),
+			'clarification'            => null,
+			'confirmation_instruction' => null,
+			'warnings'                 => array(),
+			'debug'                    => array(
 				'clauses'   => array(),
 				'entities'  => array(),
 				'decisions' => array(),
 			),
 		);
+	}
+
+	/**
+	 * Remove confirmation/meta phrases from the raw user message before parsing.
+	 *
+	 * @param string              $raw_phrase Raw input.
+	 * @param array<int,string>   $ignored    Ignored meta phrases.
+	 * @return string
+	 */
+	private static function strip_confirmation_from_raw( $raw_phrase, array $ignored ) {
+		$raw = (string) $raw_phrase;
+		foreach ( $ignored as $phrase ) {
+			if ( '' === trim( (string) $phrase ) ) {
+				continue;
+			}
+			$raw = (string) preg_replace( '/' . preg_quote( (string) $phrase, '/' ) . '/i', '', $raw );
+		}
+		return trim( preg_replace( '/\s+/', ' ', $raw ), " \t\n\r\0\x0B,." );
 	}
 
 	/**

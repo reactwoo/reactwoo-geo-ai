@@ -127,6 +127,8 @@ class RWGA_Planner_Legacy_Adapter {
 			'ambiguities'               => $ambiguities,
 			'action_cards'              => isset( $plan['action_cards'] ) && is_array( $plan['action_cards'] ) ? $plan['action_cards'] : array(),
 			'shared_targets'            => isset( $plan['shared_targets'] ) && is_array( $plan['shared_targets'] ) ? $plan['shared_targets'] : array(),
+			'shared_target'             => isset( $plan['shared_target'] ) && is_array( $plan['shared_target'] ) ? $plan['shared_target'] : null,
+			'confirmation_instruction'  => isset( $plan['confirmation_instruction'] ) && is_array( $plan['confirmation_instruction'] ) ? $plan['confirmation_instruction'] : null,
 			'fields_needing_attention'  => (int) ( $plan['fields_needing_attention'] ?? 0 ),
 			'requires_resolution'       => ! empty( $plan['requires_resolution'] ),
 			'interpretation_source'     => 'geo_assistant_planner',

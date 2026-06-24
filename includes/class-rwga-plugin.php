@@ -171,6 +171,7 @@ class RWGA_Plugin {
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-action-clause-splitter.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-action-type-detector.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-target-resolver.php';
+		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-confirmation-instruction-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-region-ambiguity-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-condition-resolver.php';
 		require_once RWGA_PATH . 'includes/services/planner/class-rwga-planner-variant-resolver.php';

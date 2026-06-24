@@ -53,14 +53,14 @@ class RWGA_Planner_Variant_Resolver {
 	 * @return array<int,array<string,mixed>>
 	 */
 	public static function from_variant_plan_parse( array $plan, array $entities ) {
-		unset( $entities );
 		if ( empty( $plan['matched'] ) ) {
 			return array();
 		}
 
-		$actions      = array();
-		$page_ref     = (string) ( $plan['params']['source_page_ref'] ?? 'homepage' );
-		$variant_page = (string) ( $plan['params']['variant_source_page'] ?? $page_ref );
+		$params       = is_array( $plan['params'] ?? null ) ? $plan['params'] : array();
+		$page_ref     = (string) ( $params['source_page_ref'] ?? 'homepage' );
+		$variant_page = (string) ( $params['variant_source_page'] ?? $page_ref );
+		$original_ref = (string) ( $params['original_page_ref'] ?? $params['page_context']['original_page'] ?? $page_ref );
 		$target       = array(
 			'type'   => 'page',
 			'label'  => $variant_page,
@@ -74,19 +74,20 @@ class RWGA_Planner_Variant_Resolver {
 			'confidence' => 0.88,
 		);
 
-		$source = $plan['params']['source_targeting'] ?? null;
+		$actions = array();
+		$source  = $params['source_targeting'] ?? null;
 		if ( is_array( $source ) && ! empty( $source['countries'] ) ) {
 			$original_target = array(
 				'type'   => 'page',
-				'label'  => (string) ( $plan['params']['original_page_ref'] ?? $plan['params']['page_context']['original_page'] ?? 'homepage' ),
-				'slug'   => (string) ( $plan['params']['original_page_ref'] ?? 'homepage' ),
+				'label'  => $original_ref,
+				'slug'   => $original_ref,
 				'source' => 'detected',
 			);
 			if ( '' === $original_target['label'] || 'homepage' === $original_target['slug'] ) {
 				$original_target['label'] = 'homepage';
 				$original_target['slug']  = 'homepage';
 			}
-			$regions = array();
+			$regions   = array();
 			$countries = (array) $source['countries'];
 			foreach ( $countries as $code ) {
 				if ( 'GB' === $code && preg_match( '/\bengland\b/i', (string) ( $source['raw'] ?? '' ) ) ) {
@@ -96,7 +97,8 @@ class RWGA_Planner_Variant_Resolver {
 			if ( ! empty( $regions ) ) {
 				$countries = array_values( array_diff( $countries, array( 'GB' ) ) );
 			}
-			$actions[] = self::make_action(
+			$source_weather = $source['weather'] ?? null;
+			$actions[]      = self::make_action(
 				array(
 					'type'       => RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING,
 					'visibility' => 'only_show',
@@ -110,7 +112,7 @@ class RWGA_Planner_Variant_Resolver {
 						'countries' => $countries,
 						'regions'   => $regions,
 						'devices'   => array(),
-						'weather'   => array(),
+						'weather'   => self::weather_values( $source_weather ),
 						'campaigns' => array(),
 						'urls'      => array(),
 						'audiences' => array(),
@@ -119,13 +121,20 @@ class RWGA_Planner_Variant_Resolver {
 					'confidence' => 0.88,
 				),
 				(string) ( $source['raw'] ?? '' ),
-				'original'
+				'original',
+				self::build_variant_label( $countries, $source_weather, $entities, true, $original_ref ),
+				self::weather_notes( $source_weather ),
+				true
 			);
 		}
 
-		foreach ( (array) ( $plan['params']['variants'] ?? array() ) as $idx => $variant ) {
-			$countries = (array) ( $variant['countries'] ?? array() );
-			$actions[] = self::make_action(
+		foreach ( (array) ( $params['variants'] ?? array() ) as $idx => $variant ) {
+			if ( ! is_array( $variant ) ) {
+				continue;
+			}
+			$countries      = (array) ( $variant['countries'] ?? array() );
+			$variant_weather = $variant['weather'] ?? null;
+			$actions[]      = self::make_action(
 				$type_row,
 				$target,
 				$idx + 1,
@@ -134,7 +143,7 @@ class RWGA_Planner_Variant_Resolver {
 						'countries' => $countries,
 						'regions'   => array(),
 						'devices'   => array(),
-						'weather'   => array(),
+						'weather'   => self::weather_values( $variant_weather ),
 						'campaigns' => array(),
 						'urls'      => array(),
 						'audiences' => array(),
@@ -144,11 +153,102 @@ class RWGA_Planner_Variant_Resolver {
 				),
 				(string) ( $variant['raw'] ?? '' ),
 				'variant',
-				(string) ( $variant['label'] ?? '' )
+				self::build_variant_label( $countries, $variant_weather, $entities, false, $variant_page ),
+				array(),
+				true
 			);
 		}
 
 		return $actions;
+	}
+
+	/**
+	 * @param mixed $weather Weather key or param array.
+	 * @return array<int,string>
+	 */
+	private static function weather_values( $weather ) {
+		$key = self::normalize_weather_key( $weather );
+		if ( null === $key || '' === $key || 'any' === $key ) {
+			return array();
+		}
+		return array( $key );
+	}
+
+	/**
+	 * @param mixed $weather Weather key or param array.
+	 * @return array<int,string>
+	 */
+	private static function weather_notes( $weather ) {
+		$key = self::normalize_weather_key( $weather );
+		if ( null === $key || '' === $key || 'any' === $key ) {
+			return array( 'no_weather_restriction' );
+		}
+		return array();
+	}
+
+	/**
+	 * @param mixed $weather Weather value from parser.
+	 * @return string|null
+	 */
+	private static function normalize_weather_key( $weather ) {
+		if ( is_array( $weather ) ) {
+			if ( isset( $weather['mode'] ) && 'any' === $weather['mode'] ) {
+				return 'any';
+			}
+			if ( isset( $weather['condition'] ) && '' !== (string) $weather['condition'] ) {
+				return (string) $weather['condition'];
+			}
+			return null;
+		}
+		if ( null === $weather || '' === $weather ) {
+			return null;
+		}
+		return (string) $weather;
+	}
+
+	/**
+	 * @param mixed               $weather   Weather key.
+	 * @param array<int,array>    $entities  Entities.
+	 * @return string
+	 */
+	private static function weather_label_text( $weather, array $entities ) {
+		$key = self::normalize_weather_key( $weather );
+		if ( null === $key || '' === $key || 'any' === $key ) {
+			return '';
+		}
+		return class_exists( 'RWGA_Segment_Condition_Extractor', false )
+			? strtolower( (string) RWGA_Segment_Condition_Extractor::weather_label( $key, $entities ) )
+			: strtolower( $key );
+	}
+
+	/**
+	 * @param array<int,string> $countries  Country codes.
+	 * @param string|null       $weather    Weather key.
+	 * @param array<int,array>  $entities   Entities.
+	 * @param bool              $is_original Original targeting action.
+	 * @param string            $page_ref   Page reference label.
+	 * @return string
+	 */
+	private static function build_variant_label( array $countries, $weather, array $entities, $is_original, $page_ref ) {
+		if ( $is_original ) {
+			return sprintf(
+				/* translators: %s: page reference such as homepage */
+				__( 'Update original %s targeting', 'reactwoo-geocore' ),
+				$page_ref
+			);
+		}
+		$country_label = RWGA_Planner_Location_Resolver::display_label(
+			array(
+				'countries' => $countries,
+				'regions'   => array(),
+				'labels'    => array(),
+			)
+		);
+		$weather_part = self::weather_label_text( $weather, $entities );
+		if ( '' === $country_label ) {
+			$country_label = implode( ' + ', $countries );
+		}
+		return 'Create ' . $country_label . ( '' !== $weather_part ? ' ' . $weather_part : '' ) . ' variant';
 	}
 
 	/**
@@ -267,16 +367,18 @@ class RWGA_Planner_Variant_Resolver {
 	}
 
 	/**
-	 * @param array<string,mixed> $type_row     Type row.
-	 * @param array<string,mixed> $target       Target.
-	 * @param int|null            $index        Variant index.
-	 * @param array<string,mixed> $cond         Condition bundle.
-	 * @param string              $clause       Source clause.
-	 * @param string              $relationship original|variant|other.
-	 * @param string              $label        Optional variant label.
+	 * @param array<string,mixed>        $type_row     Type row.
+	 * @param array<string,mixed>        $target       Target.
+	 * @param int|null                   $index        Variant index.
+	 * @param array<string,mixed>        $cond         Condition bundle.
+	 * @param string                     $clause       Source clause.
+	 * @param string                     $relationship original|variant|other.
+	 * @param string                     $label        Optional variant label.
+	 * @param array<int,string|mixed>    $notes        Optional note tokens.
+	 * @param bool                       $shared_target Uses shared target resolver.
 	 * @return array<string,mixed>
 	 */
-	private static function make_action( array $type_row, array $target, $index, array $cond, $clause, $relationship = 'variant', $label = '' ) {
+	private static function make_action( array $type_row, array $target, $index, array $cond, $clause, $relationship = 'variant', $label = '', array $notes = array(), $shared_target = false ) {
 		$page_label = (string) ( $target['label'] ?? 'page' );
 		if ( '' === $label ) {
 			$include   = RWGA_Planner_Condition_Polarity_Resolver::include_group( $cond['conditions'] ?? array() );
@@ -290,9 +392,10 @@ class RWGA_Planner_Variant_Resolver {
 			$label = ucfirst( $page_label ) . ( $loc_label ? ' - ' . $loc_label : '' );
 		}
 
-		return array(
+		$action = array(
 			'id'                  => RWGA_Geo_Assistant_Planner::new_id(),
 			'type'                => (string) $type_row['type'],
+			'label'               => $label,
 			'target'              => $target,
 			'variant'             => array(
 				'index'         => $index,
@@ -311,5 +414,12 @@ class RWGA_Planner_Variant_Resolver {
 			'clarificationReason' => null,
 			'sourceClause'        => $clause,
 		);
+		if ( ! empty( $notes ) ) {
+			$action['notes'] = $notes;
+		}
+		if ( $shared_target ) {
+			$action['uses_shared_target'] = true;
+		}
+		return $action;
 	}
 }

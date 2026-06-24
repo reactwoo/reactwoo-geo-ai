@@ -46,6 +46,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-geo-action-types.php';
 		require_once $base . 'services/planner/class-rwga-planner-location-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-region-ambiguity-resolver.php';
+		require_once $base . 'services/planner/class-rwga-planner-confirmation-instruction-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-condition-polarity-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-audience-resolver.php';
 		require_once $base . 'services/planner/class-rwga-planner-utm-condition-resolver.php';
@@ -860,5 +861,76 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertContains( 'campaign', $fields, 'Unknown campaign requires resolution.' );
 		$this->assertContains( 'audience', $fields, 'Unknown audience requires resolution.' );
 		$this->assertSame( 'needs_resolution', (string) ( $cards[0]['status'] ?? '' ) );
+	}
+
+	public function test_variant_plan_homepage_three_actions_no_phantom(): void {
+		$input = 'I want two versions of the homepage: leave the original for UK users whatever the weather, make one version for Portugal when it is raining, and another for Germany and Russia when it is sunny. Show me the split before creating it.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 3, $plan['actions'] );
+		$this->assertSame( 3, (int) ( $plan['debug']['action_count'] ?? 0 ) );
+		$decisions = (array) ( $plan['debug']['decisions'] ?? array() );
+		$this->assertTrue(
+			in_array( 'variant_plan_parser', $decisions, true ) || in_array( 'multi_clause_split', $decisions, true ),
+			'Expected variant plan or multi-clause parsing.'
+		);
+		$this->assertTrue( (bool) ( $plan['debug']['phantom_actions_removed'] ?? false ) );
+
+		$conf = $plan['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+
+		$this->assertSame( 'update_original_targeting', $plan['actions'][0]['type'] ?? '' );
+		$include0 = $this->include_of( $plan['actions'][0] );
+		$this->assertContains( 'GB', (array) ( $include0['countries'] ?? array() ) );
+		$this->assertContains( 'no_weather_restriction', (array) ( $plan['actions'][0]['notes'] ?? array() ) );
+		$this->assertSame( array(), (array) ( $include0['weather'] ?? array() ) );
+
+		$this->assertSame( 'create_variant', $plan['actions'][1]['type'] ?? '' );
+		$include1 = $this->include_of( $plan['actions'][1] );
+		$this->assertContains( 'PT', (array) ( $include1['countries'] ?? array() ) );
+		$this->assertContains( 'rain', (array) ( $include1['weather'] ?? array() ) );
+
+		$this->assertSame( 'create_variant', $plan['actions'][2]['type'] ?? '' );
+		$include2 = $this->include_of( $plan['actions'][2] );
+		$this->assertContains( 'DE', (array) ( $include2['countries'] ?? array() ) );
+		$this->assertContains( 'RU', (array) ( $include2['countries'] ?? array() ) );
+		$this->assertContains( 'sunny', (array) ( $include2['weather'] ?? array() ) );
+
+		$shared = $plan['shared_target'] ?? null;
+		$this->assertIsArray( $shared );
+		$this->assertSame( 'homepage', (string) ( $shared['raw'] ?? '' ) );
+	}
+
+	public function test_confirmation_phrase_alone_is_not_an_action(): void {
+		$input = 'Show me the split before creating it.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertSame( array(), $plan['actions'] );
+		$this->assertSame( 0, (int) ( $plan['debug']['action_count'] ?? -1 ) );
+		$conf = $plan['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+	}
+
+	public function test_two_variants_without_original_update(): void {
+		$input = 'Create two homepage variants, one for Portugal when raining and one for Germany and Russia when sunny.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 2, $plan['actions'] );
+		foreach ( $plan['actions'] as $action ) {
+			$this->assertSame( 'create_variant', $action['type'] ?? '' );
+		}
+	}
+
+	public function test_all_weather_means_no_weather_restriction(): void {
+		$input = 'Keep the original homepage for UK visitors in all weather conditions.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertNotEmpty( $plan['actions'] );
+		$include = $this->include_of( $plan['actions'][0] );
+		$this->assertContains( 'GB', (array) ( $include['countries'] ?? array() ) );
+		$this->assertContains( 'no_weather_restriction', (array) ( $plan['actions'][0]['notes'] ?? array() ) );
+		$this->assertSame( array(), (array) ( $include['weather'] ?? array() ) );
 	}
 }

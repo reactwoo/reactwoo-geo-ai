@@ -903,6 +903,8 @@ class RWGA_Assistant_Service {
 			'actions'               => isset( $raw['action_cards'] ) && is_array( $raw['action_cards'] ) ? $raw['action_cards'] : array(),
 			'source'                => self::resolve_source( $raw ),
 			'shared_targets'        => isset( $raw['shared_targets'] ) && is_array( $raw['shared_targets'] ) ? $raw['shared_targets'] : array(),
+			'shared_target'         => isset( $raw['shared_target'] ) && is_array( $raw['shared_target'] ) ? $raw['shared_target'] : null,
+			'confirmation_instruction' => isset( $raw['confirmation_instruction'] ) && is_array( $raw['confirmation_instruction'] ) ? $raw['confirmation_instruction'] : null,
 			'fields_needing_attention' => (int) ( $raw['fields_needing_attention'] ?? 0 ),
 			'requires_resolution'   => ! empty( $raw['requires_resolution'] ),
 			'ai_interpretation'     => isset( $raw['ai_interpretation'] ) && is_array( $raw['ai_interpretation'] ) ? $raw['ai_interpretation'] : null,

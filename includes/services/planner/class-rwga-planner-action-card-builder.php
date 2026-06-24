@@ -151,6 +151,7 @@ class RWGA_Planner_Action_Card_Builder {
 		}
 
 		$public_include = self::public_include( $include );
+		$action_notes     = is_array( $action['notes'] ?? null ) ? $action['notes'] : array();
 		$conditions     = array(
 			'include' => $public_include,
 			'exclude' => $exclude,
@@ -160,14 +161,18 @@ class RWGA_Planner_Action_Card_Builder {
 			'id'                  => (string) ( $action['id'] ?? 'action_' . $position ),
 			'index'               => $position,
 			'type'                => (string) ( $action['type'] ?? '' ),
-			'label'               => self::action_label( (string) ( $action['type'] ?? '' ) ),
+			'label'               => '' !== (string) ( $action['label'] ?? '' )
+				? (string) $action['label']
+				: self::action_label( (string) ( $action['type'] ?? '' ) ),
 			'status'              => empty( $required ) ? self::STATUS_READY : self::STATUS_NEEDS_RESOLUTION,
 			'target'              => $target,
 			'campaign'            => $campaign,
 			'operation'           => is_array( $action['operation'] ?? null ) ? $action['operation'] : array(),
 			'logic'               => self::build_logic( $action ),
 			'conditions'          => $conditions,
-			'condition_rows'      => self::build_condition_rows( $public_include, $exclude, $audiences, $locations ),
+			'condition_rows'      => self::build_condition_rows( $public_include, $exclude, $audiences, $locations, $action_notes ),
+			'uses_shared_target'  => ! empty( $action['uses_shared_target'] ),
+			'notes'               => $action_notes,
 			'audiences'           => $audiences,
 			'warnings'            => array_values( (array) ( $action['warnings'] ?? array() ) ),
 			'requiredResolutions' => $required,
@@ -241,9 +246,10 @@ class RWGA_Planner_Action_Card_Builder {
 	 * @param array<string,mixed>            $exclude   Exclude group.
 	 * @param array<int,array<string,mixed>> $audiences Audience rows.
 	 * @param array<int,array<string,mixed>> $locations Unresolved location rows.
+	 * @param array<int,string|mixed>        $notes     Action notes (e.g. no_weather_restriction).
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function build_condition_rows( array $include, array $exclude, array $audiences, array $locations ) {
+	private static function build_condition_rows( array $include, array $exclude, array $audiences, array $locations, array $notes = array() ) {
 		$rows = array();
 		$n    = 0;
 		$id   = static function () use ( &$n ) {
@@ -280,6 +286,9 @@ class RWGA_Planner_Action_Card_Builder {
 		// Weather, devices, urls, utm, visitor states.
 		foreach ( array( 'include' => $include, 'exclude' => $exclude ) as $mode => $group ) {
 			foreach ( (array) ( $group['weather'] ?? array() ) as $w ) {
+				if ( 'any' === strtolower( (string) $w ) ) {
+					continue;
+				}
 				$rows[] = self::valid_row( $id(), 'weather', $mode, (string) $w, 'cloud', ucfirst( (string) $w ) );
 			}
 			foreach ( (array) ( $group['devices'] ?? array() ) as $d ) {
@@ -316,6 +325,24 @@ class RWGA_Planner_Action_Card_Builder {
 				'suggestions'        => is_array( $audience['suggestions'] ?? null ) ? $audience['suggestions'] : array(),
 				'resolution_options' => $valid ? array() : self::audience_options( $status ),
 			);
+		}
+
+		foreach ( $notes as $note ) {
+			if ( 'no_weather_restriction' === $note ) {
+				$rows[] = array(
+					'id'                 => $id(),
+					'type'               => 'weather',
+					'mode'               => 'include',
+					'raw'                => 'no_weather_restriction',
+					'label'              => __( 'No restriction', 'reactwoo-geocore' ),
+					'value'              => null,
+					'status'             => 'valid',
+					'icon'               => 'cloud',
+					'warning'            => '',
+					'is_note'            => true,
+					'resolution_options' => array(),
+				);
+			}
 		}
 
 		return $rows;
@@ -552,6 +579,16 @@ class RWGA_Planner_Action_Card_Builder {
 	 */
 	private static function public_include( array $include ) {
 		unset( $include['audiences'] );
+		if ( isset( $include['weather'] ) && is_array( $include['weather'] ) ) {
+			$include['weather'] = array_values(
+				array_filter(
+					$include['weather'],
+					static function ( $value ) {
+						return 'any' !== strtolower( (string) $value );
+					}
+				)
+			);
+		}
 		return $include;
 	}
 

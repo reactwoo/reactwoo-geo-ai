@@ -37,7 +37,7 @@ class RWGA_Segment_Condition_Extractor {
 			return null;
 		}
 
-		if ( preg_match( '/\b(?:all\s+weather(?:\s+conditions)?|any\s+weather|regardless\s+of\s+weather)\b/i', $text ) ) {
+		if ( preg_match( '/\b(?:all\s+weather(?:\s+conditions)?|any\s+weather|regardless\s+of\s+weather|whatever\s+the\s+weather)\b/i', $text ) ) {
 			return 'any';
 		}
 
