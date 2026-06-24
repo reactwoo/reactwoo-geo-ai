@@ -107,7 +107,9 @@ class RWGA_Planner_Legacy_Adapter {
 
 		$proposal_ready = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION !== $status
 			&& RWGA_Geo_Action_Types::STATUS_FAILED !== $status
-			&& empty( $missing );
+			&& empty( $missing )
+			&& empty( $plan['requires_resolution'] )
+			&& empty( $plan['invalid_interpretation'] );
 
 		return array(
 			'matched'                 => count( $actions ) > 0,
@@ -131,6 +133,7 @@ class RWGA_Planner_Legacy_Adapter {
 			'confirmation_instruction'  => isset( $plan['confirmation_instruction'] ) && is_array( $plan['confirmation_instruction'] ) ? $plan['confirmation_instruction'] : null,
 			'fields_needing_attention'  => (int) ( $plan['fields_needing_attention'] ?? 0 ),
 			'requires_resolution'       => ! empty( $plan['requires_resolution'] ),
+			'invalid_interpretation'    => isset( $plan['invalid_interpretation'] ) && is_array( $plan['invalid_interpretation'] ) ? $plan['invalid_interpretation'] : null,
 			'interpretation_source'     => 'geo_assistant_planner',
 		);
 	}

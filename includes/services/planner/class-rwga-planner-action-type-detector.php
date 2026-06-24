@@ -39,6 +39,17 @@ class RWGA_Planner_Action_Type_Detector {
 			);
 		}
 
+		if ( preg_match( '/\b(?:update|change|edit|modify|tweak|adjust)\s+(?:the\s+)?(?:homepage|shop(?:\s+page)?)\b/i', $clause )
+			&& ! preg_match( '/\b(?:create|make|build|add)\s+(?:a\s+)?(?:new\s+)?rule\b/i', $clause ) ) {
+			$visibility = self::is_only_show_clause( $clause ) ? 'only_show' : 'show';
+			return array(
+				'type'       => RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING,
+				'visibility' => $visibility,
+				'mode'       => 'update',
+				'confidence' => 0.9,
+			);
+		}
+
 		if ( preg_match( '/\b(?:update|change|edit|modify|tweak|adjust)\s+(?:the\s+)?(?:existing\s+)?[\w\s-]*?\bvariant\b/i', $clause )
 			&& ! preg_match( '/\b(?:create|make|build|add|duplicate)\b/i', $clause ) ) {
 			$visibility = self::is_only_show_clause( $clause ) ? 'only_show' : 'show';
@@ -174,6 +185,15 @@ class RWGA_Planner_Action_Type_Detector {
 			);
 		}
 		if ( preg_match( '/\b(?:hide|exclude|block|do not show|don\'t show)\b/i', $clause ) ) {
+			if ( self::is_create_rule_condition_clause( $clause, $clause_row ) ) {
+				$visibility = self::is_only_show_clause( $clause ) ? 'only_show' : 'show';
+				return array(
+					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+					'visibility' => $visibility,
+					'mode'       => 'create',
+					'confidence' => 0.9,
+				);
+			}
 			$visibility = 'hide';
 			$mode       = 'create';
 			if ( preg_match( '/\b(?:popup|banner)\b/i', $clause ) ) {
@@ -191,7 +211,7 @@ class RWGA_Planner_Action_Type_Detector {
 				'confidence' => 0.82,
 			);
 		}
-		if ( preg_match( '/\b(?:update|keep|leave)\s+(?:the\s+)?original\b|\bupdate\s+(?:the\s+)?(?:homepage|shop)\b/i', $clause ) ) {
+		if ( self::mentions_original_version( $clause ) ) {
 			if ( preg_match( '/\b(?:only|just)\s+(?:show|display)\b|\bonly\s+show\b/i', $clause ) ) {
 				$visibility = 'only_show';
 			}
@@ -217,7 +237,7 @@ class RWGA_Planner_Action_Type_Detector {
 			if ( preg_match( '/\b(?:only|just)\b/i', $clause ) ) {
 				$visibility = 'only_show';
 			}
-			if ( preg_match( '/\b(?:show|display)\b.+\bbut\s+exclude\b/is', $clause ) ) {
+			if ( self::is_create_rule_condition_clause( $clause, $clause_row ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
 					'visibility' => $visibility,
@@ -225,7 +245,15 @@ class RWGA_Planner_Action_Type_Detector {
 					'confidence' => 0.9,
 				);
 			}
-			if ( preg_match( '/\bpopup\b/i', $clause ) ) {
+			if ( self::mentions_original_version( $clause ) ) {
+				return array(
+					'type'       => RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING,
+					'visibility' => $visibility,
+					'mode'       => 'update',
+					'confidence' => 0.84,
+				);
+			}
+			if ( preg_match( '/\b(?:popup|banner|rule)\b/i', $clause ) ) {
 				return array(
 					'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
 					'visibility' => $visibility,
@@ -234,10 +262,10 @@ class RWGA_Planner_Action_Type_Detector {
 				);
 			}
 			return array(
-				'type'       => RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING,
+				'type'       => RWGA_Geo_Action_Types::SHOW,
 				'visibility' => $visibility,
-				'mode'       => 'update',
-				'confidence' => 0.84,
+				'mode'       => $mode,
+				'confidence' => 0.72,
 			);
 		}
 		return array(
@@ -257,5 +285,41 @@ class RWGA_Planner_Action_Type_Detector {
 			'/\bonly\s+(?:to|show|display|for|in)\b|\bshows?\s+only\b|\bonly\s+shows?\b|\bdisplays?\s+only\b/i',
 			$clause
 		);
+	}
+
+	/**
+	 * Whether the user explicitly refers to the original / source / default version.
+	 *
+	 * @param string $clause Clause text.
+	 * @return bool
+	 */
+	private static function mentions_original_version( $clause ) {
+		return (bool) preg_match(
+			'/\b(?:update|keep|leave)\s+(?:the\s+)?original\b|\boriginal\s+(?:version|targeting|page)\b|\bexisting\s+version\b|\bsource\s+page\b|\bdefault\s+version\b/i',
+			$clause
+		);
+	}
+
+	/**
+	 * Show / exclude / only-trigger phrasing inside a create_rule journey — not a separate action.
+	 *
+	 * @param string              $clause     Clause text.
+	 * @param array<string,mixed> $clause_row Clause metadata.
+	 * @return bool
+	 */
+	private static function is_create_rule_condition_clause( $clause, array $clause_row = array() ) {
+		if ( 'rule' === (string) ( $clause_row['type'] ?? '' ) ) {
+			return true;
+		}
+		if ( preg_match( '/\b(?:show|display)\b.+\b(?:but\s+)?(?:exclude|not)\b/is', $clause ) ) {
+			return true;
+		}
+		if ( preg_match( '/\bshow\s+it\s+only\b|\bonly\s+(?:show|trigger)\b/i', $clause ) ) {
+			return true;
+		}
+		if ( preg_match( '/\b(?:exclude|do not show|don\'t show)\s+(?:visitors?\s+)?from\b/i', $clause ) ) {
+			return true;
+		}
+		return false;
 	}
 }

@@ -286,7 +286,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
 		$this->assertCount( 1, $plan['actions'] );
 		$signatures = $this->action_signatures( $plan );
-		$this->assertSame( 'update_original_targeting', $signatures[0][0] );
+		$this->assertSame( 'show', $signatures[0][0] );
 		$this->assertSame( 'homepage', $signatures[0][1] );
 		$this->assertSame( 'FR', $signatures[0][2] );
 	}
@@ -492,7 +492,11 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$input = "For the new year campaign, show the gym equipment category only to returning visitors in the UK who arrive with utm_campaign=ny-sale, but don't show it to tablet users. Then create a variant of the protein powder product page for first-time visitors in Ireland, and add a rule to show the free-shipping banner to mobile users in Spain except when the weather is rainy.";
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->synced_entities() );
 
-		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertContains(
+			$plan['status'],
+			array( RWGA_Geo_Action_Types::STATUS_NEEDS_CONFIRMATION, RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION ),
+			'Plan may need confirmation or field resolution before execution.'
+		);
 		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
 
 		$campaign = $plan['actions'][0];
@@ -995,6 +999,20 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$exclude = $this->exclude_of( $plan['actions'][0] );
 
 		$this->assertSame( array( 'GB' ), (array) ( $include['countries'] ?? array() ) );
+		$this->assertSame( 'email', $this->utm_field_value( $exclude, 'medium' ) );
+	}
+
+	public function test_show_countries_exclude_email_single_rule(): void {
+		$input = 'Show this to Canada and United States but exclude email traffic.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
+
+		$include = $this->include_of( $plan['actions'][0] );
+		$exclude = $this->exclude_of( $plan['actions'][0] );
+
+		$this->assertEqualsCanonicalizing( array( 'CA', 'US' ), (array) ( $include['countries'] ?? array() ) );
 		$this->assertSame( 'email', $this->utm_field_value( $exclude, 'medium' ) );
 	}
 

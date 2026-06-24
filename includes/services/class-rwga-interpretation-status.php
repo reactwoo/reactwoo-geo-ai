@@ -34,7 +34,9 @@ class RWGA_Interpretation_Status {
 			&& ! empty( $result['matched_action'] )
 			&& ( ! isset( $result['proposal_ready'] ) || false !== $result['proposal_ready'] )
 			&& empty( $result['missing_information'] )
-			&& empty( $result['ambiguities'] );
+			&& empty( $result['ambiguities'] )
+			&& empty( $result['requires_resolution'] )
+			&& empty( $result['invalid_interpretation'] );
 
 		$trace = is_array( $result['_interpretation_trace'] ?? null ) ? $result['_interpretation_trace'] : array();
 		$shape = '';

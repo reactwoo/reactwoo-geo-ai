@@ -122,6 +122,21 @@ class RWGA_Geo_Assistant_Planner {
 		if ( ! empty( $plan['debug']['ignored_meta_phrases'] ) ) {
 			$plan['debug']['phantom_actions_removed'] = true;
 		}
+		$guard = self::guard_create_rule_interpretation( $actions, $phrase_for_parse, $entities, $context );
+		if ( is_array( $guard ) ) {
+			if ( ! empty( $guard['actions'] ) && is_array( $guard['actions'] ) ) {
+				$actions = $guard['actions'];
+			}
+			if ( ! empty( $guard['decision'] ) ) {
+				$decisions[] = (string) $guard['decision'];
+				$plan['debug']['decisions'] = $decisions;
+			}
+			if ( ! empty( $guard['invalid_interpretation'] ) && is_array( $guard['invalid_interpretation'] ) ) {
+				$plan['invalid_interpretation'] = $guard['invalid_interpretation'];
+				$plan['status']                   = RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION;
+				$plan['confidence']               = min( (float) ( $plan['confidence'] ?? 1 ), 0.35 );
+			}
+		}
 		$actions          = self::mark_shared_variant_targets( $actions, $phrase_for_parse );
 		$plan['debug']['action_count'] = count( $actions );
 
@@ -586,6 +601,69 @@ class RWGA_Geo_Assistant_Planner {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Recover single create_rule actions when a compound phrase was split into show/hide/update-original rows.
+	 *
+	 * @param array<int,array<string,mixed>> $actions  Built actions.
+	 * @param string                         $phrase   Normalised phrase.
+	 * @param array<int,array>               $entities Entities.
+	 * @param array<string,mixed>            $context  Context.
+	 * @return array{actions?:array<int,array<string,mixed>>,decision?:string,invalid_interpretation?:array<string,mixed>}|null
+	 */
+	private static function guard_create_rule_interpretation( array $actions, $phrase, array $entities, array $context ) {
+		if ( ! class_exists( 'RWGA_Rule_Plan_Parser', false )
+			|| ! RWGA_Rule_Plan_Parser::has_create_rule_primary_intent( $phrase ) ) {
+			return null;
+		}
+
+		$phantom_types = array(
+			RWGA_Geo_Action_Types::SHOW,
+			RWGA_Geo_Action_Types::HIDE,
+			RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING,
+		);
+		$has_phantom = false;
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			if ( in_array( (string) ( $action['type'] ?? '' ), $phantom_types, true ) ) {
+				$has_phantom = true;
+				break;
+			}
+		}
+
+		if ( ! $has_phantom ) {
+			return null;
+		}
+
+		$recovered = self::build_actions_from_clause(
+			$phrase,
+			$phrase,
+			$entities,
+			$context,
+			array(),
+			array(
+				'raw'   => $phrase,
+				'type'  => 'rule',
+				'index' => 0,
+			)
+		);
+		if ( 1 === count( $recovered )
+			&& RWGA_Geo_Action_Types::CREATE_RULE === (string) ( $recovered[0]['type'] ?? '' ) ) {
+			return array(
+				'actions'  => $recovered,
+				'decision' => 'create_rule_phantom_split_recovered',
+			);
+		}
+
+		return array(
+			'invalid_interpretation' => array(
+				'type'    => 'phantom_create_rule_split',
+				'message' => __( 'This was split into multiple actions, but it looks like one rule. Ask AI to re-check?', 'reactwoo-geocore' ),
+			),
+		);
 	}
 
 	/**

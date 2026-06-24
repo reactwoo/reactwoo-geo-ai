@@ -383,6 +383,36 @@ class RWGA_Assistant_Service {
 			return new WP_Error( 'rwga_proposal_expired', __( 'Proposal expired or not found. Send your message again.', 'reactwoo-geo-ai' ), array( 'status' => 404 ) );
 		}
 
+		if ( ! empty( $proposal['invalid_interpretation'] ) ) {
+			return new WP_Error(
+				'rwga_plan_invalid',
+				__( 'This interpretation was split incorrectly. Resolve or ask AI to re-check before creating anything.', 'reactwoo-geo-ai' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		if ( ! empty( $proposal['requires_resolution'] ) ) {
+			return new WP_Error(
+				'rwga_plan_unresolved',
+				__( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$cards = isset( $proposal['action_cards'] ) && is_array( $proposal['action_cards'] ) ? $proposal['action_cards'] : array();
+		foreach ( $cards as $card ) {
+			if ( ! is_array( $card ) ) {
+				continue;
+			}
+			if ( 'ready' !== (string) ( $card['status'] ?? '' ) ) {
+				return new WP_Error(
+					'rwga_plan_unresolved',
+					__( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+					array( 'status' => 409 )
+				);
+			}
+		}
+
 		$action = (string) ( $proposal['matched_action'] ?? '' );
 		$steps  = isset( $proposal['steps'] ) && is_array( $proposal['steps'] ) ? $proposal['steps'] : array();
 
@@ -907,6 +937,7 @@ class RWGA_Assistant_Service {
 			'confirmation_instruction' => isset( $raw['confirmation_instruction'] ) && is_array( $raw['confirmation_instruction'] ) ? $raw['confirmation_instruction'] : null,
 			'fields_needing_attention' => (int) ( $raw['fields_needing_attention'] ?? 0 ),
 			'requires_resolution'   => ! empty( $raw['requires_resolution'] ),
+			'invalid_interpretation' => isset( $raw['invalid_interpretation'] ) && is_array( $raw['invalid_interpretation'] ) ? $raw['invalid_interpretation'] : null,
 			'ai_interpretation'     => isset( $raw['ai_interpretation'] ) && is_array( $raw['ai_interpretation'] ) ? $raw['ai_interpretation'] : null,
 			'target'                => isset( $raw['ai_interpretation']['proposal_draft']['target'] ) ? $raw['ai_interpretation']['proposal_draft']['target'] : null,
 			'rule'                  => isset( $raw['ai_interpretation']['proposal_draft']['rule'] ) ? $raw['ai_interpretation']['proposal_draft']['rule'] : null,
@@ -1056,6 +1087,27 @@ class RWGA_Assistant_Service {
 		$status      = (string) ( $meta['status'] ?? '' );
 		$can_execute = ! empty( $meta['can_execute'] );
 		$has_inferred = is_array( $inferred_plan );
+		$has_cards    = ! empty( $raw['action_cards'] ) && is_array( $raw['action_cards'] );
+		$needs_resolution = ! empty( $raw['requires_resolution'] ) || ! empty( $raw['invalid_interpretation'] );
+
+		if ( $has_cards && $needs_resolution ) {
+			$buttons = array();
+			if ( ! empty( $raw['invalid_interpretation'] ) && $ai_available ) {
+				$buttons[] = array( 'key' => 'ask_ai', 'label' => __( 'Ask AI to re-check', 'reactwoo-geocore' ) );
+			}
+			$buttons[] = array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) );
+			$buttons[] = array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) );
+			return $buttons;
+		}
+
+		if ( $has_cards && $can_execute && RWGA_Interpretation_Status::COMPLETE === $status ) {
+			return array(
+				array( 'key' => 'confirm', 'label' => __( 'Create rule', 'reactwoo-geocore' ) ),
+				array( 'key' => 'edit', 'label' => __( 'Edit rule', 'reactwoo-geocore' ) ),
+				array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) ),
+				array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) ),
+			);
+		}
 
 		if ( $can_execute && RWGA_Interpretation_Status::COMPLETE === $status ) {
 			return array(

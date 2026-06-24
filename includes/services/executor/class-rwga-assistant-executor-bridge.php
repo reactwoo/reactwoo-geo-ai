@@ -67,6 +67,20 @@ class RWGA_Assistant_Executor_Bridge {
 		if ( class_exists( 'RWGA_Planner_Action_Card_Builder', false ) ) {
 			$entities = is_array( $plan['entities'] ?? null ) ? $plan['entities'] : array();
 			$rebuilt  = RWGA_Planner_Action_Card_Builder::build( $actions, array(), $entities );
+			foreach ( $rebuilt['cards'] as $card ) {
+				if ( ! is_array( $card ) || RWGA_Planner_Action_Card_Builder::STATUS_READY !== (string) ( $card['status'] ?? '' ) ) {
+					return new WP_Error(
+						'rwga_plan_unresolved',
+						__( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+						array(
+							'status'                   => 409,
+							'action_cards'             => $rebuilt['cards'],
+							'fields_needing_attention' => $rebuilt['fields_needing_attention'],
+							'requires_resolution'      => true,
+						)
+					);
+				}
+			}
 			if ( ! empty( $rebuilt['requires_resolution'] ) ) {
 				return new WP_Error(
 					'rwga_plan_unresolved',
