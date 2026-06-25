@@ -48,6 +48,11 @@ class RWGA_Planner_Target_Resolver {
 			return $rule_page;
 		}
 
+		$rule_popup = self::rule_creation_popup_target( $clause );
+		if ( is_array( $rule_popup ) ) {
+			return $rule_popup;
+		}
+
 		if ( class_exists( 'RWGA_Planner_Inherited_Target_Resolver', false ) ) {
 			$category = RWGA_Planner_Inherited_Target_Resolver::extract_category_label( $clause );
 			if ( null !== $category ) {
@@ -189,6 +194,42 @@ class RWGA_Planner_Target_Resolver {
 	}
 
 	/**
+	 * @param string $clause Clause text.
+	 * @return array{type:string,label:string,slug:string,source:string}|null
+	 */
+	private static function rule_creation_popup_target( $clause ) {
+		$patterns = array(
+			'/\b(?:create|add|set\s+up|build)\s+(?:a\s+)?(?:targeting\s+)?rule\s+for\s+(?:the\s+)?(.+?)\s+popup\b/i',
+			'/\b(?:popup\s+rule|targeting\s+rule)\s+for\s+(?:the\s+)?(.+?)\s+popup\b/i',
+		);
+		foreach ( $patterns as $pattern ) {
+			if ( preg_match( $pattern, $clause, $m ) ) {
+				return self::named_popup_target( trim( (string) ( $m[1] ?? '' ) ) );
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @param string $label Popup name without the "popup" suffix.
+	 * @return array{type:string,label:string,slug:string,source:string}
+	 */
+	private static function named_popup_target( $label ) {
+		$label = self::strip_rule_target_preamble( $label );
+		$label = self::title_case_label( $label );
+		if ( '' === $label ) {
+			$label = 'popup';
+		}
+		$full = preg_match( '/\bpopup$/i', $label ) ? $label : $label . ' popup';
+		return array(
+			'type'   => 'popup',
+			'label'  => $full,
+			'slug'   => sanitize_title( $full ),
+			'source' => 'detected',
+		);
+	}
+
+	/**
 	 * @param string $label Page label.
 	 * @return array{type:string,label:string,slug:string,source:string}
 	 */
@@ -325,9 +366,47 @@ class RWGA_Planner_Target_Resolver {
 			return trim( (string) $m[1] ) . ' popup';
 		}
 		if ( preg_match( '/\b(?:the|a|an)\s+([\w\s-]+?)\s+popup\b/i', $clause, $m ) ) {
-			return trim( (string) $m[1] ) . ' popup';
+			$inner = self::strip_rule_target_preamble( trim( (string) $m[1] ) );
+			if ( '' !== $inner && ! preg_match( '/^(?:targeting\s+)?rule\b/i', $inner ) ) {
+				return self::title_case_label( $inner ) . ' popup';
+			}
 		}
 		return 'popup';
+	}
+
+	/**
+	 * Remove leading rule-creation words accidentally captured as the target name.
+	 *
+	 * @param string $label Raw label fragment.
+	 * @return string
+	 */
+	private static function strip_rule_target_preamble( $label ) {
+		$label = trim( (string) $label );
+		$patterns = array(
+			'/^(?:create|add|set\s+up|build)\s+(?:a\s+)?(?:targeting\s+)?rule\s+for\s+(?:the\s+)?/i',
+			'/^(?:targeting\s+)?rule\s+for\s+(?:the\s+)?/i',
+			'/^(?:popup\s+rule|targeting\s+rule)\s+for\s+(?:the\s+)?/i',
+		);
+		foreach ( $patterns as $pattern ) {
+			$label = trim( (string) preg_replace( $pattern, '', $label ) );
+		}
+		return $label;
+	}
+
+	/**
+	 * @param string $label Words to title-case.
+	 * @return string
+	 */
+	private static function title_case_label( $label ) {
+		$label = trim( (string) $label );
+		if ( '' === $label ) {
+			return '';
+		}
+		$parts = preg_split( '/\s+/', strtolower( $label ) );
+		if ( ! is_array( $parts ) ) {
+			return ucfirst( strtolower( $label ) );
+		}
+		return implode( ' ', array_map( 'ucfirst', $parts ) );
 	}
 
 	/**

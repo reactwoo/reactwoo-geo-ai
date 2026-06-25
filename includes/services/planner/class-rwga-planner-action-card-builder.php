@@ -350,6 +350,21 @@ class RWGA_Planner_Action_Card_Builder {
 				if ( ! is_array( $condition_group ) ) {
 					continue;
 				}
+				$children     = self::condition_group_child_rows( $condition_group );
+				$group_status = 'valid';
+				$group_warning = '';
+				$group_options = array();
+				foreach ( $children as $child ) {
+					if ( 'valid' !== (string) ( $child['status'] ?? '' ) ) {
+						$group_status = 'needs_resolution';
+						if ( '' === $group_warning && ! empty( $child['warning'] ) ) {
+							$group_warning = (string) $child['warning'];
+						}
+						if ( empty( $group_options ) && ! empty( $child['resolution_options'] ) ) {
+							$group_options = (array) $child['resolution_options'];
+						}
+					}
+				}
 				$rows[] = array(
 					'id'                 => $id(),
 					'type'               => 'condition_group',
@@ -357,11 +372,12 @@ class RWGA_Planner_Action_Card_Builder {
 					'raw'                => (string) ( $condition_group['label'] ?? '' ),
 					'label'              => (string) ( $condition_group['label'] ?? '' ),
 					'value'              => (array) ( $condition_group['conditions'] ?? array() ),
-					'status'             => 'valid',
+					'status'             => $group_status,
 					'icon'               => 'randomize',
-					'warning'            => '',
+					'warning'            => $group_warning,
 					'logic'              => (string) ( $condition_group['logic'] ?? 'OR' ),
-					'resolution_options' => array(),
+					'children'           => $children,
+					'resolution_options' => $group_options,
 				);
 			}
 		}
@@ -410,6 +426,46 @@ class RWGA_Planner_Action_Card_Builder {
 		}
 
 		return $rows;
+	}
+
+	/**
+	 * Normalise OR-group child conditions for review UI status inheritance.
+	 *
+	 * @param array<string,mixed> $condition_group Condition group row.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function condition_group_child_rows( array $condition_group ) {
+		$children = array();
+		foreach ( (array) ( $condition_group['conditions'] ?? array() ) as $child ) {
+			if ( ! is_array( $child ) ) {
+				continue;
+			}
+			$type   = (string) ( $child['type'] ?? '' );
+			$status = (string) ( $child['status'] ?? 'valid' );
+			$label  = (string) ( $child['label'] ?? '' );
+			if ( '' === $label ) {
+				if ( 'traffic_source' === $type ) {
+					$label = __( 'Google Ads traffic', 'reactwoo-geocore' );
+				} elseif ( 'url' === $type ) {
+					$label = sprintf(
+						/* translators: %s: URL path fragment */
+						__( 'URL contains %s', 'reactwoo-geocore' ),
+						(string) ( $child['value'] ?? '' )
+					);
+				}
+			}
+			$row = array(
+				'type'   => $type,
+				'status' => $status,
+				'label'  => $label,
+			);
+			if ( 'needs_mapping' === $status || 'needs_resolution' === $status ) {
+				$row['warning'] = __( 'Google Ads traffic must be mapped to UTM parameters before this can be created.', 'reactwoo-geocore' );
+				$row['resolution_options'] = (array) ( $child['resolution_options'] ?? array() );
+			}
+			$children[] = $row;
+		}
+		return $children;
 	}
 
 	/**
@@ -731,11 +787,52 @@ class RWGA_Planner_Action_Card_Builder {
 	 * @return bool
 	 */
 	private static function target_needs_resolution( array $target ) {
-		return in_array(
-			(string) ( $target['status'] ?? '' ),
-			array( 'not_found', 'ambiguous', 'inherited_unresolved' ),
-			true
+		$status = (string) ( $target['status'] ?? '' );
+		if ( in_array( $status, array( 'matched', 'ignored' ), true ) ) {
+			return false;
+		}
+		if ( in_array( $status, array( 'not_found', 'ambiguous', 'inherited_unresolved', 'needs_resolution' ), true ) ) {
+			return true;
+		}
+		if ( 'registry_unavailable' === $status ) {
+			return self::named_target_requires_verification( $target );
+		}
+		return '' !== $status;
+	}
+
+	/**
+	 * Named popups/banners/pages should be verified; generic placeholders should not block review.
+	 *
+	 * @param array<string,mixed> $target Target resolution row.
+	 * @return bool
+	 */
+	private static function named_target_requires_verification( array $target ) {
+		$raw  = strtolower( trim( (string) ( $target['raw'] ?? '' ) ) );
+		$type = (string) ( $target['type'] ?? 'page' );
+		$generic = array(
+			'',
+			'page',
+			'product',
+			'product page',
+			'category',
+			'category page',
+			'popup',
+			'banner',
+			'variant',
+			'rule',
+			'homepage',
+			'home page',
+			'shop',
+			'shop page',
+			'checkout',
+			'checkout page',
+			'cart',
+			'cart page',
 		);
+		if ( in_array( $raw, $generic, true ) ) {
+			return false;
+		}
+		return in_array( $type, array( 'popup', 'banner', 'page', 'category', 'product', 'category_page', 'product_page' ), true );
 	}
 
 	/**

@@ -83,9 +83,26 @@ class RWGA_Planner_Utm_Condition_Resolver {
 			'status'             => 'needs_mapping',
 			'label'              => __( 'Google Ads traffic', 'reactwoo-geocore' ),
 			'resolution_options' => array(
-				'utm_source=google',
-				'utm_medium=cpc',
-				'utm_source=google AND utm_medium=cpc',
+				array(
+					'key'   => 'utm_source_google',
+					'label' => __( 'Use utm_source=google', 'reactwoo-geocore' ),
+				),
+				array(
+					'key'   => 'utm_medium_cpc',
+					'label' => __( 'Use utm_medium=cpc', 'reactwoo-geocore' ),
+				),
+				array(
+					'key'   => 'utm_source_google_and_medium_cpc',
+					'label' => __( 'Use utm_source=google AND utm_medium=cpc', 'reactwoo-geocore' ),
+				),
+				array(
+					'key'   => 'configure_google_ads_mapping',
+					'label' => __( 'Configure Google Ads mapping', 'reactwoo-geocore' ),
+				),
+				array(
+					'key'   => 'remove_google_ads_condition',
+					'label' => __( 'Remove Google Ads condition', 'reactwoo-geocore' ),
+				),
 			),
 		);
 	}

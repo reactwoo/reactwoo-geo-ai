@@ -33,9 +33,11 @@ class RWGA_Planner_Condition_Resolver {
 
 		$warnings   = array_values( array_unique( array_merge( $include['warnings'], $exclude['warnings'] ) ) );
 		$unresolved = array(
-			'audiences'       => array_merge(
-				(array) ( $include['unresolved_audiences'] ?? array() ),
-				(array) ( $exclude['unresolved_audiences'] ?? array() )
+			'audiences'       => self::dedupe_unresolved_audiences(
+				array_merge(
+					(array) ( $include['unresolved_audiences'] ?? array() ),
+					(array) ( $exclude['unresolved_audiences'] ?? array() )
+				)
 			),
 			'locations'       => array_merge(
 				(array) ( $include['unresolved_locations'] ?? array() ),
@@ -215,19 +217,27 @@ class RWGA_Planner_Condition_Resolver {
 			$google = RWGA_Planner_Utm_Condition_Resolver::extract_google_ads( $include_text );
 			if ( is_array( $google ) ) {
 				$conditions[] = array(
-					'type'   => 'traffic_source',
-					'value'  => 'google_ads',
-					'status' => (string) ( $google['status'] ?? 'needs_mapping' ),
+					'type'               => 'traffic_source',
+					'value'              => 'google_ads',
+					'status'             => (string) ( $google['status'] ?? 'needs_mapping' ),
+					'label'              => (string) ( $google['label'] ?? __( 'Google Ads traffic', 'reactwoo-geocore' ) ),
+					'resolution_options' => (array) ( $google['resolution_options'] ?? array() ),
 				);
 				$include['unresolved_traffic_sources'][] = $google;
 			}
 		}
 		foreach ( $urls as $url ) {
+			$path = (string) $url;
 			$conditions[] = array(
 				'type'     => 'url',
 				'operator' => 'contains',
-				'value'    => (string) $url,
+				'value'    => $path,
 				'status'   => 'valid',
+				'label'    => sprintf(
+					/* translators: %s: URL path fragment */
+					__( 'URL contains %s', 'reactwoo-geocore' ),
+					$path
+				),
 			);
 		}
 
@@ -252,6 +262,36 @@ class RWGA_Planner_Condition_Resolver {
 			'conditions' => $conditions,
 		);
 		$include['urls'] = array();
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $rows Unresolved audience rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function dedupe_unresolved_audiences( array $rows ) {
+		$out  = array();
+		$seen = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			if ( 'matches_any' === (string) ( $row['status'] ?? '' ) ) {
+				$segment_key = implode( ',', (array) ( $row['segment_keys'] ?? array() ) );
+				if ( isset( $seen[ 'matches_any:' . $segment_key ] ) ) {
+					continue;
+				}
+				$seen[ 'matches_any:' . $segment_key ] = true;
+				$out[] = $row;
+				continue;
+			}
+			$key = strtolower( (string) ( $row['status'] ?? '' ) ) . '|' . strtolower( (string) ( $row['raw'] ?? '' ) );
+			if ( isset( $seen[ $key ] ) ) {
+				continue;
+			}
+			$seen[ $key ] = true;
+			$out[]        = $row;
+		}
+		return $out;
 	}
 
 	/**

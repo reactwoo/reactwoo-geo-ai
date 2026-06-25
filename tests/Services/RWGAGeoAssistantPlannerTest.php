@@ -554,7 +554,8 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$input = "Create two versions of the homepage: the first should only show to returning visitors in Canada, and the second should show to new visitors in Australia on mobile. Then hide the newsletter popup on /checkout for users in France, and diagnose what a desktop visitor from Germany would see on the homepage.";
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->synced_entities() );
 
-		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$this->assertTrue( (bool) ( $plan['requires_resolution'] ?? false ) );
 		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
 
 		$variant_one = $plan['actions'][0];
@@ -598,7 +599,8 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$input = "Update the existing Christmas homepage variant so it shows only in Norway and Sweden when it's snowing, but don't show it to tablet users. Then create a new checkout page variant for mobile visitors in Denmark, hide the discount popup for users in Finland, and preview what a desktop visitor from Italy would see on the checkout page.";
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
 
-		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$this->assertTrue( (bool) ( $plan['requires_resolution'] ?? false ) );
 		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
 
 		$update   = $plan['actions'][0];
@@ -643,7 +645,8 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$input = 'Update the existing VIP discount rule so it only applies to logged-in customers in Belgium and Netherlands, but exclude anyone arriving from utm_source=email. Then create a new variant of the accessories category page for mobile users in Switzerland, hide the exit-intent popup for visitors in Austria, and check what a desktop user from Poland would see on the accessories category page.';
 		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
 
-		$this->assertSame( 'needs_confirmation', $plan['status'] );
+		$this->assertSame( 'needs_clarification', $plan['status'] );
+		$this->assertTrue( (bool) ( $plan['requires_resolution'] ?? false ) );
 		$this->assertCount( 4, $plan['actions'], 'Expected four independent actions.' );
 
 		$update  = $plan['actions'][0];
@@ -1052,7 +1055,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertSame( 'rule_plan_parser', $plan['debug']['parser_used'] ?? '' );
 		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
 		$this->assertSame( 'popup', $plan['actions'][0]['target']['type'] ?? '' );
-		$this->assertStringContainsString( 'free delivery', strtolower( (string) ( $plan['actions'][0]['target']['label'] ?? '' ) ) );
+		$this->assertSame( 'Free Delivery popup', $plan['actions'][0]['target']['label'] ?? '' );
 		$this->assertSame( 'only_show', $plan['actions'][0]['operation']['visibility'] ?? '' );
 
 		$include = $this->include_of( $plan['actions'][0] );
@@ -1070,6 +1073,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertCount( 2, $group_conditions );
 		$this->assertSame( 'traffic_source', (string) ( $group_conditions[0]['type'] ?? '' ) );
 		$this->assertSame( 'google_ads', (string) ( $group_conditions[0]['value'] ?? '' ) );
+		$this->assertSame( 'needs_mapping', (string) ( $group_conditions[0]['status'] ?? '' ) );
 		$this->assertSame( 'url', (string) ( $group_conditions[1]['type'] ?? '' ) );
 		$this->assertSame( '/winter-sale', (string) ( $group_conditions[1]['value'] ?? '' ) );
 
@@ -1086,6 +1090,77 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		}
 
 		$this->assertGreaterThan( 0, (int) ( $plan['fields_needing_attention'] ?? 0 ) );
+		$card = $plan['action_cards'][0] ?? array();
+		$group_row = null;
+		foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+			if ( 'condition_group' === ( $row['type'] ?? '' ) ) {
+				$group_row = $row;
+				break;
+			}
+		}
+		$this->assertIsArray( $group_row );
+		$this->assertSame( 'needs_resolution', (string) ( $group_row['status'] ?? '' ) );
+	}
+
+	public function test_free_delivery_popup_with_audience_create_rule(): void {
+		$input = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale. The audience should match any VIP or returning customer segment. Show me the full rule before creating anything.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 'create_rule', $plan['actions'][0]['type'] ?? '' );
+		$this->assertSame( 'Free Delivery popup', $plan['actions'][0]['target']['label'] ?? '' );
+
+		$audiences = (array) ( $plan['actions'][0]['unresolved']['audiences'] ?? array() );
+		$this->assertCount( 1, $audiences );
+		$this->assertSame( 'matches_any', (string) ( $audiences[0]['status'] ?? '' ) );
+		$this->assertEqualsCanonicalizing(
+			array( 'vip', 'returning_customer' ),
+			(array) ( $audiences[0]['segment_keys'] ?? array() )
+		);
+
+		$card = $plan['action_cards'][0] ?? array();
+		$audience_rows = array_values(
+			array_filter(
+				(array) ( $card['condition_rows'] ?? array() ),
+				static function ( $row ) {
+					return is_array( $row ) && 'audience' === ( $row['type'] ?? '' );
+				}
+			)
+		);
+		$this->assertCount( 1, $audience_rows );
+		$this->assertSame( 'needs_resolution', (string) ( $audience_rows[0]['status'] ?? '' ) );
+
+		$this->assertGreaterThanOrEqual( 3, (int) ( $plan['fields_needing_attention'] ?? 0 ) );
+		$this->assertTrue( (bool) ( $plan['requires_resolution'] ?? false ) );
+	}
+
+	public function test_popup_rule_target_label_is_clean(): void {
+		$input = 'Create a rule for the Free Delivery popup.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$this->assertSame( 'Free Delivery popup', $plan['actions'][0]['target']['label'] ?? '' );
+	}
+
+	public function test_trigger_or_group_needs_resolution_when_google_ads_unmapped(): void {
+		$input = 'Only trigger when visitor came from Google Ads or URL contains /winter-sale.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, $plan['actions'] );
+		$card = $plan['action_cards'][0] ?? array();
+		$group_row = null;
+		foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+			if ( 'condition_group' === ( $row['type'] ?? '' ) ) {
+				$group_row = $row;
+				break;
+			}
+		}
+		$this->assertIsArray( $group_row );
+		$this->assertSame( 'needs_resolution', (string) ( $group_row['status'] ?? '' ) );
+		$children = (array) ( $group_row['children'] ?? array() );
+		$this->assertCount( 2, $children );
+		$this->assertSame( 'needs_mapping', (string) ( $children[0]['status'] ?? '' ) );
+		$this->assertSame( 'valid', (string) ( $children[1]['status'] ?? '' ) );
 	}
 
 	public function test_show_include_exclude_countries_single_rule(): void {

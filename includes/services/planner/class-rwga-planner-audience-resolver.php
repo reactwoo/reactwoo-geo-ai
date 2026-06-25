@@ -96,15 +96,19 @@ class RWGA_Planner_Audience_Resolver {
 		$matched    = array();
 		$unresolved = array();
 
-		foreach ( self::detect_phrases( $text ) as $raw ) {
-			if ( ! class_exists( 'RWGA_Planner_Synced_Entity_Resolver', false ) ) {
-				continue;
-			}
-			$resolution = RWGA_Planner_Synced_Entity_Resolver::resolve_phrase( $raw, $registry );
-			if ( RWGA_Planner_Synced_Entity_Resolver::STATUS_MATCHED === $resolution['status'] ) {
-				$matched[] = array_merge( $resolution['matched'], array( 'raw' => $resolution['raw'] ) );
-			} else {
-				$unresolved[] = $resolution;
+		if ( is_array( $grouped ) && is_array( $grouped['unresolved'] ?? null ) ) {
+			$unresolved[] = $grouped['unresolved'];
+		} elseif ( ! is_array( $grouped ) ) {
+			foreach ( self::detect_phrases( $text ) as $raw ) {
+				if ( ! class_exists( 'RWGA_Planner_Synced_Entity_Resolver', false ) ) {
+					continue;
+				}
+				$resolution = RWGA_Planner_Synced_Entity_Resolver::resolve_phrase( $raw, $registry );
+				if ( RWGA_Planner_Synced_Entity_Resolver::STATUS_MATCHED === $resolution['status'] ) {
+					$matched[] = array_merge( $resolution['matched'], array( 'raw' => $resolution['raw'] ) );
+				} else {
+					$unresolved[] = $resolution;
+				}
 			}
 		}
 
@@ -116,10 +120,6 @@ class RWGA_Planner_Audience_Resolver {
 				'suggestions' => array(),
 				'message'     => __( 'Choose whether this means any audience or selected audience groups.', 'reactwoo-geocore' ),
 			);
-		}
-
-		if ( is_array( $grouped ) && is_array( $grouped['unresolved'] ?? null ) ) {
-			$unresolved[] = $grouped['unresolved'];
 		}
 
 		return array(

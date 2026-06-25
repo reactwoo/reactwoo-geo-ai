@@ -1091,9 +1091,16 @@ class RWGA_Assistant_Service {
 		$needs_resolution = ! empty( $raw['requires_resolution'] ) || ! empty( $raw['invalid_interpretation'] );
 
 		if ( $has_cards && $needs_resolution ) {
-			$buttons = array();
-			if ( ! empty( $raw['invalid_interpretation'] ) && $ai_available ) {
-				$buttons[] = array( 'key' => 'ask_ai', 'label' => __( 'Ask AI to re-check', 'reactwoo-geocore' ) );
+			$buttons = array(
+				array( 'key' => 'resolve_items', 'label' => __( 'Resolve items', 'reactwoo-geocore' ) ),
+			);
+			if ( $ai_available ) {
+				$buttons[] = array(
+					'key'   => 'ask_ai',
+					'label' => ! empty( $raw['invalid_interpretation'] )
+						? __( 'Ask AI to re-check', 'reactwoo-geocore' )
+						: __( 'Ask AI to check', 'reactwoo-geocore' ),
+				);
 			}
 			$buttons[] = array( 'key' => 'debug', 'label' => __( 'Show debug', 'reactwoo-geocore' ) );
 			$buttons[] = array( 'key' => 'cancel', 'label' => __( 'Cancel', 'reactwoo-geocore' ) );
