@@ -220,7 +220,7 @@ class RWGA_Planner_Target_Resolver {
 		if ( '' === $label ) {
 			$label = 'popup';
 		}
-		$full = preg_match( '/\bpopup$/i', $label ) ? $label : $label . ' popup';
+		$full = preg_match( '/\bpopup$/i', $label ) ? (string) preg_replace( '/\bPopup$/', 'popup', $label ) : $label . ' popup';
 		return array(
 			'type'   => 'popup',
 			'label'  => $full,
@@ -375,6 +375,30 @@ class RWGA_Planner_Target_Resolver {
 	}
 
 	/**
+	 * Clean a detected target label (strip rule-creation preamble, title-case popups).
+	 *
+	 * @param string $label Detected label.
+	 * @param string $type  Target type (popup, banner, page, …).
+	 * @return string
+	 */
+	public static function clean_detected_label( $label, $type = '' ) {
+		$label = self::strip_rule_target_preamble( (string) $label );
+		$type  = (string) $type;
+		if ( in_array( $type, array( 'popup', 'banner' ), true ) && '' !== $label ) {
+			$label = self::title_case_label( $label );
+			if ( 'popup' === $type && ! preg_match( '/\bpopup$/i', $label ) ) {
+				$label .= ' popup';
+			} elseif ( 'banner' === $type && ! preg_match( '/\bbanner$/i', $label ) ) {
+				$label .= ' banner';
+			} else {
+				$label = (string) preg_replace( '/\bPopup$/', 'popup', $label );
+				$label = (string) preg_replace( '/\bBanner$/', 'banner', $label );
+			}
+		}
+		return trim( $label );
+	}
+
+	/**
 	 * Remove leading rule-creation words accidentally captured as the target name.
 	 *
 	 * @param string $label Raw label fragment.
@@ -386,6 +410,7 @@ class RWGA_Planner_Target_Resolver {
 			'/^(?:create|add|set\s+up|build)\s+(?:a\s+)?(?:targeting\s+)?rule\s+for\s+(?:the\s+)?/i',
 			'/^(?:targeting\s+)?rule\s+for\s+(?:the\s+)?/i',
 			'/^(?:popup\s+rule|targeting\s+rule)\s+for\s+(?:the\s+)?/i',
+			'/^(?:show|display)\s+(?:a\s+)?(?:targeting\s+)?rule\s+for\s+(?:the\s+)?/i',
 		);
 		foreach ( $patterns as $pattern ) {
 			$label = trim( (string) preg_replace( $pattern, '', $label ) );

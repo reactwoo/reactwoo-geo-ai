@@ -335,6 +335,16 @@ class RWGA_Geo_Assistant_Planner {
 		$clause   = trim( (string) $clause );
 		$type_row = RWGA_Planner_Action_Type_Detector::detect( $clause, is_array( $clause_row ) ? $clause_row : array() );
 		$target   = RWGA_Planner_Target_Resolver::resolve( $clause, $phrase, $context, (string) $type_row['type'], is_array( $clause_row ) ? $clause_row : array() );
+		if ( class_exists( 'RWGA_Planner_Target_Resolver', false ) && is_array( $target ) ) {
+			$clean_label = RWGA_Planner_Target_Resolver::clean_detected_label(
+				(string) ( $target['label'] ?? '' ),
+				(string) ( $target['type'] ?? 'page' )
+			);
+			if ( '' !== $clean_label ) {
+				$target['label'] = $clean_label;
+				$target['slug']  = sanitize_title( $clean_label );
+			}
+		}
 
 		if ( RWGA_Geo_Action_Types::CREATE_VARIANT === $type_row['type']
 			&& ( RWGA_Planner_Action_Clause_Splitter::has_variant_pair_marker( $clause )
@@ -448,6 +458,10 @@ class RWGA_Geo_Assistant_Planner {
 			$target_label = self::action_target_label( $action );
 			foreach ( (array) ( $action['unresolved']['audiences'] ?? array() ) as $row ) {
 				if ( ! is_array( $row ) || '' === (string) ( $row['raw'] ?? '' ) ) {
+					continue;
+				}
+				$row_status = (string) ( $row['status'] ?? '' );
+				if ( in_array( $row_status, array( 'matches_any', 'audience_any' ), true ) ) {
 					continue;
 				}
 				$row['action_index'] = $position;

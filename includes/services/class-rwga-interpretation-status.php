@@ -16,6 +16,7 @@ class RWGA_Interpretation_Status {
 	const NEEDS_AI             = 'needs_ai';
 	const NEEDS_CLARIFICATION  = 'needs_clarification';
 	const NEEDS_CONFIRMATION   = 'needs_confirmation';
+	const NEEDS_RESOLUTION     = 'needs_resolution';
 	const FAILED               = 'failed';
 
 	/**
@@ -28,6 +29,9 @@ class RWGA_Interpretation_Status {
 		$status     = (string) ( $result['interpretation_status'] ?? '' );
 		if ( '' === $status ) {
 			$status = self::infer_status( $result, $confidence );
+		}
+		if ( ! empty( $result['requires_resolution'] ) ) {
+			$status = self::NEEDS_RESOLUTION;
 		}
 
 		$can_execute = self::COMPLETE === $status

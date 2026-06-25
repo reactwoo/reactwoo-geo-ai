@@ -80,6 +80,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-planner-legacy-adapter.php';
 		require_once $base . 'services/planner/class-rwga-geo-assistant-planner.php';
 		require_once $base . 'services/class-rwga-local-intent-interpreter.php';
+		require_once $base . 'services/class-rwga-interpretation-status.php';
 	}
 
 	/**
@@ -297,7 +298,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertCount( 1, $plan['actions'] );
 		$action = $plan['actions'][0];
 		$this->assertSame( 'create_rule', $action['type'] );
-		$this->assertStringContainsString( 'summer', (string) ( $action['target']['label'] ?? '' ) );
+		$this->assertStringContainsStringIgnoringCase( 'summer', (string) ( $action['target']['label'] ?? '' ) );
 		$include = $this->include_of( $action );
 		$this->assertSame( array( 'DE' ), $include['countries'] );
 		$this->assertSame( array( 'mobile' ), $include['devices'] );
@@ -859,7 +860,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 
 		// The trainers category target is unresolved and offers suggested targets.
 		$target = (array) ( $plan['action_cards'][0]['target'] ?? array() );
-		$this->assertContains( (string) ( $target['status'] ?? '' ), array( 'not_found', 'ambiguous' ) );
+		$this->assertContains( (string) ( $target['status'] ?? '' ), array( 'not_found', 'ambiguous', 'needs_resolution' ) );
 		$this->assertNotEmpty( (array) ( $target['suggestions'] ?? array() ) );
 	}
 
@@ -1132,6 +1133,27 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 
 		$this->assertGreaterThanOrEqual( 3, (int) ( $plan['fields_needing_attention'] ?? 0 ) );
 		$this->assertTrue( (bool) ( $plan['requires_resolution'] ?? false ) );
+
+		$required_fields = array_column( (array) ( $card['requiredResolutions'] ?? array() ), 'field' );
+		$this->assertContains( 'target', $required_fields );
+		$this->assertContains( 'audience', $required_fields );
+		$this->assertContains( 'traffic_source', $required_fields );
+		$this->assertSame( 'needs_resolution', (string) ( $card['target']['status'] ?? '' ) );
+		$this->assertSame( 'matches_any', (string) ( $audience_rows[0]['operator'] ?? '' ) );
+	}
+
+	public function test_free_delivery_legacy_interpret_blocks_execution(): void {
+		$input  = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale. The audience should match any VIP or returning customer segment. Show me the full rule before creating anything.';
+		$result = RWGA_Geo_Assistant_Planner::interpret_as_legacy( $input, array(), $this->entities() );
+
+		$this->assertTrue( (bool) ( $result['matched'] ?? false ) );
+		$this->assertSame( 'needs_resolution', (string) ( $result['interpretation_status'] ?? '' ) );
+		$this->assertFalse( (bool) ( $result['proposal_ready'] ?? true ) );
+		$this->assertGreaterThanOrEqual( 3, (int) ( $result['fields_needing_attention'] ?? 0 ) );
+		$card = $result['action_cards'][0] ?? array();
+		$this->assertSame( 'Free Delivery popup', (string) ( $card['target']['raw'] ?? '' ) );
+		$meta = RWGA_Interpretation_Status::from_result( $result );
+		$this->assertFalse( (bool) ( $meta['can_execute'] ?? true ) );
 	}
 
 	public function test_popup_rule_target_label_is_clean(): void {

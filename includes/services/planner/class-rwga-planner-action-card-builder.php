@@ -398,6 +398,7 @@ class RWGA_Planner_Action_Card_Builder {
 				'mode'               => 'include',
 				'raw'                => (string) ( $audience['raw'] ?? '' ),
 				'label'              => $label,
+				'operator'           => 'matches_any' === $status ? 'matches_any' : '',
 				'value'              => $valid ? ( is_array( $audience['resolved'] ?? null ) ? $audience['resolved'] : null ) : ( $audience['segment_keys'] ?? null ),
 				'status'             => $valid ? 'valid' : 'needs_resolution',
 				'icon'               => 'groups',
@@ -503,6 +504,9 @@ class RWGA_Planner_Action_Card_Builder {
 		if ( 'matches_any' === $status ) {
 			return __( 'Audience segments must be selected or synced before this can be created.', 'reactwoo-geocore' );
 		}
+		if ( in_array( $status, array( 'not_found', 'not_defined' ), true ) ) {
+			return __( 'Audience targeting is not available or no audiences are synced yet.', 'reactwoo-geocore' );
+		}
 		return __( 'No synced audience list is available yet.', 'reactwoo-geocore' );
 	}
 
@@ -557,6 +561,7 @@ class RWGA_Planner_Action_Card_Builder {
 			return array(
 				array( 'key' => 'choose_audience_segments', 'label' => __( 'Choose audience segments', 'reactwoo-geocore' ), 'picker' => true ),
 				array( 'key' => 'refresh_synced_audiences', 'label' => __( 'Refresh synced audiences', 'reactwoo-geocore' ) ),
+				array( 'key' => 'keep_as_draft', 'label' => __( 'Keep as draft', 'reactwoo-geocore' ) ),
 				array( 'key' => 'remove_audience_condition', 'label' => __( 'Remove audience condition', 'reactwoo-geocore' ) ),
 			);
 		}
@@ -575,6 +580,16 @@ class RWGA_Planner_Action_Card_Builder {
 	 */
 	private static function build_target( array $action, array $context, array $entities ) {
 		$raw_target = is_array( $action['target'] ?? null ) ? $action['target'] : array();
+		$type       = (string) ( $raw_target['type'] ?? 'page' );
+		if ( class_exists( 'RWGA_Planner_Target_Resolver', false ) ) {
+			$clean_label = RWGA_Planner_Target_Resolver::clean_detected_label(
+				(string) ( $raw_target['label'] ?? '' ),
+				$type
+			);
+			if ( '' !== $clean_label ) {
+				$raw_target['label'] = $clean_label;
+			}
+		}
 
 		if ( ! empty( $raw_target['user_resolved'] ) && is_array( $raw_target['user_resolved'] ) ) {
 			$chosen = $raw_target['user_resolved'];
@@ -622,6 +637,10 @@ class RWGA_Planner_Action_Card_Builder {
 			if ( in_array( $resolution['status'], array( 'not_found', 'ambiguous' ), true ) ) {
 				$resolution['status'] = 'inherited_unresolved';
 			}
+		}
+
+		if ( self::target_needs_resolution( $resolution ) ) {
+			$resolution['status'] = 'needs_resolution';
 		}
 
 		return self::stamp_dependency( $resolution, $raw_target );

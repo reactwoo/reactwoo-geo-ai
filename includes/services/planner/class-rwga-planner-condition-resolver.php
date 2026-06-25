@@ -24,6 +24,7 @@ class RWGA_Planner_Condition_Resolver {
 			? self::resolve_group( (string) $split['exclude_text'], $entities, $context )
 			: self::empty_group();
 
+		self::merge_grouped_audiences_from_clause( $clause, $include, $entities, $context );
 		self::apply_trigger_or_group( (string) $split['include_text'], $include, $context );
 
 		$conditions = array(
@@ -262,6 +263,30 @@ class RWGA_Planner_Condition_Resolver {
 			'conditions' => $conditions,
 		);
 		$include['urls'] = array();
+	}
+
+	/**
+	 * Ensure grouped audience phrases on the full clause survive include-only stripping.
+	 *
+	 * @param string              $clause   Full clause text.
+	 * @param array<string,mixed> $include  Include group (by ref).
+	 * @param array<int,array>    $entities Entities.
+	 * @param array<string,mixed> $context  Planner context.
+	 * @return void
+	 */
+	private static function merge_grouped_audiences_from_clause( $clause, array &$include, array $entities, array $context = array() ) {
+		if ( ! class_exists( 'RWGA_Planner_Audience_Resolver', false ) ) {
+			return;
+		}
+		$audience = RWGA_Planner_Audience_Resolver::resolve( (string) $clause, $entities, $context );
+		foreach ( (array) ( $audience['unresolved'] ?? array() ) as $row ) {
+			if ( ! is_array( $row ) || 'matches_any' !== (string) ( $row['status'] ?? '' ) ) {
+				continue;
+			}
+			$include['unresolved_audiences'] = self::dedupe_unresolved_audiences(
+				array_merge( (array) ( $include['unresolved_audiences'] ?? array() ), array( $row ) )
+			);
+		}
 	}
 
 	/**

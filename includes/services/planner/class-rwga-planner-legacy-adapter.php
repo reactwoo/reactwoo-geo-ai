@@ -117,7 +117,7 @@ class RWGA_Planner_Legacy_Adapter {
 			'matched_action'            => $matched_action,
 			'confidence'                => (float) ( $plan['confidence'] ?? 0 ),
 			'proposal_ready'            => $proposal_ready,
-			'interpretation_status'     => self::interpretation_status( $status ),
+			'interpretation_status'     => self::interpretation_status( $status, $plan ),
 			'requires_confirmation'     => true,
 			'summary'                   => $copy['summary'],
 			'setup_summary'             => $copy['setup_summary'],
@@ -251,7 +251,12 @@ class RWGA_Planner_Legacy_Adapter {
 	 * @param string $status Plan status.
 	 * @return string
 	 */
-	private static function interpretation_status( $status ) {
+	private static function interpretation_status( $status, array $plan = array() ) {
+		if ( ! empty( $plan['requires_resolution'] ) ) {
+			return class_exists( 'RWGA_Interpretation_Status', false )
+				? RWGA_Interpretation_Status::NEEDS_RESOLUTION
+				: 'needs_resolution';
+		}
 		if ( RWGA_Geo_Action_Types::STATUS_NEEDS_CLARIFICATION === $status ) {
 			return class_exists( 'RWGA_Interpretation_Status', false )
 				? RWGA_Interpretation_Status::NEEDS_CONFIRMATION
