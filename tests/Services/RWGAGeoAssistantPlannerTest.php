@@ -79,6 +79,7 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		require_once $base . 'services/planner/class-rwga-planner-ai-fallback.php';
 		require_once $base . 'services/planner/class-rwga-planner-legacy-adapter.php';
 		require_once $base . 'services/planner/class-rwga-geo-assistant-planner.php';
+		require_once $base . 'services/executor/class-rwga-card-resolution-applier.php';
 		require_once $base . 'services/class-rwga-local-intent-interpreter.php';
 		require_once $base . 'services/class-rwga-interpretation-status.php';
 	}
@@ -1373,5 +1374,101 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$labels = RWGA_Planner_Action_Card_Builder::unresolved_field_labels( array( $card ) );
 		$this->assertContains( 'Popup target', $labels );
 		$this->assertContains( 'Google Ads mapping', $labels );
+	}
+
+	public function test_free_delivery_popup_apply_google_ads_mapping_reduces_unresolved(): void {
+		$input   = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale. Show me the full rule before creating anything.';
+		$plan    = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$actions = $plan['actions'];
+
+		$actions = RWGA_Card_Resolution_Applier::apply(
+			$actions,
+			array(
+				array(
+					'card'   => 0,
+					'field'  => 'traffic_source',
+					'raw'    => 'Google Ads traffic',
+					'action' => 'choose',
+					'id'     => 'utm_source_google_and_medium_cpc',
+					'label'  => 'Match utm_source=google AND utm_medium=cpc',
+				),
+			)
+		);
+
+		$rebuilt = RWGA_Planner_Action_Card_Builder::build( $actions, array(), $this->entities() );
+		$this->assertSame( 1, (int) ( $rebuilt['fields_needing_attention'] ?? 0 ) );
+
+		$card = $rebuilt['cards'][0] ?? array();
+		$group_row = null;
+		foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+			if ( 'condition_group' === ( $row['type'] ?? '' ) ) {
+				$group_row = $row;
+				break;
+			}
+		}
+		$this->assertIsArray( $group_row );
+		$this->assertSame( 'valid', (string) ( $group_row['status'] ?? '' ) );
+		$children = (array) ( $group_row['children'] ?? array() );
+		$this->assertSame( 'valid', (string) ( $children[0]['status'] ?? '' ) );
+		$this->assertSame( 'valid', (string) ( $children[1]['status'] ?? '' ) );
+	}
+
+	public function test_free_delivery_popup_resolve_popup_target_reduces_unresolved(): void {
+		$input   = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale. Show me the full rule before creating anything.';
+		$plan    = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$actions = $plan['actions'];
+
+		$actions = RWGA_Card_Resolution_Applier::apply(
+			$actions,
+			array(
+				array(
+					'card'   => 0,
+					'field'  => 'target',
+					'raw'    => 'Free Delivery popup',
+					'action' => 'choose',
+					'id'     => 'popup_42',
+					'label'  => 'Free Delivery popup',
+				),
+			)
+		);
+
+		$rebuilt = RWGA_Planner_Action_Card_Builder::build( $actions, array(), $this->entities() );
+		$this->assertSame( 1, (int) ( $rebuilt['fields_needing_attention'] ?? 0 ) );
+		$card = $rebuilt['cards'][0] ?? array();
+		$this->assertSame( 'matched', (string) ( $card['target']['status'] ?? '' ) );
+	}
+
+	public function test_free_delivery_popup_both_resolutions_ready(): void {
+		$input   = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale. Show me the full rule before creating anything.';
+		$plan    = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$actions = $plan['actions'];
+
+		$actions = RWGA_Card_Resolution_Applier::apply(
+			$actions,
+			array(
+				array(
+					'card'   => 0,
+					'field'  => 'target',
+					'raw'    => 'Free Delivery popup',
+					'action' => 'choose',
+					'id'     => 'popup_42',
+					'label'  => 'Free Delivery popup',
+				),
+				array(
+					'card'   => 0,
+					'field'  => 'traffic_source',
+					'raw'    => 'Google Ads traffic',
+					'action' => 'choose',
+					'id'     => 'utm_source_google_and_medium_cpc',
+					'label'  => 'Match utm_source=google AND utm_medium=cpc',
+				),
+			)
+		);
+
+		$rebuilt = RWGA_Planner_Action_Card_Builder::build( $actions, array(), $this->entities() );
+		$this->assertSame( 0, (int) ( $rebuilt['fields_needing_attention'] ?? 0 ) );
+		$this->assertFalse( (bool) ( $rebuilt['requires_resolution'] ?? true ) );
+		$card = $rebuilt['cards'][0] ?? array();
+		$this->assertSame( RWGA_Planner_Action_Card_Builder::STATUS_READY, (string) ( $card['status'] ?? '' ) );
 	}
 }

@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.128
+Stable tag: 0.4.129
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.129 =
+* **Geo Assistant — resolution applier:** `RWGA_Card_Resolution_Applier` now applies Google Ads / traffic-source UTM mapping from Action Review, updates OR-group child status, and rebuilds cards for execute gating. Regression tests for Free Delivery popup mapping and target resolution.
 
 = 0.4.124 =
 * **Geo Assistant — create-rule include/exclude parsing:** Compound instructions such as “create a rule for the Free Delivery popup… show only in IE/UK but do not show FR/DE… also trigger from Google Ads or URL contains /winter-sale” now stay a single `create_rule` action with separated include/exclude countries, page type and device conditions, Google Ads + URL OR trigger groups, and confirmation-only metadata. Prevents fallback to a flat “Hide from all countries” country rule.
