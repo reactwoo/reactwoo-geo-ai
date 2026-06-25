@@ -79,6 +79,8 @@ class RWGA_Planner_Confirmation_Instruction_Resolver {
 			$instruction = array(
 				'raw'                   => $matched,
 				'requires_confirmation' => true,
+				'display_text'          => self::display_text( $matched ),
+				'detail'                => __( 'Manual confirmation required before execution.', 'reactwoo-geocore' ),
 			);
 		}
 
@@ -87,6 +89,24 @@ class RWGA_Planner_Confirmation_Instruction_Resolver {
 			'confirmation_instruction' => $instruction,
 			'ignored'                  => array_values( array_unique( $ignored ) ),
 		);
+	}
+
+	/**
+	 * Human-readable confirmation line for Action Review.
+	 *
+	 * @param string $raw Matched phrase fragment.
+	 * @return string
+	 */
+	public static function display_text( $raw ) {
+		$text = trim( (string) $raw );
+		if ( '' === $text ) {
+			return '';
+		}
+		$text = (string) preg_replace( '/\s+/', ' ', $text );
+		if ( ! preg_match( '/[.!?]$/', $text ) ) {
+			$text .= '.';
+		}
+		return ucfirst( $text );
 	}
 
 	/**

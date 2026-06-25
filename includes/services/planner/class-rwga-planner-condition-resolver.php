@@ -222,6 +222,7 @@ class RWGA_Planner_Condition_Resolver {
 					'value'              => 'google_ads',
 					'status'             => (string) ( $google['status'] ?? 'needs_mapping' ),
 					'label'              => (string) ( $google['label'] ?? __( 'Google Ads traffic', 'reactwoo-geocore' ) ),
+					'warning'            => (string) ( $google['warning'] ?? '' ),
 					'resolution_options' => (array) ( $google['resolution_options'] ?? array() ),
 				);
 				$include['unresolved_traffic_sources'][] = $google;

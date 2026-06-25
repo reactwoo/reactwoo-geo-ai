@@ -109,11 +109,15 @@ class RWGA_Planner_Action_Card_Builder {
 
 		$required = array();
 		if ( self::target_needs_resolution( $target ) ) {
+			$is_popup = 'popup' === (string) ( $target['type'] ?? '' );
 			$required[] = array(
-				'field'   => 'target',
-				'raw'     => (string) $target['raw'],
-				'status'  => (string) $target['status'],
-				'actions' => array( 'choose_target', 'search_targets', 'remove_action' ),
+				'field'       => 'target',
+				'raw'         => (string) $target['raw'],
+				'status'      => (string) $target['status'],
+				'target_type' => (string) ( $target['type'] ?? 'page' ),
+				'actions'     => $is_popup
+					? array( 'choose_popup', 'search_popups', 'remove_action' )
+					: array( 'choose_target', 'search_targets', 'remove_action' ),
 			);
 		}
 		if ( null !== $campaign && self::entity_needs_resolution( $campaign ) ) {
@@ -182,12 +186,15 @@ class RWGA_Planner_Action_Card_Builder {
 			'operation'           => is_array( $action['operation'] ?? null ) ? $action['operation'] : array(),
 			'logic'               => self::build_logic( $action ),
 			'conditions'          => $conditions,
-			'condition_rows'      => self::build_condition_rows( $public_include, $exclude, $audiences, $locations, $action_notes ),
+			'condition_rows'      => self::build_condition_rows( $public_include, $exclude, $audiences, $locations, $action_notes, $entities ),
 			'uses_shared_target'  => ! empty( $action['uses_shared_target'] ),
 			'notes'               => $action_notes,
 			'audiences'           => $audiences,
 			'warnings'            => array_values( (array) ( $action['warnings'] ?? array() ) ),
 			'requiredResolutions' => $required,
+			'confirmation_instruction' => is_array( $action['confirmation_instruction'] ?? null )
+				? $action['confirmation_instruction']
+				: null,
 		);
 	}
 
@@ -261,7 +268,7 @@ class RWGA_Planner_Action_Card_Builder {
 	 * @param array<int,string|mixed>        $notes     Action notes (e.g. no_weather_restriction).
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function build_condition_rows( array $include, array $exclude, array $audiences, array $locations, array $notes = array() ) {
+	private static function build_condition_rows( array $include, array $exclude, array $audiences, array $locations, array $notes = array(), array $entities = array() ) {
 		$rows = array();
 		$n    = 0;
 		$id   = static function () use ( &$n ) {
@@ -273,25 +280,26 @@ class RWGA_Planner_Action_Card_Builder {
 		foreach ( array( 'include' => $include, 'exclude' => $exclude ) as $mode => $group ) {
 			$countries = array_values( (array) ( $group['countries'] ?? array() ) );
 			if ( count( $countries ) > 1 ) {
-				$labels = array();
-				foreach ( $countries as $code ) {
-					$labels[] = (string) $code;
-				}
+				$labels = self::country_labels( $countries, $entities );
 				$rows[] = self::valid_row(
 					$id(),
 					'location',
 					$mode,
 					implode( '|', $countries ),
 					'public',
-					sprintf(
-						/* translators: %s: country list joined with OR */
-						__( 'Country: %s', 'reactwoo-geocore' ),
-						implode( ' OR ', $labels )
-					)
+					self::country_row_label( $mode, $labels )
 				);
 			} else {
 				foreach ( $countries as $code ) {
-					$rows[] = self::valid_row( $id(), 'location', $mode, (string) $code, 'public', sprintf( __( 'Country: %s', 'reactwoo-geocore' ), (string) $code ) );
+					$labels = self::country_labels( array( $code ), $entities );
+					$rows[] = self::valid_row(
+						$id(),
+						'location',
+						$mode,
+						(string) $code,
+						'public',
+						self::country_row_label( $mode, $labels )
+					);
 				}
 			}
 			foreach ( (array) ( $group['regions'] ?? array() ) as $code ) {
@@ -461,7 +469,7 @@ class RWGA_Planner_Action_Card_Builder {
 				'label'  => $label,
 			);
 			if ( 'needs_mapping' === $status || 'needs_resolution' === $status ) {
-				$row['warning'] = __( 'Google Ads traffic must be mapped to UTM parameters before this can be created.', 'reactwoo-geocore' );
+				$row['warning'] = (string) ( $child['warning'] ?? __( 'Google Ads traffic must be mapped to UTM parameters before this can be created.', 'reactwoo-geocore' ) );
 				$row['resolution_options'] = (array) ( $child['resolution_options'] ?? array() );
 			}
 			$children[] = $row;
@@ -799,6 +807,91 @@ class RWGA_Planner_Action_Card_Builder {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Human labels for unresolved fields (Resolution Hub / execute errors).
+	 *
+	 * @param array<int,array<string,mixed>> $cards Action cards.
+	 * @return array<int,string>
+	 */
+	public static function unresolved_field_labels( array $cards ) {
+		$labels = array();
+		$seen   = array();
+		foreach ( $cards as $card ) {
+			if ( ! is_array( $card ) ) {
+				continue;
+			}
+			foreach ( (array) ( $card['requiredResolutions'] ?? array() ) as $req ) {
+				if ( ! is_array( $req ) ) {
+					continue;
+				}
+				$field = (string) ( $req['field'] ?? '' );
+				if ( '' === $field || isset( $seen[ $field ] ) ) {
+					continue;
+				}
+				$seen[ $field ] = true;
+				$labels[]       = self::resolution_field_label( $field, $card );
+			}
+		}
+		return $labels;
+	}
+
+	/**
+	 * @param string              $field Field key.
+	 * @param array<string,mixed> $card  Action card.
+	 * @return string
+	 */
+	private static function resolution_field_label( $field, array $card ) {
+		switch ( $field ) {
+			case 'target':
+				$target = is_array( $card['target'] ?? null ) ? $card['target'] : array();
+				return 'popup' === (string) ( $target['type'] ?? '' )
+					? __( 'Popup target', 'reactwoo-geocore' )
+					: __( 'Target page', 'reactwoo-geocore' );
+			case 'traffic_source':
+				return __( 'Google Ads mapping', 'reactwoo-geocore' );
+			case 'audience':
+				return __( 'Audience segments', 'reactwoo-geocore' );
+			case 'campaign':
+				return __( 'Campaign', 'reactwoo-geocore' );
+			case 'location':
+				return __( 'Location', 'reactwoo-geocore' );
+			default:
+				return ucwords( str_replace( '_', ' ', (string) $field ) );
+		}
+	}
+
+	/**
+	 * @param array<int,string> $codes    ISO country codes.
+	 * @param array<int,array>  $entities Entity rows.
+	 * @return array<int,string>
+	 */
+	private static function country_labels( array $codes, array $entities ) {
+		$labels = array();
+		foreach ( $codes as $code ) {
+			$labels[] = class_exists( 'RWGA_Planner_Location_Resolver', false )
+				? RWGA_Planner_Location_Resolver::country_label( (string) $code, $entities )
+				: (string) $code;
+		}
+		return $labels;
+	}
+
+	/**
+	 * @param string            $mode   include|exclude.
+	 * @param array<int,string> $labels Country display names.
+	 * @return string
+	 */
+	private static function country_row_label( $mode, array $labels ) {
+		$list = implode( ' OR ', $labels );
+		if ( 'exclude' === $mode ) {
+			return sprintf(
+				/* translators: %s: country list joined with OR */
+				__( 'Exclude country: %s', 'reactwoo-geocore' ),
+				$list
+			);
+		}
+		return $list;
 	}
 
 	/**

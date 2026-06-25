@@ -1257,4 +1257,121 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		}
 		return null;
 	}
+
+	public function test_popup_target_resolver_labels(): void {
+		$plan = RWGA_Geo_Assistant_Planner::interpret( 'Create a rule for the Free Delivery popup.', array(), $this->entities() );
+		$card = $plan['action_cards'][0] ?? array();
+
+		$this->assertSame( 'popup', (string) ( $card['target']['type'] ?? '' ) );
+		$this->assertSame( 'Free Delivery popup', (string) ( $card['target']['raw'] ?? '' ) );
+
+		$target_req = null;
+		foreach ( (array) ( $card['requiredResolutions'] ?? array() ) as $req ) {
+			if ( 'target' === ( $req['field'] ?? '' ) ) {
+				$target_req = $req;
+				break;
+			}
+		}
+		$this->assertIsArray( $target_req );
+		$actions = (array) ( $target_req['actions'] ?? array() );
+		$this->assertContains( 'choose_popup', $actions );
+		$this->assertContains( 'search_popups', $actions );
+		$this->assertNotContains( 'choose_target', $actions );
+		$this->assertNotContains( 'search_targets', $actions );
+	}
+
+	public function test_google_ads_resolver_options(): void {
+		$plan  = RWGA_Geo_Assistant_Planner::interpret(
+			'Only trigger when visitor came from Google Ads or the URL contains /winter-sale.',
+			array(),
+			$this->entities()
+		);
+		$card  = $plan['action_cards'][0] ?? array();
+		$group = null;
+		foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+			if ( 'condition_group' === ( $row['type'] ?? '' ) ) {
+				$group = $row;
+				break;
+			}
+		}
+		$this->assertIsArray( $group );
+		$this->assertSame( 'OR', (string) ( $group['logic'] ?? '' ) );
+		$this->assertSame( 'needs_resolution', (string) ( $group['status'] ?? '' ) );
+
+		$children = (array) ( $group['children'] ?? array() );
+		$this->assertSame( 'needs_mapping', (string) ( $children[0]['status'] ?? '' ) );
+		$this->assertSame( 'valid', (string) ( $children[1]['status'] ?? '' ) );
+
+		$option_keys = array_column( (array) ( $children[0]['resolution_options'] ?? array() ), 'key' );
+		$this->assertContains( 'utm_source_google', $option_keys );
+		$this->assertContains( 'utm_medium_cpc', $option_keys );
+		$this->assertContains( 'utm_source_google_and_medium_cpc', $option_keys );
+		$this->assertContains( 'gclid_exists', $option_keys );
+		$this->assertContains( 'configure_google_ads_mapping', $option_keys );
+		$this->assertContains( 'remove_google_ads_condition', $option_keys );
+
+		$recommended = array_filter(
+			(array) ( $children[0]['resolution_options'] ?? array() ),
+			static function ( $row ) {
+				return is_array( $row ) && ! empty( $row['recommended'] );
+			}
+		);
+		$this->assertCount( 1, $recommended );
+		$this->assertSame( 'utm_source_google_and_medium_cpc', (string) ( array_values( $recommended )[0]['key'] ?? '' ) );
+	}
+
+	public function test_friendly_country_labels_in_condition_rows(): void {
+		$plan = RWGA_Geo_Assistant_Planner::interpret(
+			'Show to Ireland and the United Kingdom but not France or Germany.',
+			array(),
+			$this->entities()
+		);
+		$card = $plan['action_cards'][0] ?? array();
+		$include_label = '';
+		$exclude_label = '';
+		foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+			if ( 'location' !== ( $row['type'] ?? '' ) ) {
+				continue;
+			}
+			if ( 'include' === ( $row['mode'] ?? '' ) ) {
+				$include_label = (string) ( $row['label'] ?? '' );
+			}
+			if ( 'exclude' === ( $row['mode'] ?? '' ) ) {
+				$exclude_label = (string) ( $row['label'] ?? '' );
+			}
+		}
+		$this->assertStringContainsString( 'Ireland OR United Kingdom', $include_label );
+		$this->assertStringContainsString( 'Exclude country: France OR Germany', $exclude_label );
+	}
+
+	public function test_confirmation_metadata_display(): void {
+		$plan = RWGA_Geo_Assistant_Planner::interpret(
+			'Show me the full rule before creating anything.',
+			array(),
+			$this->entities()
+		);
+
+		$conf = $plan['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+		$this->assertNotEmpty( (string) ( $conf['display_text'] ?? '' ) );
+		$this->assertCount( 0, (array) ( $plan['actions'] ?? array() ) );
+	}
+
+	public function test_free_delivery_popup_review_two_unresolved_fields(): void {
+		$input = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale. Show me the full rule before creating anything.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$this->assertCount( 1, (array) ( $plan['actions'] ?? array() ) );
+		$this->assertSame( 2, (int) ( $plan['fields_needing_attention'] ?? 0 ) );
+
+		$card = $plan['action_cards'][0] ?? array();
+		$conf = $card['confirmation_instruction'] ?? null;
+		$this->assertIsArray( $conf );
+		$this->assertTrue( (bool) ( $conf['requires_confirmation'] ?? false ) );
+
+		$labels = RWGA_Planner_Action_Card_Builder::unresolved_field_labels( array( $card ) );
+		$this->assertContains( 'Popup target', $labels );
+		$this->assertContains( 'Google Ads mapping', $labels );
+	}
 }

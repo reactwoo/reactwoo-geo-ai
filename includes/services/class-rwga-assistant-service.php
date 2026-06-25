@@ -391,25 +391,69 @@ class RWGA_Assistant_Service {
 			);
 		}
 
+		$cards = isset( $proposal['action_cards'] ) && is_array( $proposal['action_cards'] ) ? $proposal['action_cards'] : array();
+
 		if ( ! empty( $proposal['requires_resolution'] ) ) {
+			$labels = class_exists( 'RWGA_Planner_Action_Card_Builder', false )
+				? RWGA_Planner_Action_Card_Builder::unresolved_field_labels( $cards )
+				: array();
+			$message = ! empty( $labels )
+				? sprintf(
+					/* translators: %s: comma-separated unresolved field labels */
+					__( 'This rule still has unresolved fields: %s.', 'reactwoo-geo-ai' ),
+					implode( ', ', $labels )
+				)
+				: __( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' );
 			return new WP_Error(
 				'rwga_plan_unresolved',
-				__( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+				$message,
 				array( 'status' => 409 )
 			);
 		}
 
-		$cards = isset( $proposal['action_cards'] ) && is_array( $proposal['action_cards'] ) ? $proposal['action_cards'] : array();
 		foreach ( $cards as $card ) {
 			if ( ! is_array( $card ) ) {
 				continue;
 			}
 			if ( 'ready' !== (string) ( $card['status'] ?? '' ) ) {
+				$labels = class_exists( 'RWGA_Planner_Action_Card_Builder', false )
+					? RWGA_Planner_Action_Card_Builder::unresolved_field_labels( array( $card ) )
+					: array();
+				$message = ! empty( $labels )
+					? sprintf(
+						/* translators: %s: comma-separated unresolved field labels */
+						__( 'This rule still has unresolved fields: %s.', 'reactwoo-geo-ai' ),
+						implode( ', ', $labels )
+					)
+					: __( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' );
 				return new WP_Error(
 					'rwga_plan_unresolved',
-					__( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+					$message,
 					array( 'status' => 409 )
 				);
+			}
+			foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+				if ( ! is_array( $row ) || ! empty( $row['is_note'] ) ) {
+					continue;
+				}
+				if ( 'valid' !== (string) ( $row['status'] ?? '' ) ) {
+					return new WP_Error(
+						'rwga_plan_unresolved',
+						__( 'Some conditions still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+						array( 'status' => 409 )
+					);
+				}
+				if ( 'condition_group' === (string) ( $row['type'] ?? '' ) ) {
+					foreach ( (array) ( $row['children'] ?? array() ) as $child ) {
+						if ( is_array( $child ) && 'valid' !== (string) ( $child['status'] ?? '' ) ) {
+							return new WP_Error(
+								'rwga_plan_unresolved',
+								__( 'Some conditions still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+								array( 'status' => 409 )
+							);
+						}
+					}
+				}
 			}
 		}
 
