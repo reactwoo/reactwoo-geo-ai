@@ -1470,5 +1470,77 @@ final class RWGAGeoAssistantPlannerTest extends TestCase {
 		$this->assertFalse( (bool) ( $rebuilt['requires_resolution'] ?? true ) );
 		$card = $rebuilt['cards'][0] ?? array();
 		$this->assertSame( RWGA_Planner_Action_Card_Builder::STATUS_READY, (string) ( $card['status'] ?? '' ) );
+		$this->assertTrue( (bool) ( $card['can_execute'] ?? false ) );
+	}
+
+	public function test_create_rule_journey_initial_state_needs_resolution(): void {
+		$input = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale.';
+		$plan  = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+
+		$card = $plan['action_cards'][0] ?? array();
+		$this->assertSame( 'needs_resolution', (string) ( $card['status'] ?? '' ) );
+		$this->assertFalse( (bool) ( $card['can_execute'] ?? true ) );
+		$this->assertSame( 2, (int) ( $plan['fields_needing_attention'] ?? 0 ) );
+
+		$labels = RWGA_Planner_Action_Card_Builder::unresolved_field_labels( array( $card ) );
+		$this->assertContains( 'Popup target', $labels );
+		$this->assertContains( 'Google Ads mapping', $labels );
+	}
+
+	public function test_create_rule_journey_after_popup_resolution(): void {
+		$input   = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale.';
+		$plan    = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$actions = RWGA_Card_Resolution_Applier::apply(
+			$plan['actions'],
+			array(
+				array(
+					'card'   => 0,
+					'field'  => 'target',
+					'raw'    => 'Free Delivery popup',
+					'action' => 'choose',
+					'id'     => 'popup_42',
+					'label'  => 'Free Delivery popup',
+				),
+			)
+		);
+
+		$rebuilt = RWGA_Planner_Action_Card_Builder::build( $actions, array(), $this->entities() );
+		$this->assertSame( 1, (int) ( $rebuilt['fields_needing_attention'] ?? 0 ) );
+		$card = $rebuilt['cards'][0] ?? array();
+		$this->assertSame( 'needs_resolution', (string) ( $card['status'] ?? '' ) );
+		$this->assertFalse( (bool) ( $card['can_execute'] ?? true ) );
+		$this->assertSame( 'matched', (string) ( $card['target']['status'] ?? '' ) );
+	}
+
+	public function test_create_rule_journey_fully_ready_after_both_resolutions(): void {
+		$input   = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale.';
+		$plan    = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$actions = RWGA_Card_Resolution_Applier::apply(
+			$plan['actions'],
+			array(
+				array(
+					'card'   => 0,
+					'field'  => 'target',
+					'raw'    => 'Free Delivery popup',
+					'action' => 'choose',
+					'id'     => 'popup_42',
+					'label'  => 'Free Delivery popup',
+				),
+				array(
+					'card'   => 0,
+					'field'  => 'traffic_source',
+					'raw'    => 'Google Ads traffic',
+					'action' => 'choose',
+					'id'     => 'utm_source_google_and_medium_cpc',
+					'label'  => 'Match utm_source=google AND utm_medium=cpc',
+				),
+			)
+		);
+
+		$rebuilt = RWGA_Planner_Action_Card_Builder::build( $actions, array(), $this->entities() );
+		$card    = $rebuilt['cards'][0] ?? array();
+		$this->assertSame( 0, (int) ( $rebuilt['fields_needing_attention'] ?? 0 ) );
+		$this->assertSame( RWGA_Planner_Action_Card_Builder::STATUS_READY, (string) ( $card['status'] ?? '' ) );
+		$this->assertTrue( (bool) ( $card['can_execute'] ?? false ) );
 	}
 }

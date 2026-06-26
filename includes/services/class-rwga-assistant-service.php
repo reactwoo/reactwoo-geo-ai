@@ -391,71 +391,45 @@ class RWGA_Assistant_Service {
 			);
 		}
 
-		$cards = isset( $proposal['action_cards'] ) && is_array( $proposal['action_cards'] ) ? $proposal['action_cards'] : array();
+		$plan     = is_array( $proposal['interpretation_plan'] ?? null ) ? $proposal['interpretation_plan'] : array();
+		$actions  = is_array( $plan['actions'] ?? null ) ? $plan['actions'] : array();
+		$entities = is_array( $plan['entities'] ?? null ) ? $plan['entities'] : array();
 
-		if ( ! empty( $proposal['requires_resolution'] ) ) {
-			$labels = class_exists( 'RWGA_Planner_Action_Card_Builder', false )
-				? RWGA_Planner_Action_Card_Builder::unresolved_field_labels( $cards )
-				: array();
-			$message = ! empty( $labels )
-				? sprintf(
-					/* translators: %s: comma-separated unresolved field labels */
-					__( 'This rule still has unresolved fields: %s.', 'reactwoo-geo-ai' ),
-					implode( ', ', $labels )
-				)
-				: __( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' );
-			return new WP_Error(
-				'rwga_plan_unresolved',
-				$message,
-				array( 'status' => 409 )
-			);
-		}
-
-		foreach ( $cards as $card ) {
-			if ( ! is_array( $card ) ) {
-				continue;
+		if ( ! empty( $actions ) ) {
+			if ( ! is_array( $resolutions ) ) {
+				$resolutions = array();
 			}
-			if ( 'ready' !== (string) ( $card['status'] ?? '' ) ) {
-				$labels = class_exists( 'RWGA_Planner_Action_Card_Builder', false )
-					? RWGA_Planner_Action_Card_Builder::unresolved_field_labels( array( $card ) )
-					: array();
-				$message = ! empty( $labels )
-					? sprintf(
-						/* translators: %s: comma-separated unresolved field labels */
-						__( 'This rule still has unresolved fields: %s.', 'reactwoo-geo-ai' ),
-						implode( ', ', $labels )
-					)
-					: __( 'Some fields still need resolving before this setup can be created.', 'reactwoo-geo-ai' );
+			if ( ! empty( $resolutions ) && class_exists( 'RWGA_Card_Resolution_Applier', false ) ) {
+				$actions = RWGA_Card_Resolution_Applier::apply( $actions, $resolutions );
+			}
+			if ( empty( $actions ) ) {
 				return new WP_Error(
-					'rwga_plan_unresolved',
-					$message,
-					array( 'status' => 409 )
+					'rwga_plan_empty',
+					__( 'Every action was removed, so there is nothing to create.', 'reactwoo-geo-ai' ),
+					array( 'status' => 400 )
 				);
 			}
-			foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
-				if ( ! is_array( $row ) || ! empty( $row['is_note'] ) ) {
-					continue;
-				}
-				if ( 'valid' !== (string) ( $row['status'] ?? '' ) ) {
-					return new WP_Error(
-						'rwga_plan_unresolved',
-						__( 'Some conditions still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
-						array( 'status' => 409 )
-					);
-				}
-				if ( 'condition_group' === (string) ( $row['type'] ?? '' ) ) {
-					foreach ( (array) ( $row['children'] ?? array() ) as $child ) {
-						if ( is_array( $child ) && 'valid' !== (string) ( $child['status'] ?? '' ) ) {
-							return new WP_Error(
-								'rwga_plan_unresolved',
-								__( 'Some conditions still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
-								array( 'status' => 409 )
-							);
-						}
-					}
-				}
+
+			$validated = self::validate_plan_actions_for_execute( $actions, $entities );
+			if ( is_wp_error( $validated ) ) {
+				return $validated;
+			}
+
+			$proposal['interpretation_plan']['actions'] = $actions;
+			if ( is_array( $validated ) ) {
+				$proposal['action_cards']             = $validated['cards'];
+				$proposal['fields_needing_attention'] = $validated['fields_needing_attention'];
+				$proposal['requires_resolution']      = $validated['requires_resolution'];
+				$proposal['can_execute']              = empty( $validated['requires_resolution'] );
+			}
+		} else {
+			$stored_error = self::validate_stored_action_cards( $proposal );
+			if ( is_wp_error( $stored_error ) ) {
+				return $stored_error;
 			}
 		}
+
+		$proposal['proposal_id'] = (string) $proposal_id;
 
 		$action = (string) ( $proposal['matched_action'] ?? '' );
 		$steps  = isset( $proposal['steps'] ) && is_array( $proposal['steps'] ) ? $proposal['steps'] : array();
@@ -494,6 +468,9 @@ class RWGA_Assistant_Service {
 					'outcome'          => 'executed',
 					'approved_by_user' => true,
 					'raw_phrase'       => (string) ( $proposal['original_message'] ?? '' ),
+					'action_type'      => self::primary_action_type( $proposal ),
+					'resolved_fields'  => self::resolved_fields_from_resolutions( $resolutions ),
+					'proposal_id'      => (string) $proposal_id,
 				)
 			);
 		}
@@ -503,6 +480,187 @@ class RWGA_Assistant_Service {
 			'status'  => 'executed',
 			'result'  => $result,
 		);
+	}
+
+	/**
+	 * Rebuild action cards from planner actions and gate execution until ready.
+	 *
+	 * @param array<int,array<string,mixed>> $actions  Planner actions (after resolutions).
+	 * @param array<int,array<string,mixed>> $entities Entity registry.
+	 * @return array{cards:array<int,array<string,mixed>>,fields_needing_attention:int,requires_resolution:bool}|\WP_Error
+	 */
+	public static function validate_plan_actions_for_execute( array $actions, array $entities = array() ) {
+		if ( empty( $actions ) ) {
+			return new WP_Error(
+				'rwga_plan_empty',
+				__( 'Every action was removed, so there is nothing to create.', 'reactwoo-geo-ai' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! class_exists( 'RWGA_Planner_Action_Card_Builder', false ) ) {
+			return array(
+				'cards'                    => array(),
+				'fields_needing_attention' => 0,
+				'requires_resolution'      => false,
+			);
+		}
+
+		$rebuilt = RWGA_Planner_Action_Card_Builder::build( $actions, array(), $entities );
+		$cards   = (array) ( $rebuilt['cards'] ?? array() );
+
+		if ( ! empty( $rebuilt['requires_resolution'] ) ) {
+			return self::plan_unresolved_error( $cards );
+		}
+
+		foreach ( $cards as $card ) {
+			if ( ! is_array( $card ) ) {
+				continue;
+			}
+			if ( RWGA_Planner_Action_Card_Builder::STATUS_READY !== (string) ( $card['status'] ?? '' ) ) {
+				return self::plan_unresolved_error( array( $card ) );
+			}
+			foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+				if ( ! is_array( $row ) || ! empty( $row['is_note'] ) ) {
+					continue;
+				}
+				if ( 'valid' !== (string) ( $row['status'] ?? '' ) ) {
+					return self::plan_unresolved_error( $cards );
+				}
+				if ( 'condition_group' === (string) ( $row['type'] ?? '' ) ) {
+					foreach ( (array) ( $row['children'] ?? array() ) as $child ) {
+						if ( is_array( $child ) && 'valid' !== (string) ( $child['status'] ?? '' ) ) {
+							return self::plan_unresolved_error( $cards );
+						}
+					}
+				}
+			}
+		}
+
+		return $rebuilt;
+	}
+
+	/**
+	 * Validate a stored proposal that has no interpretation plan (legacy path).
+	 *
+	 * @param array<string,mixed> $proposal Stored proposal.
+	 * @return true|\WP_Error
+	 */
+	private static function validate_stored_action_cards( array $proposal ) {
+		$cards = isset( $proposal['action_cards'] ) && is_array( $proposal['action_cards'] ) ? $proposal['action_cards'] : array();
+
+		if ( ! empty( $proposal['requires_resolution'] ) ) {
+			return self::plan_unresolved_error( $cards );
+		}
+
+		foreach ( $cards as $card ) {
+			if ( ! is_array( $card ) ) {
+				continue;
+			}
+			if ( 'ready' !== (string) ( $card['status'] ?? '' ) ) {
+				return self::plan_unresolved_error( array( $card ) );
+			}
+			foreach ( (array) ( $card['condition_rows'] ?? array() ) as $row ) {
+				if ( ! is_array( $row ) || ! empty( $row['is_note'] ) ) {
+					continue;
+				}
+				if ( 'valid' !== (string) ( $row['status'] ?? '' ) ) {
+					return new WP_Error(
+						'rwga_plan_unresolved',
+						__( 'Some conditions still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+						array( 'status' => 409, 'unresolved' => self::unresolved_labels_from_cards( $cards ) )
+					);
+				}
+				if ( 'condition_group' === (string) ( $row['type'] ?? '' ) ) {
+					foreach ( (array) ( $row['children'] ?? array() ) as $child ) {
+						if ( is_array( $child ) && 'valid' !== (string) ( $child['status'] ?? '' ) ) {
+							return new WP_Error(
+								'rwga_plan_unresolved',
+								__( 'Some conditions still need resolving before this setup can be created.', 'reactwoo-geo-ai' ),
+								array( 'status' => 409, 'unresolved' => self::unresolved_labels_from_cards( $cards ) )
+							);
+						}
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $cards Action cards.
+	 * @return \WP_Error
+	 */
+	private static function plan_unresolved_error( array $cards ) {
+		$labels = self::unresolved_labels_from_cards( $cards );
+		$message = ! empty( $labels )
+			? sprintf(
+				/* translators: %s: comma-separated unresolved field labels */
+				__( 'This rule still has unresolved fields: %s.', 'reactwoo-geo-ai' ),
+				implode( ', ', $labels )
+			)
+			: __( 'This rule still has unresolved fields.', 'reactwoo-geo-ai' );
+
+		return new WP_Error(
+			'rwga_plan_unresolved',
+			$message,
+			array(
+				'status'                   => 409,
+				'unresolved'               => $labels,
+				'action_cards'             => $cards,
+				'fields_needing_attention' => class_exists( 'RWGA_Planner_Action_Card_Builder', false )
+					? count( $labels )
+					: 0,
+				'requires_resolution'      => true,
+			)
+		);
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $cards Action cards.
+	 * @return array<int,string>
+	 */
+	private static function unresolved_labels_from_cards( array $cards ) {
+		return class_exists( 'RWGA_Planner_Action_Card_Builder', false )
+			? RWGA_Planner_Action_Card_Builder::unresolved_field_labels( $cards )
+			: array();
+	}
+
+	/**
+	 * @param array<string,mixed> $proposal Proposal.
+	 * @return string
+	 */
+	private static function primary_action_type( array $proposal ) {
+		$plan = is_array( $proposal['interpretation_plan'] ?? null ) ? $proposal['interpretation_plan'] : array();
+		$actions = is_array( $plan['actions'] ?? null ) ? $plan['actions'] : array();
+		if ( ! empty( $actions[0]['type'] ) ) {
+			return (string) $actions[0]['type'];
+		}
+		$cards = is_array( $proposal['action_cards'] ?? null ) ? $proposal['action_cards'] : array();
+		if ( ! empty( $cards[0]['type'] ) ) {
+			return (string) $cards[0]['type'];
+		}
+		return '';
+	}
+
+	/**
+	 * @param array<int,array<string,mixed>> $resolutions Client resolution rows.
+	 * @return array<string,string>
+	 */
+	private static function resolved_fields_from_resolutions( array $resolutions ) {
+		$out = array();
+		foreach ( $resolutions as $row ) {
+			if ( ! is_array( $row ) || 'choose' !== (string) ( $row['action'] ?? '' ) ) {
+				continue;
+			}
+			$field = (string) ( $row['field'] ?? '' );
+			if ( '' === $field ) {
+				continue;
+			}
+			$out[ $field ] = (string) ( $row['id'] ?? $row['label'] ?? '' );
+		}
+		return $out;
 	}
 
 	/**

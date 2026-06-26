@@ -95,6 +95,13 @@ class RWGA_Assistant_Executor_Bridge {
 			}
 		}
 
-		return RWGA_Plan_Executor::execute_plan( $actions, array() );
+		return RWGA_Plan_Executor::execute_plan(
+			$actions,
+			array(
+				'proposal_id'            => (string) ( $proposal['proposal_id'] ?? '' ),
+				'source_phrase'          => (string) ( $proposal['original_message'] ?? '' ),
+				'interpretation_source'  => (string) ( $proposal['interpretation_source'] ?? '' ),
+			)
+		);
 	}
 }

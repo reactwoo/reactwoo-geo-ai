@@ -51,7 +51,7 @@ class RWGA_Plan_Executor {
 			$operation  = is_array( $action['operation'] ?? null ) ? $action['operation'] : array();
 			$converted  = RWGA_Plan_Condition_Converter::convert( $conditions, $operation );
 
-			$rule_id = self::create_rule( $label, $converted );
+			$rule_id = self::create_rule( $label, $converted, $context, $action );
 			if ( ! $rule_id ) {
 				$needs[] = array(
 					'index'  => $position,
@@ -100,9 +100,11 @@ class RWGA_Plan_Executor {
 	/**
 	 * @param string                                                                 $label     Rule title.
 	 * @param array{conditions:array<int,array<string,mixed>>,mode:string,warnings:array} $converted Converted conditions.
+	 * @param array<string,mixed>                                                    $context   Execution context.
+	 * @param array<string,mixed>                                                    $action    Planner action.
 	 * @return int Post ID, or 0 on failure.
 	 */
-	private static function create_rule( $label, array $converted ) {
+	private static function create_rule( $label, array $converted, array $context = array(), array $action = array() ) {
 		$rows = $converted['conditions'];
 		if ( empty( $rows ) ) {
 			return 0;
@@ -135,7 +137,20 @@ class RWGA_Plan_Executor {
 			return 0;
 		}
 
-		return (int) RWGC_Visibility_Rule_Repository::save( $label, 'draft', $set, 0 );
+		$post_id = (int) RWGC_Visibility_Rule_Repository::save( $label, 'draft', $set, 0 );
+
+		if ( $post_id > 0 && function_exists( 'update_post_meta' ) ) {
+			$source_meta = array(
+				'created_by'            => 'geo_assistant',
+				'source_phrase'         => (string) ( $context['source_phrase'] ?? '' ),
+				'interpretation_source' => (string) ( $context['interpretation_source'] ?? '' ),
+				'proposal_id'           => (string) ( $context['proposal_id'] ?? '' ),
+				'action_type'           => (string) ( $action['type'] ?? '' ),
+			);
+			update_post_meta( $post_id, '_rwga_assistant_source', wp_json_encode( $source_meta ) );
+		}
+
+		return $post_id;
 	}
 
 	/**

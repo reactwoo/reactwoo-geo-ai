@@ -181,6 +181,7 @@ class RWGA_Planner_Action_Card_Builder {
 				? (string) $action['label']
 				: self::action_label( (string) ( $action['type'] ?? '' ) ),
 			'status'              => empty( $required ) ? self::STATUS_READY : self::STATUS_NEEDS_RESOLUTION,
+			'can_execute'         => empty( $required ),
 			'target'              => $target,
 			'campaign'            => $campaign,
 			'operation'           => is_array( $action['operation'] ?? null ) ? $action['operation'] : array(),
