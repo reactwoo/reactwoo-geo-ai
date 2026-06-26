@@ -24,4 +24,11 @@ Geo AI is a **Geo Core satellite** (AI-assisted variant drafts and product workf
 
 - Geo Core: `docs/phases/phase-5.md`, `docs/GEO-AI-SNAPSHOT.md`, `docs/geo-core-cursor-master-plan.md`, `docs/releases-and-git-tags.md`.
 - API env: `reactwoo-api/docs/GEO-AI-ENV-VARS.md`.
+- **AI handoff:** `ai-handoff/`, `reactwoo-geocore/docs/ai-handoff-workflow.md`, `.cursor/rules/ai-handoff.mdc`
 - **`RWGA_VERSION`** in `reactwoo-geo-ai.php` must match the shipped release and readme **Stable tag**.
+
+## AI handoff (ChatGPT ↔ Cursor)
+
+Planner → **`ai-handoff/current-task.md`**; Cursor → **`cursor-output.md`**. Read **`known-issues.md`** before editing. Suite doc: **`reactwoo-geocore/docs/ai-handoff-workflow.md`**.
+
+**Geo AI-specific:** no provider keys or heavy orchestration in WordPress beyond existing patterns; API calls via ReactWoo license stack.
