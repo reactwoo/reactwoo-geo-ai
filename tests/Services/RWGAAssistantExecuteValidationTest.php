@@ -159,4 +159,18 @@ final class RWGAAssistantExecuteValidationTest extends TestCase {
 		$this->assertFalse( (bool) ( $result['requires_resolution'] ?? true ) );
 		$this->assertSame( RWGA_Planner_Action_Card_Builder::STATUS_READY, (string) ( $result['cards'][0]['status'] ?? '' ) );
 	}
+
+	public function test_plan_unresolved_error_includes_structured_details(): void {
+		$input   = 'Create a rule for the Free Delivery popup. Show it only on product pages for desktop visitors from Ireland and the United Kingdom, but do not show it to visitors from France or Germany. Also only trigger it when the visitor came from Google Ads or the URL contains /winter-sale.';
+		$plan    = RWGA_Geo_Assistant_Planner::interpret( $input, array(), $this->entities() );
+		$actions = (array) ( $plan['actions'] ?? array() );
+
+		$result = RWGA_Assistant_Service::validate_plan_actions_for_execute( $actions, $this->entities() );
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$data = $result->get_error_data();
+		$this->assertSame( 'unresolved_fields', $data['code'] ?? '' );
+		$this->assertIsArray( $data['unresolved_details'] ?? null );
+		$keys = array_column( (array) ( $data['unresolved_details'] ?? array() ), 'key' );
+		$this->assertContains( 'google_ads_mapping', $keys );
+	}
 }

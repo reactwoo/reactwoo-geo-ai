@@ -593,7 +593,10 @@ class RWGA_Assistant_Service {
 	 * @return \WP_Error
 	 */
 	private static function plan_unresolved_error( array $cards ) {
-		$labels = self::unresolved_labels_from_cards( $cards );
+		$labels  = self::unresolved_labels_from_cards( $cards );
+		$details = class_exists( 'RWGA_Planner_Action_Card_Builder', false )
+			? RWGA_Planner_Action_Card_Builder::unresolved_field_details( $cards )
+			: array();
 		$message = ! empty( $labels )
 			? sprintf(
 				/* translators: %s: comma-separated unresolved field labels */
@@ -606,13 +609,15 @@ class RWGA_Assistant_Service {
 			'rwga_plan_unresolved',
 			$message,
 			array(
-				'status'                   => 409,
-				'unresolved'               => $labels,
-				'action_cards'             => $cards,
+				'status'             => 409,
+				'code'               => 'unresolved_fields',
+				'unresolved'         => $labels,
+				'unresolved_details' => $details,
+				'action_cards'       => $cards,
 				'fields_needing_attention' => class_exists( 'RWGA_Planner_Action_Card_Builder', false )
 					? count( $labels )
 					: 0,
-				'requires_resolution'      => true,
+				'requires_resolution' => true,
 			)
 		);
 	}

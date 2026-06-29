@@ -818,8 +818,24 @@ class RWGA_Planner_Action_Card_Builder {
 	 */
 	public static function unresolved_field_labels( array $cards ) {
 		$labels = array();
-		$seen   = array();
-		foreach ( $cards as $card ) {
+		foreach ( self::unresolved_field_details( $cards ) as $row ) {
+			if ( ! empty( $row['label'] ) ) {
+				$labels[] = (string) $row['label'];
+			}
+		}
+		return $labels;
+	}
+
+	/**
+	 * Structured unresolved rows for execute rejection responses.
+	 *
+	 * @param array<int,array<string,mixed>> $cards Action cards.
+	 * @return array<int,array{key:string,label:string,field:string,raw:string,card:int,path:string}>
+	 */
+	public static function unresolved_field_details( array $cards ) {
+		$rows = array();
+		$seen = array();
+		foreach ( $cards as $card_index => $card ) {
 			if ( ! is_array( $card ) ) {
 				continue;
 			}
@@ -832,10 +848,18 @@ class RWGA_Planner_Action_Card_Builder {
 					continue;
 				}
 				$seen[ $field ] = true;
-				$labels[]       = self::resolution_field_label( $field, $card );
+				$key            = 'traffic_source' === $field ? 'google_ads_mapping' : $field;
+				$rows[]         = array(
+					'key'   => $key,
+					'label' => self::resolution_field_label( $field, $card ),
+					'field' => $field,
+					'raw'   => (string) ( $req['raw'] ?? '' ),
+					'card'  => (int) $card_index,
+					'path'  => sprintf( 'actions[%d].requiredResolutions[%s]', (int) $card_index, $field ),
+				);
 			}
 		}
-		return $labels;
+		return $rows;
 	}
 
 	/**

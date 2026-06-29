@@ -217,7 +217,7 @@ class RWGA_Card_Resolution_Applier {
 	 * @return array<string,mixed>
 	 */
 	private static function apply_traffic_source( array $action, $kind, $id, $label, $raw ) {
-		self::clear_traffic_unresolved( $action, $raw );
+		self::clear_traffic_unresolved( $action, $raw, 'choose' === $kind );
 		if ( 'choose' !== $kind ) {
 			self::remove_traffic_from_condition_groups( $action );
 			return $action;
@@ -276,8 +276,12 @@ class RWGA_Card_Resolution_Applier {
 	 * @param string              $raw    Raw phrase.
 	 * @return void
 	 */
-	private static function clear_traffic_unresolved( array &$action, $raw ) {
+	private static function clear_traffic_unresolved( array &$action, $raw, $force_all = false ) {
 		if ( empty( $action['unresolved']['traffic_sources'] ) || ! is_array( $action['unresolved']['traffic_sources'] ) ) {
+			return;
+		}
+		if ( $force_all ) {
+			$action['unresolved']['traffic_sources'] = array();
 			return;
 		}
 		$needle = self::normalise( $raw );
