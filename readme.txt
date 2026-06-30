@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Stable tag: 0.4.133
+Stable tag: 0.4.134
 
 AI-assisted geo variant drafts. Requires ReactWoo Geo Core.
 
@@ -18,6 +18,9 @@ This plugin extends the geo platform with AI workflows (draft variants via React
 2. Upload and activate this plugin.
 
 == Changelog ==
+
+= 0.4.134 =
+* **Geo Assistant create-rule fidelity:** Plan condition converter exports page type, OR traffic groups (Google Ads + URL), and skips flat UTM rows when groups exist. Assistant source meta stores popup target label for the Geo Core rule editor.
 
 = 0.4.130 =
 * **Geo Assistant — create-rule journey:** Execute applies client card resolutions before validation so resolved popup targets and Google Ads mappings can create draft rules. Action cards expose `can_execute`; created rules store assistant source metadata; journey regression tests added.

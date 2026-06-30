@@ -162,12 +162,17 @@ class RWGA_Plan_Executor {
 		$post_id = (int) RWGC_Visibility_Rule_Repository::save( $label, 'draft', $portable_json, 0 );
 
 		if ( $post_id > 0 && function_exists( 'update_post_meta' ) ) {
+			$target    = is_array( $action['target'] ?? null ) ? $action['target'] : array();
+			$resolved  = is_array( $target['user_resolved'] ?? null ) ? $target['user_resolved'] : array();
 			$source_meta = array(
 				'created_by'            => 'geo_assistant',
 				'source_phrase'         => (string) ( $context['source_phrase'] ?? '' ),
 				'interpretation_source' => (string) ( $context['interpretation_source'] ?? '' ),
 				'proposal_id'           => (string) ( $context['proposal_id'] ?? '' ),
 				'action_type'           => (string) ( $action['type'] ?? '' ),
+				'target_type'           => (string) ( $resolved['type'] ?? $target['type'] ?? '' ),
+				'target_id'             => (string) ( $resolved['id'] ?? '' ),
+				'target_label'          => (string) ( $resolved['name'] ?? $target['label'] ?? '' ),
 			);
 			update_post_meta( $post_id, '_rwga_assistant_source', wp_json_encode( $source_meta ) );
 		}

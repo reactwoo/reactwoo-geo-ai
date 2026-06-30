@@ -32,8 +32,12 @@ class RWGA_Plan_Condition_Converter {
 		$rows     = array();
 		$warnings = array();
 
-		self::convert_group( $include, false, $rows, $warnings );
-		self::convert_group( $exclude, true, $rows, $warnings );
+		$group_rows = self::convert_condition_groups( $include, false, $warnings );
+		$skip_flat_utm = ! empty( $group_rows );
+
+		self::convert_group( $include, false, $rows, $warnings, $skip_flat_utm );
+		self::convert_group( $exclude, true, $rows, $warnings, false );
+		$rows = array_merge( $rows, $group_rows );
 
 		return array(
 			'conditions' => $rows,
@@ -43,13 +47,14 @@ class RWGA_Plan_Condition_Converter {
 	}
 
 	/**
-	 * @param array<string,mixed>            $group    Condition group.
-	 * @param bool                           $negate   Whether this is the exclude group.
-	 * @param array<int,array<string,mixed>> $rows     Output rows (by reference).
-	 * @param array<int,string>              $warnings Warnings (by reference).
+	 * @param array<string,mixed>            $group         Condition group.
+	 * @param bool                           $negate        Whether this is the exclude group.
+	 * @param array<int,array<string,mixed>> $rows          Output rows (by reference).
+	 * @param array<int,string>              $warnings      Warnings (by reference).
+	 * @param bool                           $skip_flat_utm Skip top-level UTM when OR groups exist.
 	 * @return void
 	 */
-	private static function convert_group( array $group, $negate, array &$rows, array &$warnings ) {
+	private static function convert_group( array $group, $negate, array &$rows, array &$warnings, $skip_flat_utm = false ) {
 		$countries = self::clean_list( $group['countries'] ?? array() );
 		if ( ! empty( $countries ) ) {
 			$rows[] = array(
@@ -68,20 +73,31 @@ class RWGA_Plan_Condition_Converter {
 			);
 		}
 
-		foreach ( (array) ( $group['utm'] ?? array() ) as $utm ) {
-			if ( ! is_array( $utm ) || empty( $utm['key'] ) ) {
-				continue;
-			}
-			$type = strtolower( (string) $utm['key'] );
-			if ( ! in_array( $type, array( 'utm_source', 'utm_medium', 'utm_campaign' ), true ) ) {
-				$warnings[] = sprintf( 'Unsupported UTM parameter: %s', $type );
-				continue;
-			}
+		$page_types = self::clean_list( $group['pageTypes'] ?? array() );
+		if ( ! empty( $page_types ) ) {
 			$rows[] = array(
-				'type'     => $type,
-				'operator' => $negate ? 'is_not' : 'is',
-				'value'    => array( (string) ( $utm['value'] ?? '' ) ),
+				'type'     => 'page_type',
+				'operator' => $negate ? 'not_in' : 'in',
+				'value'    => array_map( 'strtolower', $page_types ),
 			);
+		}
+
+		if ( ! $skip_flat_utm ) {
+			foreach ( (array) ( $group['utm'] ?? array() ) as $utm ) {
+				if ( ! is_array( $utm ) || empty( $utm['key'] ) ) {
+					continue;
+				}
+				$type = strtolower( (string) $utm['key'] );
+				if ( ! in_array( $type, array( 'utm_source', 'utm_medium', 'utm_campaign' ), true ) ) {
+					$warnings[] = sprintf( 'Unsupported UTM parameter: %s', $type );
+					continue;
+				}
+				$rows[] = array(
+					'type'     => $type,
+					'operator' => $negate ? 'is_not' : 'is',
+					'value'    => array( (string) ( $utm['value'] ?? '' ) ),
+				);
+			}
 		}
 
 		$audiences = self::audience_names( $group['audiences'] ?? array() );
@@ -116,8 +132,142 @@ class RWGA_Plan_Condition_Converter {
 		if ( ! empty( $group['regions'] ) ) {
 			$warnings[] = 'Region targeting is not available in portable rules — set it manually.';
 		}
-		if ( ! empty( $group['urls'] ) ) {
+		if ( ! $skip_flat_utm && ! empty( $group['urls'] ) ) {
 			$warnings[] = 'URL/path targeting must be configured manually.';
+		}
+	}
+
+	/**
+	 * @param array<string,mixed> $include  Include group.
+	 * @param bool                $negate   Negate operators (unused for groups today).
+	 * @param array<int,string>   $warnings Warnings.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function convert_condition_groups( array $include, $negate, array &$warnings ) {
+		unset( $negate );
+		$out    = array();
+		$groups = (array) ( $include['condition_groups'] ?? array() );
+		foreach ( $groups as $group ) {
+			if ( ! is_array( $group ) ) {
+				continue;
+			}
+			$branches = array();
+			foreach ( (array) ( $group['conditions'] ?? array() ) as $child ) {
+				if ( ! is_array( $child ) ) {
+					continue;
+				}
+				$branch = self::convert_group_child_branch( $child, $warnings );
+				if ( null !== $branch ) {
+					$branches[] = $branch;
+				}
+			}
+			if ( count( $branches ) < 2 ) {
+				if ( 1 === count( $branches ) ) {
+					foreach ( (array) ( $branches[0]['conditions'] ?? array() ) as $cond ) {
+						$out[] = $cond;
+					}
+				}
+				continue;
+			}
+			$logic = strtoupper( (string) ( $group['logic'] ?? 'OR' ) );
+			$out[] = array(
+				'type'     => 'condition_group',
+				'operator' => 'match',
+				'value'    => array(
+					'match'    => 'OR' === $logic ? 'any' : 'all',
+					'label'    => (string) ( $group['label'] ?? '' ),
+					'branches' => $branches,
+				),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * @param array<string,mixed> $child    Planner child condition.
+	 * @param array<int,string>   $warnings Warnings.
+	 * @return array<string,mixed>|null
+	 */
+	private static function convert_group_child_branch( array $child, array &$warnings ) {
+		$type = (string) ( $child['type'] ?? '' );
+		if ( 'traffic_source' === $type ) {
+			$mapping = (string) ( $child['mapping_key'] ?? 'utm_source_google_and_medium_cpc' );
+			$conds   = self::portable_conditions_from_traffic_mapping( $mapping );
+			if ( empty( $conds ) ) {
+				$warnings[] = 'Google Ads traffic mapping could not be converted.';
+				return null;
+			}
+			return array(
+				'label'      => (string) ( $child['label'] ?? __( 'Google Ads standard UTM', 'reactwoo-geo-ai' ) ),
+				'match'      => 'all',
+				'conditions' => $conds,
+			);
+		}
+		if ( 'url' === $type || 'page_url' === $type ) {
+			$path = trim( (string) ( $child['value'] ?? '' ) );
+			if ( '' === $path ) {
+				return null;
+			}
+			return array(
+				'label'      => (string) ( $child['label'] ?? sprintf( __( 'URL contains %s', 'reactwoo-geo-ai' ), $path ) ),
+				'match'      => 'all',
+				'conditions' => array(
+					array(
+						'type'     => 'request_uri',
+						'operator' => 'contains',
+						'value'    => array( $path ),
+					),
+				),
+			);
+		}
+		return null;
+	}
+
+	/**
+	 * @param string $mapping_key Mapping option key from the resolver UI.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function portable_conditions_from_traffic_mapping( $mapping_key ) {
+		switch ( (string) $mapping_key ) {
+			case 'utm_source_google':
+				return array(
+					array(
+						'type'     => 'utm_source',
+						'operator' => 'is',
+						'value'    => array( 'google' ),
+					),
+				);
+			case 'utm_medium_cpc':
+				return array(
+					array(
+						'type'     => 'utm_medium',
+						'operator' => 'is',
+						'value'    => array( 'cpc' ),
+					),
+				);
+			case 'utm_source_google_and_medium_cpc':
+				return array(
+					array(
+						'type'     => 'utm_source',
+						'operator' => 'is',
+						'value'    => array( 'google' ),
+					),
+					array(
+						'type'     => 'utm_medium',
+						'operator' => 'is',
+						'value'    => array( 'cpc' ),
+					),
+				);
+			case 'gclid_exists':
+				return array(
+					array(
+						'type'     => 'gclid',
+						'operator' => 'not_empty',
+						'value'    => array(),
+					),
+				);
+			default:
+				return array();
 		}
 	}
 
