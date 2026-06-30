@@ -59,13 +59,32 @@ class RWGA_Plan_Executor {
 				continue;
 			}
 
+			$verified = self::verify_created_rule( $rule_id );
+			if ( ! is_array( $verified ) || empty( $verified['valid'] ) ) {
+				$needs[] = array(
+					'index'               => $position,
+					'label'               => $label,
+					'reason'              => __( 'The targeting rule could not be verified after creation.', 'reactwoo-geo-ai' ),
+					'created_object_id'   => $rule_id,
+					'created_object_type' => class_exists( 'RWGC_Visibility_Rule_CPT', false )
+						? RWGC_Visibility_Rule_CPT::POST_TYPE
+						: 'rwgc_visibility_rule',
+					'verification_reason' => is_array( $verified ) ? (string) ( $verified['reason'] ?? '' ) : 'verification_failed',
+				);
+				continue;
+			}
+
 			$created[] = array(
-				'index'    => $position,
-				'id'       => $rule_id,
-				'title'    => $label,
-				'type'     => $type,
-				'edit_url' => self::edit_url( $rule_id ),
-				'warnings' => $converted['warnings'],
+				'index'      => $position,
+				'id'         => $rule_id,
+				'rule_id'    => $rule_id,
+				'title'      => $label,
+				'rule_label' => $label,
+				'type'       => $type,
+				'edit_url'   => (string) ( $verified['edit_url'] ?? '' ),
+				'can_edit'   => ! empty( $verified['can_edit'] ),
+				'verified'   => true,
+				'warnings'   => $converted['warnings'],
 			);
 
 			if ( RWGA_Geo_Action_Types::CREATE_VARIANT === $type ) {
@@ -157,18 +176,40 @@ class RWGA_Plan_Executor {
 	}
 
 	/**
+	 * Confirm the created row is a persisted Geo Core visibility rule the user can open.
+	 *
+	 * @param int $rule_id Rule post ID.
+	 * @return array<string,mixed>|null Verification row, or null after cleanup on failure.
+	 */
+	private static function verify_created_rule( $rule_id ) {
+		$rule_id = absint( $rule_id );
+		if ( $rule_id <= 0 ) {
+			return null;
+		}
+		if ( ! class_exists( 'RWGC_Visibility_Rule_Repository', false ) ) {
+			return null;
+		}
+		$check = RWGC_Visibility_Rule_Repository::assistant_rule_verification( $rule_id );
+		if ( ! empty( $check['valid'] ) ) {
+			return $check;
+		}
+		RWGC_Visibility_Rule_Repository::delete( $rule_id );
+		return $check;
+	}
+
+	/**
 	 * @param int $rule_id Rule post ID.
 	 * @return string
 	 */
 	private static function edit_url( $rule_id ) {
-		if ( function_exists( 'get_edit_post_link' ) ) {
-			$url = get_edit_post_link( $rule_id, '' );
-			if ( $url ) {
-				return (string) $url;
+		if ( class_exists( 'RWGC_Visibility_Rule_Repository', false ) ) {
+			$url = RWGC_Visibility_Rule_Repository::get_edit_url( $rule_id );
+			if ( '' !== $url ) {
+				return $url;
 			}
 		}
 		if ( function_exists( 'admin_url' ) ) {
-			return admin_url( 'post.php?post=' . (int) $rule_id . '&action=edit' );
+			return admin_url( 'admin.php?page=rwgc-visibility-rules&rwgc_edit=' . (int) $rule_id );
 		}
 		return '';
 	}

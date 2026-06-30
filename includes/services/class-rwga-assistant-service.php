@@ -458,6 +458,11 @@ class RWGA_Assistant_Service {
 			);
 		}
 
+		$rule_error = self::rule_create_failure_from_result( $result, $proposal );
+		if ( is_wp_error( $rule_error ) ) {
+			return $rule_error;
+		}
+
 		RWGA_Proposal_Store::delete( $proposal_id );
 
 		if ( class_exists( 'RWGA_Learning_Event_Service', false ) ) {
@@ -479,6 +484,97 @@ class RWGA_Assistant_Service {
 			'success' => true,
 			'status'  => 'executed',
 			'result'  => $result,
+		) + self::execute_rule_response_fields( $result );
+	}
+
+	/**
+	 * Top-level rule fields for clients that do not read result.created_rules[0].
+	 *
+	 * @param array<string,mixed> $result Execute handler result.
+	 * @return array<string,mixed>
+	 */
+	private static function execute_rule_response_fields( array $result ) {
+		$created = isset( $result['created_rules'] ) && is_array( $result['created_rules'] ) ? $result['created_rules'] : array();
+		$first   = ! empty( $created[0] ) && is_array( $created[0] ) ? $created[0] : array();
+		if ( empty( $first['id'] ) || empty( $first['verified'] ) || empty( $first['edit_url'] ) ) {
+			return array();
+		}
+		return array(
+			'rule_id'    => (int) $first['id'],
+			'post_id'    => (int) $first['id'],
+			'rule_label' => (string) ( $first['rule_label'] ?? $first['title'] ?? '' ),
+			'edit_url'   => (string) $first['edit_url'],
+			'created_rule' => $first,
+		);
+	}
+
+	/**
+	 * Fail execute when rule actions were expected but no verified Geo Core rule was created.
+	 *
+	 * @param array<string,mixed> $result   Execute handler result.
+	 * @param array<string,mixed> $proposal Stored proposal.
+	 * @return true|\WP_Error
+	 */
+	private static function rule_create_failure_from_result( array $result, array $proposal ) {
+		$plan    = is_array( $proposal['interpretation_plan'] ?? null ) ? $proposal['interpretation_plan'] : array();
+		$actions = is_array( $plan['actions'] ?? null ) ? $plan['actions'] : array();
+		$expects = false;
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			$type = (string) ( $action['type'] ?? '' );
+			if ( in_array( $type, array( RWGA_Geo_Action_Types::CREATE_RULE, RWGA_Geo_Action_Types::CREATE_VARIANT, RWGA_Geo_Action_Types::UPDATE_ORIGINAL_TARGETING, RWGA_Geo_Action_Types::HIDE ), true ) ) {
+				$expects = true;
+				break;
+			}
+		}
+		if ( ! $expects ) {
+			return true;
+		}
+		$created = isset( $result['created_rules'] ) && is_array( $result['created_rules'] ) ? $result['created_rules'] : array();
+		if ( ! empty( $created ) ) {
+			foreach ( $created as $row ) {
+				if ( ! is_array( $row ) || empty( $row['verified'] ) || empty( $row['edit_url'] ) ) {
+					return new WP_Error(
+						'rule_create_failed',
+						__( 'The targeting rule could not be created.', 'reactwoo-geo-ai' ),
+						array(
+							'status'  => 500,
+							'code'    => 'rule_create_failed',
+							'details' => array(
+								'reason'              => 'unverified_created_rule',
+								'created_object_id'   => (int) ( $row['id'] ?? 0 ),
+								'created_object_type' => class_exists( 'RWGC_Visibility_Rule_CPT', false )
+									? RWGC_Visibility_Rule_CPT::POST_TYPE
+									: 'rwgc_visibility_rule',
+								'can_edit'            => ! empty( $row['can_edit'] ),
+								'edit_url'            => (string) ( $row['edit_url'] ?? '' ),
+							),
+						)
+					);
+				}
+			}
+			return true;
+		}
+		$needs = isset( $result['needs_attention'] ) && is_array( $result['needs_attention'] ) ? $result['needs_attention'] : array();
+		if ( empty( $needs ) ) {
+			return true;
+		}
+		$detail = is_array( $needs[0] ) ? $needs[0] : array();
+		return new WP_Error(
+			'rule_create_failed',
+			__( 'The targeting rule could not be created.', 'reactwoo-geo-ai' ),
+			array(
+				'status'  => 500,
+				'code'    => 'rule_create_failed',
+				'details' => array(
+					'reason'              => (string) ( $detail['verification_reason'] ?? $detail['reason'] ?? 'create_failed' ),
+					'created_object_id'   => (int) ( $detail['created_object_id'] ?? 0 ),
+					'created_object_type' => (string) ( $detail['created_object_type'] ?? '' ),
+					'can_edit'            => false,
+				),
+			)
 		);
 	}
 

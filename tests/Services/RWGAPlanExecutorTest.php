@@ -27,6 +27,12 @@ if ( ! function_exists( 'admin_url' ) ) {
 	}
 }
 
+if ( ! function_exists( 'absint' ) ) {
+	function absint( $maybeint ) {
+		return abs( (int) $maybeint );
+	}
+}
+
 if ( ! function_exists( 'get_edit_post_link' ) ) {
 	function get_edit_post_link( $id, $context = 'display' ) {
 		unset( $context );
@@ -61,6 +67,24 @@ if ( ! class_exists( 'RWGC_Targeting_Rule_Set_Schema' ) ) {
 	}
 }
 
+if ( ! class_exists( 'RWGC_Visibility_Rule_CPT' ) ) {
+	class RWGC_Visibility_Rule_CPT {
+		const POST_TYPE     = 'rwgc_visibility_rule';
+		const META_PORTABLE = '_rwgc_portable_targeting';
+	}
+}
+
+if ( ! class_exists( 'RWGC_Admin' ) ) {
+	class RWGC_Admin {
+		/** @var bool */
+		public static $can_manage = true;
+
+		public static function can_manage() {
+			return self::$can_manage;
+		}
+	}
+}
+
 if ( ! class_exists( 'RWGC_Visibility_Rule_Repository' ) ) {
 	/**
 	 * In-memory repository stub.
@@ -81,6 +105,77 @@ if ( ! class_exists( 'RWGC_Visibility_Rule_Repository' ) ) {
 			);
 			return $id;
 		}
+
+		public static function get_post( $post_id ) {
+			$post_id = (int) $post_id;
+			if ( $post_id <= 0 || ! isset( self::$saved[ $post_id ] ) ) {
+				return null;
+			}
+			return (object) array(
+				'ID'        => $post_id,
+				'post_type' => RWGC_Visibility_Rule_CPT::POST_TYPE,
+			);
+		}
+
+		public static function get_rule_set( $post_id ) {
+			$post_id = (int) $post_id;
+			if ( $post_id <= 0 || ! isset( self::$saved[ $post_id ] ) ) {
+				return null;
+			}
+			$raw = self::$saved[ $post_id ]['portable'];
+			if ( is_string( $raw ) ) {
+				$decoded = json_decode( $raw, true );
+				return RWGC_Targeting_Rule_Set_Schema::sanitize( $decoded );
+			}
+			return RWGC_Targeting_Rule_Set_Schema::sanitize( $raw );
+		}
+
+		public static function get_edit_url( $post_id ) {
+			$post_id = (int) $post_id;
+			if ( $post_id <= 0 || ! self::get_post( $post_id ) ) {
+				return '';
+			}
+			return admin_url( 'admin.php?page=rwgc-visibility-rules&rwgc_edit=' . $post_id );
+		}
+
+		public static function can_current_user_manage_rule( $post_id ) {
+			return RWGC_Admin::can_manage() && null !== self::get_post( $post_id );
+		}
+
+		public static function assistant_rule_verification( $post_id ) {
+			$post_id = (int) $post_id;
+			$out     = array(
+				'valid'        => false,
+				'post_id'      => $post_id,
+				'post_type'    => '',
+				'can_edit'     => false,
+				'has_rule_set' => false,
+				'edit_url'     => '',
+				'reason'       => '',
+			);
+			$post = self::get_post( $post_id );
+			if ( ! $post ) {
+				$out['reason'] = 'not_visibility_rule';
+				return $out;
+			}
+			$out['post_type']    = RWGC_Visibility_Rule_CPT::POST_TYPE;
+			$set                 = self::get_rule_set( $post_id );
+			$out['has_rule_set'] = is_array( $set ) && ! empty( $set['rules'] );
+			$out['can_edit']     = self::can_current_user_manage_rule( $post_id );
+			$out['edit_url']     = $out['can_edit'] ? self::get_edit_url( $post_id ) : '';
+			$out['valid']        = $out['has_rule_set'] && $out['can_edit'] && '' !== $out['edit_url'];
+			if ( ! $out['has_rule_set'] ) {
+				$out['reason'] = 'empty_rule_set';
+			} elseif ( ! $out['can_edit'] ) {
+				$out['reason'] = 'not_editable';
+			}
+			return $out;
+		}
+
+		public static function delete( $post_id ) {
+			unset( self::$saved[ (int) $post_id ] );
+			return true;
+		}
 	}
 }
 
@@ -95,6 +190,7 @@ class RWGAPlanExecutorTest extends TestCase {
 	protected function setUp(): void {
 		RWGC_Visibility_Rule_Repository::$saved   = array();
 		RWGC_Visibility_Rule_Repository::$next_id = 100;
+		RWGC_Admin::$can_manage                   = true;
 	}
 
 	public function test_applier_resolves_choose_ignore_and_remove() {
@@ -284,6 +380,48 @@ class RWGAPlanExecutorTest extends TestCase {
 
 		$this->assertCount( 1, $result['created_rules'] );
 		$this->assertCount( 1, RWGC_Visibility_Rule_Repository::$saved );
+		$this->assertStringContainsString( 'rwgc-visibility-rules', (string) $result['created_rules'][0]['edit_url'] );
+		$this->assertTrue( ! empty( $result['created_rules'][0]['verified'] ) );
+	}
+
+	public function test_executor_edit_url_uses_geo_core_rule_editor() {
+		$actions = array(
+			array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'target'     => array( 'type' => 'popup', 'label' => 'Free Delivery' ),
+				'operation'  => array( 'visibility' => 'only_show' ),
+				'conditions' => array(
+					'include' => array( 'countries' => array( 'IE' ) ),
+					'exclude' => array(),
+				),
+			),
+		);
+		$result = RWGA_Plan_Executor::execute_plan( $actions );
+		$this->assertCount( 1, $result['created_rules'] );
+		$url = (string) $result['created_rules'][0]['edit_url'];
+		$this->assertStringContainsString( 'admin.php?page=rwgc-visibility-rules', $url );
+		$this->assertStringContainsString( 'rwgc_edit=', $url );
+		$this->assertStringNotContainsString( 'post.php?post=', $url );
+	}
+
+	public function test_executor_deletes_unverified_rule() {
+		RWGC_Admin::$can_manage = false;
+		$actions = array(
+			array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'target'     => array( 'type' => 'page', 'label' => 'home' ),
+				'operation'  => array( 'visibility' => 'only_show' ),
+				'conditions' => array(
+					'include' => array( 'countries' => array( 'IE' ) ),
+					'exclude' => array(),
+				),
+			),
+		);
+		$result = RWGA_Plan_Executor::execute_plan( $actions );
+		RWGC_Admin::$can_manage = true;
+		$this->assertSame( array(), $result['created_rules'] );
+		$this->assertCount( 1, $result['needs_attention'] );
+		$this->assertSame( array(), RWGC_Visibility_Rule_Repository::$saved );
 	}
 
 	public function test_executor_reports_needs_attention_when_no_conditions() {

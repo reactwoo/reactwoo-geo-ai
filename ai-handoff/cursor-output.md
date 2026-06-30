@@ -1,46 +1,20 @@
-# Cursor output
+# Cursor output — Geo AI execute rule link fix
 
 ## Status
-
 done
 
-## Summary
-
-Implemented the full create-rule **resolve → ready → create → success** journey for Geo Assistant.
-
 ## Files changed
+- `includes/services/executor/class-rwga-plan-executor.php` — verify created `rwgc_visibility_rule`, Geo Core editor URL, delete failed partial rules
+- `includes/services/class-rwga-assistant-service.php` — `rule_create_failed` WP_Error, top-level `rule_id` / `edit_url` on success
+- `tests/Services/RWGAPlanExecutorTest.php` — repository verification stubs + edit URL / cleanup tests
+- `reactwoo-geo-ai.php`, `readme.txt` — v0.4.133
 
-### reactwoo-geo-ai
-- `includes/services/class-rwga-assistant-service.php` — `execute()` now applies client resolutions before validation; added `validate_plan_actions_for_execute()` with `unresolved` labels in errors; learning event includes `resolved_fields`.
-- `includes/services/planner/class-rwga-planner-action-card-builder.php` — `can_execute` on action cards.
-- `includes/services/executor/class-rwga-assistant-executor-bridge.php` — passes assistant source metadata to plan executor.
-- `includes/services/executor/class-rwga-plan-executor.php` — stores `_rwga_assistant_source` post meta on created rules.
-- `tests/Services/RWGAGeoAssistantPlannerTest.php` — create-rule journey tests (initial / popup resolved / fully ready).
-- `tests/Services/RWGAAssistantExecuteValidationTest.php` — execute validation accept/reject tests.
-
-### reactwoo-geocore
-- `admin/js/rwgc-targeting-assistant.js` — popup target resolver drawer, resolver field order (target then Google Ads), `recalculateClientActionState`, Resolution Hub ready labels include resolved popup, Create rule calls execute with resolutions, post-create success UI.
-- `includes/class-rwgc-admin.php` — new i18n strings for resolver/success states.
-- `tests/Admin/RWGCTargetingAssistantUiRegressionTest.php` — regression guards for resolver journey wiring.
-
-## What was not changed
-
-- Parser / planner interpretation logic (unless tests required fixes — none needed).
-- `confirm-interpretation` endpoint (card plans now execute directly with `card_resolutions` on execute).
+## Not changed
+- Parser/planner, popup REST, Google Ads mapping, condition converter types
 
 ## Commands run
+- `composer test -- --filter RWGAPlanExecutor` — OK (10 tests)
 
-```bash
-cd reactwoo-geo-ai && composer test -- --filter "RWGAAssistantExecuteValidationTest|test_create_rule_journey"
-# OK — 5 tests
-
-cd reactwoo-geo-ai && composer test -- --filter RWGAAssistantExecuteValidationTest
-# OK — 2 tests
-
-cd reactwoo-geo-ai && composer test -- --filter "test_create_rule_journey"
-# OK — 3 tests
-```
-
-## Remaining errors
-
-None from automated tests. Manual browser pass recommended for drawer UX and rule creation on Local.
+## Remaining
+- Staging: upgrade Geo Core **1.8.100** + Geo AI **0.4.133**; retest Free Delivery create flow
+- Post **13532** on staging: inspect with WP-CLI before manual delete (pre-fix orphan)
