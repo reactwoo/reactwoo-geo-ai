@@ -23,8 +23,6 @@ class RWGA_Plan_Executor {
 	 * @return array<string,mixed>
 	 */
 	public static function execute_plan( array $actions, array $context = array() ) {
-		unset( $context );
-
 		$created  = array();
 		$manual   = array();
 		$preview  = array();
@@ -137,7 +135,12 @@ class RWGA_Plan_Executor {
 			return 0;
 		}
 
-		$post_id = (int) RWGC_Visibility_Rule_Repository::save( $label, 'draft', $set, 0 );
+		$portable_json = is_string( $set ) ? $set : wp_json_encode( $set );
+		if ( ! is_string( $portable_json ) || '' === $portable_json ) {
+			return 0;
+		}
+
+		$post_id = (int) RWGC_Visibility_Rule_Repository::save( $label, 'draft', $portable_json, 0 );
 
 		if ( $post_id > 0 && function_exists( 'update_post_meta' ) ) {
 			$source_meta = array(

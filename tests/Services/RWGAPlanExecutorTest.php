@@ -246,6 +246,44 @@ class RWGAPlanExecutorTest extends TestCase {
 		$this->assertCount( 1, $result['manual_steps'], 'Variant action needs a manual step.' );
 		$this->assertCount( 1, $result['preview_only'], 'Test action is preview only.' );
 		$this->assertCount( 2, RWGC_Visibility_Rule_Repository::$saved );
+		foreach ( RWGC_Visibility_Rule_Repository::$saved as $row ) {
+			$this->assertIsString( $row['portable'] );
+			$this->assertStringStartsWith( '{', $row['portable'] );
+		}
+	}
+
+	public function test_executor_uses_execution_context_without_fatal() {
+		$actions = array(
+			array(
+				'type'       => RWGA_Geo_Action_Types::CREATE_RULE,
+				'target'     => array(
+					'type'          => 'popup',
+					'label'         => 'Free Delivery',
+					'user_resolved' => array(
+						'id'   => '99',
+						'name' => 'Free Delivery',
+						'type' => 'popup',
+					),
+				),
+				'operation'  => array( 'visibility' => 'only_show' ),
+				'conditions' => array(
+					'include' => array( 'countries' => array( 'IE', 'GB' ) ),
+					'exclude' => array( 'countries' => array( 'FR', 'DE' ) ),
+				),
+			),
+		);
+
+		$result = RWGA_Plan_Executor::execute_plan(
+			$actions,
+			array(
+				'proposal_id'           => 'proposal_test_1',
+				'source_phrase'         => 'Create a rule for the Free Delivery popup.',
+				'interpretation_source' => 'local_parser',
+			)
+		);
+
+		$this->assertCount( 1, $result['created_rules'] );
+		$this->assertCount( 1, RWGC_Visibility_Rule_Repository::$saved );
 	}
 
 	public function test_executor_reports_needs_attention_when_no_conditions() {
